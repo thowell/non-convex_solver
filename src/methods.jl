@@ -31,7 +31,7 @@ function fraction_to_boundary_bnds(x,xl,xu,d,α,τ)
     return ((xu-(x + α*d)) >= (1 - τ)*(xu-x)) && (((x + α*d)-xl) >= (1 - τ)*(x-xl))
 end
 
-function z_reset(z,x,μ,κΣ)
+function reset_z(z,x,μ,κΣ)
     z⁺ = max(min(z,κΣ*μ/x),μ/(κΣ*x))
     return z⁺
 end
@@ -48,9 +48,11 @@ function sufficient_progress(θ⁺,θ,φ⁺,φ,γθ,γφ)
     return (θ⁺ <= (1-γθ)*θ || φ⁺ <= φ - γφ*θ)
 end
 
-function update_α_min(d,θ,∇φ,δ,γα,γθ,γφ,sθ,sφ)
-    if ∇φ'*d < 0.
+function update_α_min(d,θ,∇φ,θ_min,δ,γα,γθ,γφ,sθ,sφ)
+    if ∇φ'*d < 0. && θ <= θ_min
         α_min = γα*min(γθ,γφ*θ/(-∇φ'*d),δ*(θ^sθ)/(-∇φ'*d)^sφ)
+    elseif ∇φ'*d < 0. && θ > θ_min
+        α_min = γα*min(γθ,γφ*θ/(-∇φ'*d))
     else
         α_min = γα*γθ
     end
