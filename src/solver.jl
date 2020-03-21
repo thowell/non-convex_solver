@@ -137,14 +137,14 @@ function Solver(x0,n,m,xl,xu,f_func,c_func; opts=opts{Float64}())
         θ,θ_min,θ_max,sd,sc,filter,j,k,p,opts)
 end
 
-function eval_Eμ(s::Solver)
+function eval_Eμ(μ,s::Solver)
     s.c .= s.c_func(s.x)
     s.∇f .= s.∇f_func(s.x)
     s.A .= s.∇c_func(s.x)
     s.∇L .= s.∇f + s.A'*s.λ
     s.∇L[s.xl_bool] .-= s.zl
     s.∇L[s.xu_bool] .+= s.zu
-    return eval_Eμ(s.x,s.λ,s.zl,s.zu,s.xl,s.xu,s.xl_bool,s.xu_bool,s.c,s.∇L,s.μ,
+    return eval_Eμ(s.x,s.λ,s.zl,s.zu,s.xl,s.xu,s.xl_bool,s.xu_bool,s.c,s.∇L,μ,
         s.sd,s.sc)
 end
 
@@ -253,6 +253,9 @@ function check_step(s::Solver)
     θ⁺ = θ(s.x + s.α*s.d[1:s.n],s)
     φ⁺ = barrier(s.x + s.α*s.d[1:s.n],s)
 
+    println("θ⁺: $(θ⁺)")
+    println("φ⁺: $(φ⁺)")
+
     sufficient = false
     if (θ⁺ < s.θ_min && switching_condition(s))
         if armijo(s)
@@ -263,6 +266,7 @@ function check_step(s::Solver)
     end
 
     if sufficient
+        println("filter: $(check_filter(θ⁺,φ⁺,s))")
         return check_filter(θ⁺,φ⁺,s)
     else
         return false
@@ -304,24 +308,22 @@ function update_τ!(s::Solver)
     return nothing
 end
 
-
 function solve!(s::Solver)
     println("--solve initiated--")
     θ0 = θ(s.x,s)
     φ0 = barrier(s.x,s)
 
-    push!(s.filter,(θ0,φ0))
+    push!(s.filter,(θ0,Inf))
 
     println("φ0: $φ0, θ0: $θ0")
-    # while eval_Eμ(s) > s.opts.ϵ_tol
-        while eval_Eμ(s) > s.opts.κϵ*s.μ
-            println("Eμ0: $(eval_Eμ(s))")
+    println("Eμ0: $(eval_Eμ(s))")
+
+    while eval_Eμ(0.0,s) > s.opts.ϵ_tol
+        while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
             search_direction!(s)
             flag = line_search(s)
-
-            println("line search: $flag")
             update!(s)
-
+            println("line search: $flag")
             println("Eμ: $(eval_Eμ(s))")
 
             s.k += 1
@@ -330,13 +332,14 @@ function solve!(s::Solver)
             end
         end
         s.k = 0
+        s.j += 1
+
         update_μ!(s)
         update_τ!(s)
 
         empty!(s.filter)
-        push!(s.filter,(θ(s.x,s),barrier(s.x,s)))
-
-    # end
+        push!(s.filter,(θ(s.x,s),Inf))
+    end
 end
 
 n = 10
@@ -351,9 +354,4 @@ f_func(x) = x'*x
 c_func(x) = x[1:m] .- 1.2
 
 s = Solver(x0,n,m,xl,xu,f_func,c_func; opts=Options{Float64}())
-
 solve!(s)
-s.μ
-update_μ!(s)
-s.τ
-update_τ!(s)
