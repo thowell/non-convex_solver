@@ -46,6 +46,7 @@ mutable struct Solver{T}
     α_max::T
     α_min::T
     α_soc::T
+    β::T
 
     update::Symbol
 
@@ -68,6 +69,7 @@ mutable struct Solver{T}
     k::Int
     l::Int
     p::Int
+    t::Int
 
     opts::Options{T}
 end
@@ -131,6 +133,7 @@ function Solver(x0,n,m,xl,xu,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     α_max = 1.0
     α_min = 1.0
     α_soc = 1.0
+    β = 1.0
 
     update = :nominal
 
@@ -156,10 +159,11 @@ function Solver(x0,n,m,xl,xu,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     k = 0
     l = 0
     p = 0
+    t = 0
 
     Solver(x,xl,xu,xl_bool,xu_bool,x_soc,λ,zl,zu,n,nl,nu,m,f_func,∇f_func,c_func,
         ∇c_func,H,h,W,Σl,Σu,A,∇f,∇φ,∇L,c,c_soc,d,d_soc,dzl,dzu,μ,α,αz,α_max,α_min,
-        α_soc,update,τ,δw,δc,θ,θ_min,θ_max,θ_soc,sd,sc,filter,j,k,l,p,opts)
+        α_soc,β,update,τ,δw,δc,θ,θ_min,θ_max,θ_soc,sd,sc,filter,j,k,l,p,t,opts)
 end
 
 function eval_Eμ(μ,s::Solver)
@@ -171,6 +175,16 @@ function eval_Eμ(μ,s::Solver)
     s.∇L[s.xu_bool] .+= s.zu
     return eval_Eμ(s.x,s.λ,s.zl,s.zu,s.xl,s.xu,s.xl_bool,s.xu_bool,s.c,s.∇L,μ,
         s.sd,s.sc)
+end
+
+function eval_Fμ(x,λ,zl,zu,s::Solver)
+    s.c .= s.c_func(x)
+    s.∇f .= s.∇f_func(x)
+    s.A .= s.∇c_func(x)
+    s.∇L .= s.∇f + s.A'*λ
+    s.∇L[s.xl_bool] .-= zl
+    s.∇L[s.xu_bool] .+= zu
+    return eval_Fμ(x,λ,zl,zu,s.xl,s.xu,s.xl_bool,s.xu_bool,s.c,s.∇L,s.μ)
 end
 
 function search_direction!(s::Solver)
@@ -231,15 +245,6 @@ function α_max!(s::Solver)
     end
     s.α = copy(s.α_max)
 
-    # s.αz = 1.0
-    # while !fraction_to_boundary([s.zl;s.zu],[s.dzl;s.dzu],s.αz,s.τ)
-    #     s.αz *= 0.5
-    #     println("αz = $(s.αz)")
-    #     if s.αz < s.α_min
-    #         error("αz < α_min")
-    #     end
-    # end
-
     αzl = 1.0
     while !fraction_to_boundary(s.zl,s.dzl,αzl,s.τ)
         αzl *= 0.5
@@ -259,6 +264,36 @@ function α_max!(s::Solver)
     end
 
     s.αz = min(αzl,αzu)
+
+    return nothing
+end
+
+function β_max!(s::Solver)
+
+    s.β = 1.0
+    while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.d[1:s.n],s.β,s.τ)
+        s.β *= 0.5
+        println("β = $(s.β)")
+        if s.β < 1.0e-32
+            error("β < 1e-32 ")
+        end
+    end
+
+    while !fraction_to_boundary(s.zl,s.dzl,s.β,s.τ)
+        s.β *= 0.5
+        println("β = $(s.β)")
+        if s.β < 1.0e-32
+            error("β < 1e-32 ")
+        end
+    end
+
+    while !fraction_to_boundary(s.zu,s.dzu,s.β,s.τ)
+        s.β *= 0.5
+        println("β = $(s.β)")
+        if s.β < 1.0e-32
+            error("β < 1e-32 ")
+        end
+    end
 
     return nothing
 end
@@ -290,8 +325,9 @@ function check_filter(θ,φ,s::Solver)
     println("θ: $θ")
     println("φ: $φ")
     for f in s.filter
-        println("f: ($(f[1]),$(f[2]))")
-        if θ < (1.0 - s.opts.γθ)*f[1] || φ < f[2] - s.opts.γφ*f[1]
+        println("f(θ,φ): ($(f[1]),$(f[2]))")
+        if θ < f[1] || φ < f[2]
+        # if θ < (1.0 - s.opts.γθ)*f[1] || φ < f[2] - s.opts.γφ*f[1]
             cnt += 1
         end
     end
@@ -311,6 +347,7 @@ function add_to_filter!(p,s::Solver)
         return nothing
     end
 
+    # check that new point is not dominated
     len = length(f)
     for _p in f
         if p[1] >= _p[1] && p[2] >= _p[2]
@@ -318,12 +355,13 @@ function add_to_filter!(p,s::Solver)
         end
     end
 
+    # remove filter's points dominated by new point
     if length(f) == len
         _f = copy(f)
         empty!(f)
         push!(f,p)
         for _p in _f
-            if _p[1] < p[1] || _p[2] < p[2]
+            if !(_p[1] >= p[1] && _p[2] >= p[2])
                 push!(f,_p)
             end
         end
@@ -415,6 +453,17 @@ function second_order_correction(s::Solver)
     end
 end
 
+function check_kkt_error(s::Solver)
+    Fμ = norm(eval_Fμ(s.x,s.λ,s.zl,s.zu,s),1)
+    Fμ⁺ = norm(eval_Fμ(s.x + s.β*s.d[1:s.n], s.λ + s.β*s.d[s.n .+ (1:s.m)],
+        s.zl + s.β*s.dzl, s.zu + s.β*s.dzu,s),1)
+
+    println("Fμ: $(Fμ)")
+    println("Fμ⁺: $(Fμ⁺)")
+    println("kkt error: $((Fμ⁺ <= Fμ))")
+    return (Fμ⁺ <= s.opts.κF*Fμ)
+end
+
 function line_search(s::Solver)
     α_max!(s)
     s.l = 0
@@ -451,6 +500,30 @@ function line_search(s::Solver)
     end
 
     if !status
+        println("RESTORATION mode")
+        s.t = 0
+        β_max!(s)
+
+        while check_kkt_error(s)
+            println("t: $(s.t)")
+            if check_filter(θ(s.x + s.β*s.d[1:s.n],s),barrier(s.x + s.β*s.d[1:s.n],s),s::Solver)
+                s.α = s.β
+                s.αzl = s.β
+                s.αzu = s.β
+                println("KKT error reduction: success")
+                return true
+            else
+                s.t += 1
+                s.x .= s.x + s.β*s.d[1:s.n]
+                s.λ .= s.λ + s.β*s.d[s.n .+ (1:s.m)]
+                s.zl .= s.zl + s.β*s.dzl
+                s.zu .= s.zu + s.β*s.dzu
+
+                search_direction!(s)
+                β_max!(s)
+            end
+        end
+
         error("implement feasibility restoration")
     end
 
@@ -512,6 +585,7 @@ function solve!(s::Solver)
             search_direction!(s)
             line_search(s)
             update!(s)
+
             s.k += 1
             if s.k > 100
                 error("max iterations")

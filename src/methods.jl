@@ -13,6 +13,11 @@ function eval_Eμ(x,λ,zl,zu,xl,xu,xl_bool,xu_bool,c,∇L,μ,sd,sc)
     return Eμ
 end
 
+function eval_Fμ(x,λ,zl,zu,xl,xu,xl_bool,xu_bool,c,∇L,μ)
+    Fμ = [∇L; c; (x-xl)[xl_bool].*zl .- μ; (xu-x)[xu_bool].*zu .- μ]
+    return Fμ
+end
+
 function update_μ(μ,κμ,θμ,ϵ_tol)
     μ⁺ = max(ϵ_tol/10.,min(κμ*μ,μ^θμ))
     return μ⁺
