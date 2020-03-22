@@ -24,11 +24,11 @@ function update_τ(μ,τ_min)
 end
 
 function fraction_to_boundary(x,d,α,τ)
-    return (x + α*d >= (1 - τ)*x)
+    return all(x + α*d .>= (1 - τ)*x)
 end
 
 function fraction_to_boundary_bnds(x,xl,xu,d,α,τ)
-    return ((xu-(x + α*d)) >= (1 - τ)*(xu-x)) && (((x + α*d)-xl) >= (1 - τ)*(x-xl))
+    return all((xu-(x + α*d)) .>= (1 - τ)*(xu-x)) && all(((x + α*d)-xl) .>= (1 - τ)*(x-xl))
 end
 
 function reset_z(z,x,μ,κΣ)

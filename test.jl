@@ -1,7 +1,7 @@
 include("src/interior_point.jl")
 
-n = 10
-m = 5
+n = 20
+m = 10
 x0 = rand(n)
 xl = -Inf*ones(n)
 xl[1] = -10.

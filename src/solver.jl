@@ -285,12 +285,50 @@ function armijo(x⁺,s::Solver)
 end
 
 function check_filter(θ,φ,s::Solver)
+    len = length(s.filter)
+    cnt = 0
+    println("θ: $θ")
+    println("φ: $φ")
     for f in s.filter
-        if θ < f[1] || φ < f[2]
-            return true
+        println("f: ($(f[1]),$(f[2]))")
+        if θ < (1.0 - s.opts.γθ)*f[1] || φ < f[2] - s.opts.γφ*f[1]
+            cnt += 1
         end
     end
-    return false
+    println("cnt: $cnt")
+    println("len: $len")
+    if cnt == len
+        return true
+    else
+        return false
+    end
+end
+
+function add_to_filter!(p,s::Solver)
+    f = s.filter
+    if isempty(f)
+        push!(f,p)
+        return nothing
+    end
+
+    len = length(f)
+    for _p in f
+        if p[1] >= _p[1] && p[2] >= _p[2]
+            len -= 1
+        end
+    end
+
+    if length(f) == len
+        _f = copy(f)
+        empty!(f)
+        push!(f,p)
+        for _p in _f
+            if _p[1] < p[1] || _p[2] < p[2]
+                push!(f,_p)
+            end
+        end
+    end
+    return nothing
 end
 
 function augment_filter!(s::Solver)
@@ -305,7 +343,7 @@ function augment_filter!(s::Solver)
     φ⁺ = barrier(x⁺,s)
 
     if !switching_condition(s) || !armijo(x⁺,s)
-        push!(s.filter,(θ⁺,φ⁺))
+        add_to_filter!((θ⁺,φ⁺),s)
     end
 
     return nothing
@@ -369,8 +407,10 @@ function second_order_correction(s::Solver)
     end
 
     if s.update == :soc
+        println("second order correction: success")
         return true
     else
+        println("second order correction: failure")
         return false
     end
 end
@@ -470,15 +510,16 @@ function solve!(s::Solver)
     while eval_Eμ(0.0,s) > s.opts.ϵ_tol
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
             search_direction!(s)
-            flag = line_search(s)
+            line_search(s)
             update!(s)
-            println("line search: $flag")
-            println("Eμ: $(eval_Eμ(s.μ,s))")
-
             s.k += 1
             if s.k > 100
-                error("hi")
+                error("max iterations")
             end
+
+            println("iteration (j,k): ($(s.j),$(s.k))")
+            println("Eμ: $(eval_Eμ(s.μ,s))")
+            println("θjk: $(θ(s.x,s)), φjk: $(barrier(s.x,s))\n")
         end
         s.k = 0
         s.j += 1
