@@ -111,3 +111,29 @@ function barrier(x,xl,xu,xl_bool,xu_bool,μ,f_func)
     _sum = f_func(x) - μ*sum(log.((xu - x)[xu_bool])) - μ*sum(log.((x - xl)[xl_bool]))
     return _sum
 end
+
+function set_DR(DR,xr,n)
+    for i = 1:n
+        DR[i,i] = min(1.0,1.0/abs(xr[i]))
+    end
+end
+
+function init_n(c,μ,ρ)
+    n = (μ - ρ*c)/(2.0*ρ) + sqrt(((μ-ρ*c)/(2.0*ρ))^2 + (μ*c)/(2.0*ρ))
+    return n
+end
+
+function init_p(n,c)
+    p = c + n
+    return p
+end
+
+function eval_Eμ_restoration(x,p,n,λ,zl,zu,zp,zn,xl,xu,xl_bool,xu_bool,c,∇L,μ,ρ,sd,sc)
+    Eμ = max(norm([∇L;ρ .- zp - λ;ρ .- zn + λ],Inf)/sd,
+        norm(c,Inf),
+        norm((x-xl)[xl_bool].*zl .- μ,Inf)/sc,
+        norm((xu-x)[xu_bool].*zu .- μ,Inf)/sc,
+        norm(p.*zp .- μ,Inf),
+        norm(n.*zn .- μ,Inf),)
+    return Eμ
+end

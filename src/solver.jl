@@ -71,6 +71,21 @@ mutable struct Solver{T}
     p::Int
     t::Int
 
+    xR::Vector{T}
+    p_res::Vector{T}
+    n_res::Vector{T}
+    zp_res::Vector{T}
+    zn_res::Vector{T}
+    dp::Vector{T}
+    dn::Vector{T}
+    dzp::Vector{T}
+    dzn::Vector{T}
+    Σp::SparseMatrixCSC{T,Int}
+    Σn::SparseMatrixCSC{T,Int}
+    μ_res::T
+    ζ::T
+    DR::SparseMatrixCSC{T,Int}
+
     opts::Options{T}
 end
 
@@ -161,9 +176,26 @@ function Solver(x0,n,m,xl,xu,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     p = 0
     t = 0
 
+    # feasibility restoration
+    xR = zeros(n)
+    p_res = ones(m)
+    n_res = ones(m)
+    zp_res = ones(m)
+    zn_res = ones(m)
+    dp = ones(m)
+    dn = ones(m)
+    dzp = ones(m)
+    dzn = ones(m)
+    Σp = spzeros(m,m)
+    Σn = spzeros(m,m)
+    μ_res = copy(opts.μ0)
+    ζ = 1.0
+    DR = spzeros(n,n)
+
     Solver(x,xl,xu,xl_bool,xu_bool,x_soc,λ,zl,zu,n,nl,nu,m,f_func,∇f_func,c_func,
         ∇c_func,H,h,W,Σl,Σu,A,∇f,∇φ,∇L,c,c_soc,d,d_soc,dzl,dzu,μ,α,αz,α_max,α_min,
-        α_soc,β,update,τ,δw,δc,θ,θ_min,θ_max,θ_soc,sd,sc,filter,j,k,l,p,t,opts)
+        α_soc,β,update,τ,δw,δc,θ,θ_min,θ_max,θ_soc,sd,sc,filter,j,k,l,p,t,
+        xR,p_res,n_res,zp_res,zn_res,dp,dn,dzp,dzn,Σp,Σn,μ_res,ζ,DR,opts)
 end
 
 function eval_Eμ(μ,s::Solver)
@@ -175,6 +207,16 @@ function eval_Eμ(μ,s::Solver)
     s.∇L[s.xu_bool] .+= s.zu
     return eval_Eμ(s.x,s.λ,s.zl,s.zu,s.xl,s.xu,s.xl_bool,s.xu_bool,s.c,s.∇L,μ,
         s.sd,s.sc)
+end
+
+function eval_Eμ_restoration(μ,s::Solver)
+    s.c .= s.c_func(s.x) - s.p_res + s.n_res
+    s.A .= s.∇c_func(s.x)
+    s.∇L .= s.ζ*s.DR'*s.DR*(s.x - s.xR) + s.A'*s.λ
+    s.∇L[s.xl_bool] .-= s.zl
+    s.∇L[s.xu_bool] .+= s.zu
+    return eval_Eμ_restoration(s.x,s.p_res,s.n_res,s.λ,s.zl,s.zu,s.zp_res,s.zn_res,s.xl,s.xu,s.xl_bool,
+        s.xu_bool,s.c,s.∇L,μ,s.opts.ρ,s.sd,s.sc)
 end
 
 function eval_Fμ(x,λ,zl,zu,s::Solver)
@@ -210,7 +252,7 @@ function search_direction!(s::Solver)
 
     s.d .= -s.H\s.h
     s.dzl .= -s.zl./((s.x - s.xl)[s.xl_bool]).*s.d[1:n][s.xl_bool] - s.zl + s.μ./((s.x - s.xl)[s.xl_bool])
-    s.dzu = s.zu./((s.xu - s.x)[s.xu_bool]).*s.d[1:n][s.xu_bool] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
+    s.dzu .= s.zu./((s.xu - s.x)[s.xu_bool]).*s.d[1:n][s.xu_bool] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
     return nothing
 end
 
@@ -245,25 +287,88 @@ function α_max!(s::Solver)
     end
     s.α = copy(s.α_max)
 
-    αzl = 1.0
-    while !fraction_to_boundary(s.zl,s.dzl,αzl,s.τ)
-        αzl *= 0.5
-        println("αzl = $(αzl)")
-        if αzl < s.α_min
+    s.αz = 1.0
+    while !fraction_to_boundary(s.zl,s.dzl,s.αz,s.τ)
+        s.αz *= 0.5
+        println("αzl = $(s.αz)")
+        if s.αz < s.α_min
             error("αzl < α_min")
         end
     end
 
-    αzu = 1.0
-    while !fraction_to_boundary(s.zu,s.dzu,αzu,s.τ)
-        αzu *= 0.5
-        println("αzu = $(αzu)")
-        if αzu < s.α_min
+    while !fraction_to_boundary(s.zu,s.dzu,s.αz,s.τ)
+        s.αz *= 0.5
+        println("αzu = $(s.αz)")
+        if s.αz < s.α_min
             error("αzu < α_min")
         end
     end
 
-    s.αz = min(αzl,αzu)
+    return nothing
+end
+
+function α_max_restoration!(s::Solver)
+
+    s.α_max = 1.0
+    while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.d[1:s.n],s.α_max,s.τ)
+        s.α_max *= 0.5
+        println("α = $(s.α_max)")
+        if s.α_max < s.α_min
+            error("α < α_min")
+        end
+    end
+
+    # p
+    while !fraction_to_boundary(s.p_res,s.dp,s.α_max,s.τ)
+        s.α_max *= 0.5
+        println("α = $(s.α_max)")
+        if s.α_max < s.α_min
+            error("α < α_min")
+        end
+    end
+
+    # n
+    while !fraction_to_boundary(s.n_res,s.dn,s.α_max,s.τ)
+        s.α_max *= 0.5
+        println("α = $(s.α_max)")
+        if s.α_max < s.α_min
+            error("α < α_min")
+        end
+    end
+    s.α = copy(s.α_max)
+
+    s.αz = 1.0
+    while !fraction_to_boundary(s.zl,s.dzl,s.αz,s.τ)
+        s.αz *= 0.5
+        println("αzl = $(s.αz)")
+        if s.αz < s.α_min
+            error("αzl < α_min")
+        end
+    end
+
+    while !fraction_to_boundary(s.zu,s.dzu,s.αz,s.τ)
+        s.αz *= 0.5
+        println("αzu = $(s.αz)")
+        if s.αz < s.α_min
+            error("αzu < α_min")
+        end
+    end
+
+    while !fraction_to_boundary(s.zp_res,s.dzp,s.αz,s.τ)
+        s.αz *= 0.5
+        println("αzp = $(s.αz)")
+        if s.αz < s.α_min
+            error("αzp < α_min")
+        end
+    end
+
+    while !fraction_to_boundary(s.zn_res,s.dzn,s.αz,s.τ)
+        s.αz *= 0.5
+        println("αzn = $(s.αz)")
+        if s.αz < s.α_min
+            error("αzn < α_min")
+        end
+    end
 
     return nothing
 end
@@ -499,37 +604,45 @@ function line_search(s::Solver)
         s.l += 1
     end
 
-    if !status
-        println("RESTORATION mode")
-        s.t = 0
-        β_max!(s)
+    return status
+end
 
-        while check_kkt_error(s)
-            println("t: $(s.t)")
-            if check_filter(θ(s.x + s.β*s.d[1:s.n],s),barrier(s.x + s.β*s.d[1:s.n],s),s::Solver)
-                s.α = s.β
-                s.αzl = s.β
-                s.αzu = s.β
-                println("KKT error reduction: success")
-                return true
-            else
-                s.t += 1
-                s.x .= s.x + s.β*s.d[1:s.n]
-                s.λ .= s.λ + s.β*s.d[s.n .+ (1:s.m)]
-                s.zl .= s.zl + s.β*s.dzl
-                s.zu .= s.zu + s.β*s.dzu
+function restoration!(s::Solver)
+    println("RESTORATION mode")
+    status = false
+    s.t = 0
+    β_max!(s)
 
-                search_direction!(s)
-                β_max!(s)
-            end
+    while check_kkt_error(s)
+        println("t: $(s.t)")
+        if check_filter(θ(s.x + s.β*s.d[1:s.n],s),barrier(s.x + s.β*s.d[1:s.n],s),s::Solver)
+            s.α = s.β
+            s.αzl = s.β
+            s.αzu = s.β
+            println("KKT error reduction: success")
+            status = true
+            return
+        else
+            s.t += 1
+            s.x .= s.x + s.β*s.d[1:s.n]
+            s.λ .= s.λ + s.β*s.d[s.n .+ (1:s.m)]
+            s.zl .= s.zl + s.β*s.dzl
+            s.zu .= s.zu + s.β*s.dzu
+
+            search_direction!(s)
+            β_max!(s)
         end
-
-        error("implement feasibility restoration")
     end
 
-    augment_filter!(s)
-
-    return true
+    if status
+        return status
+    else
+        initialize_feasibility_restoration!(s)
+        search_direction_restoration!(s)
+        eval_Eμ_restoration(s.μ_res,s)
+        α_max_restoration!(s)
+        error("implement feasibility restoration")
+    end
 end
 
 function update_μ!(s::Solver)
@@ -539,6 +652,74 @@ end
 
 function update_τ!(s::Solver)
     s.τ = update_τ(s.μ,s.opts.τ_min)
+    return nothing
+end
+
+function set_DR!(s::Solver)
+    set_DR(s.DR,s.x,s.n)
+    return nothing
+end
+
+function init_n!(s::Solver)
+    s.c .= s.c_func(s.x)
+    for i = 1:s.m
+        s.n_res[i] = init_n(s.c[i],s.μ_res,s.opts.ρ)
+    end
+    return nothing
+end
+
+function init_p!(s::Solver)
+    s.c .= s.c_func(s.x)
+    for i = 1:s.m
+        s.p_res[i] = init_p(s.n_res[i],s.c[i])
+    end
+    return nothing
+end
+
+function initialize_feasibility_restoration!(s::Solver)
+    s.xR .= copy(s.x)
+    s.λ .= 0.
+    s.zl .= min.(s.opts.ρ,s.zl)
+    s.zu .= min.(s.opts.ρ,s.zu)
+    set_DR!(s)
+    s.μ_res = max(s.μ,norm(s.c_func(s.x),Inf))
+    s.ζ = sqrt(s.μ_res)
+    init_n!(s)
+    init_p!(s)
+    s.zp_res .= s.μ_res./s.p_res
+    s.zn_res .= s.μ_res./s.n_res
+    return nothing
+end
+
+function search_direction_restoration!(s::Solver)
+    ∇L(x) = s.∇c_func(x)'*s.λ
+    s.W .= ForwardDiff.jacobian(∇L,s.x)
+    s.Σl[CartesianIndex.((1:s.n)[s.xl_bool],(1:s.n)[s.xl_bool])] .= s.zl./((s.x - s.xl)[s.xl_bool])
+    s.Σu[CartesianIndex.((1:s.n)[s.xu_bool],(1:s.n)[s.xu_bool])] .= s.zu./((s.xu - s.x)[s.xu_bool])
+
+    s.c .= s.c_func(s.x)
+    s.A .= s.∇c_func(s.x)
+
+    s.H[1:s.n,1:s.n] .= (s.W + s.Σl + s.Σu)
+    s.H[1:s.n,s.n .+ (1:s.m)] .= s.A'
+    s.H[s.n .+ (1:s.m),1:s.n] .= s.A
+    s.H[CartesianIndex.((s.n .+ (1:s.m)),(s.n .+ (1:s.m)))] .= -s.p_res./s.zp_res - s.n_res./s.zn_res
+
+    s.h[1:s.n] .= s.ζ*s.DR'*s.DR*(s.x - s.xR) + s.A'*s.λ
+    s.h[1:s.n][s.xl_bool] .-= s.μ_res./(s.x - s.xl)[s.xl_bool]
+    s.h[1:s.n][s.xu_bool] .+= s.μ_res./(s.xu - s.x)[s.xu_bool]
+
+    s.h[s.n .+ (1:s.m)] .= s.c - s.p_res + s.n_res + s.opts.ρ*(s.μ_res .- s.p_res)./s.zp_res + s.opts.ρ*(s.μ_res .- s.n_res)./s.zn_res
+
+    s.d .= -s.H\s.h
+    s.dzl .= -s.zl./((s.x - s.xl)[s.xl_bool]).*s.d[1:n][s.xl_bool] - s.zl + s.μ./((s.x - s.xl)[s.xl_bool])
+    s.dzu .= s.zu./((s.xu - s.x)[s.xu_bool]).*s.d[1:n][s.xu_bool] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
+
+    s.dp .= (s.μ_res .+ s.p_res.*(s.λ + s.d[s.n .+ (1:s.m)]) - s.opts.ρ*s.p_res)./s.zp_res
+    s.dn .= (s.μ_res .- s.n_res.*(s.λ + s.d[s.n .+ (1:s.m)]) - s.opts.ρ*s.n_res)./s.zn_res
+    s.dzp .= s.μ_res./s.p_res - s.zp_res - (s.zp_res./s.p_res).*(s.dp)
+    s.dzn .= s.μ_res./s.n_res - s.zn_res - (s.zn_res./s.n_res).*(s.dn)
+
     return nothing
 end
 
@@ -583,7 +764,10 @@ function solve!(s::Solver)
     while eval_Eμ(0.0,s) > s.opts.ϵ_tol
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
             search_direction!(s)
-            line_search(s)
+            if !line_search(s)
+                restoration!(s)
+            end
+            augment_filter!(s)
             update!(s)
 
             s.k += 1
