@@ -127,13 +127,3 @@ function init_p(n,c)
     p = c + n
     return p
 end
-
-function eval_Eμ_restoration(x,p,n,λ,zl,zu,zp,zn,xl,xu,xl_bool,xu_bool,c,∇L,μ,ρ,sd,sc)
-    Eμ = max(norm([∇L;ρ .- zp - λ;ρ .- zn + λ],Inf)/sd,
-        norm(c,Inf),
-        norm((x-xl)[xl_bool].*zl .- μ,Inf)/sc,
-        norm((xu-x)[xu_bool].*zu .- μ,Inf)/sc,
-        norm(p.*zp .- μ,Inf),
-        norm(n.*zn .- μ,Inf),)
-    return Eμ
-end

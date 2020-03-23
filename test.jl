@@ -16,6 +16,3 @@ c_func(x) = x[1:m].^2 .- 1.2
 
 s = Solver(x0,n,m,xl,xu,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}())
 solve!(s)
-
-
-initialize_feasibility_restoration!(s)
