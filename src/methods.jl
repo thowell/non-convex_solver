@@ -112,10 +112,12 @@ function barrier(x,xl,xu,xl_bool,xu_bool,μ,f_func)
     return _sum
 end
 
-function set_DR(DR,xr,n)
+function init_DR(xr,n)
+    DR = spzeros(n,n)
     for i = 1:n
         DR[i,i] = min(1.0,1.0/abs(xr[i]))
     end
+    return DR
 end
 
 function init_n(c,μ,ρ)

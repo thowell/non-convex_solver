@@ -20,8 +20,8 @@ function search_direction!(s::Solver)
     s.h[s.n .+ (1:s.m)] .= s.c
 
     s.d .= -s.H\s.h
-    s.dzl .= -s.zl./((s.x - s.xl)[s.xl_bool]).*s.d[1:n][s.xl_bool] - s.zl + s.μ./((s.x - s.xl)[s.xl_bool])
-    s.dzu .= s.zu./((s.xu - s.x)[s.xu_bool]).*s.d[1:n][s.xu_bool] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
+    s.dzl .= -s.zl./((s.x - s.xl)[s.xl_bool]).*s.d[1:s.n][s.xl_bool] - s.zl + s.μ./((s.x - s.xl)[s.xl_bool])
+    s.dzu .= s.zu./((s.xu - s.x)[s.xu_bool]).*s.d[1:s.n][s.xu_bool] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
     return nothing
 end
 
@@ -43,9 +43,9 @@ function α_max!(s::Solver)
     while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.d[1:s.n],s.α_max,s.τ)
         s.α_max *= 0.5
         println("α = $(s.α_max)")
-        if s.α_max < s.α_min
-            error("α < α_min")
-        end
+        # if s.α_max < s.α_min
+        #     error("α < α_min")
+        # end
     end
     s.α = copy(s.α_max)
 
@@ -53,17 +53,17 @@ function α_max!(s::Solver)
     while !fraction_to_boundary(s.zl,s.dzl,s.αz,s.τ)
         s.αz *= 0.5
         println("αzl = $(s.αz)")
-        if s.αz < s.α_min
-            error("αzl < α_min")
-        end
+        # if s.αz < s.α_min
+        #     error("αzl < α_min")
+        # end
     end
 
     while !fraction_to_boundary(s.zu,s.dzu,s.αz,s.τ)
         s.αz *= 0.5
         println("αzu = $(s.αz)")
-        if s.αz < s.α_min
-            error("αzu < α_min")
-        end
+        # if s.αz < s.α_min
+        #     error("αzu < α_min")
+        # end
     end
 
     return nothing

@@ -71,6 +71,9 @@ mutable struct Solver{T}
     p::Int
     t::Int
 
+    restoration::Bool
+    DR::SparseMatrixCSC{T,Int}
+
     opts::Options{T}
 end
 
@@ -161,10 +164,13 @@ function Solver(x0,n,m,xl,xu,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     p = 0
     t = 0
 
+    restoration = false
+    DR = spzeros(0,0)
 
     Solver(x,xl,xu,xl_bool,xu_bool,x_soc,λ,zl,zu,n,nl,nu,m,f_func,∇f_func,c_func,
         ∇c_func,H,h,W,Σl,Σu,A,∇f,∇φ,∇L,c,c_soc,d,d_soc,dzl,dzu,μ,α,αz,α_max,α_min,
-        α_soc,β,update,τ,δw,δc,θ,θ_min,θ_max,θ_soc,sd,sc,filter,j,k,l,p,t,opts)
+        α_soc,β,update,τ,δw,δc,θ,θ_min,θ_max,θ_soc,sd,sc,filter,j,k,l,p,t,
+        restoration,DR,opts)
 end
 
 function eval_Eμ(μ,s::Solver)

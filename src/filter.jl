@@ -2,17 +2,17 @@
 function check_filter(θ,φ,s::Solver)
     len = length(s.filter)
     cnt = 0
-    println("θ: $θ")
-    println("φ: $φ")
+    # println("θ: $θ")
+    # println("φ: $φ")
     for f in s.filter
-        println("f(θ,φ): ($(f[1]),$(f[2]))")
+        # println("f(θ,φ): ($(f[1]),$(f[2]))")
         if θ < f[1] || φ < f[2]
         # if θ < (1.0 - s.opts.γθ)*f[1] || φ < f[2] - s.opts.γφ*f[1]
             cnt += 1
         end
     end
-    println("cnt: $cnt")
-    println("len: $len")
+    # println("cnt: $cnt")
+    # println("len: $len")
     if cnt == len
         return true
     else

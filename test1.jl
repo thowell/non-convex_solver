@@ -3,7 +3,7 @@ include("src/interior_point.jl")
 n = 3
 m = 2
 x0 = [-2.; 3.; 1.]
-x0 = [0.; 3; 1]
+x0 = [-1.0; 3.0; 1.0]
 
 xl = -Inf*ones(n)
 xl[2] = 0.
@@ -19,3 +19,4 @@ c_func(x) = [x[1]^2 - x[2] - 1.0;
 
 s = Solver(x0,n,m,xl,xu,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}())
 solve!(s)
+s.x

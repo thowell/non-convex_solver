@@ -69,12 +69,14 @@ function solve!(s::Solver)
             search_direction!(s)
             if !line_search(s)
                 restoration!(s)
+                augment_filter_restoration!(s.x,s)
+            else
+                augment_filter!(s)
+                update!(s)
             end
-            augment_filter!(s)
-            update!(s)
 
             s.k += 1
-            if s.k > 100
+            if s.k > 1000
                 error("max iterations")
             end
 
