@@ -32,8 +32,8 @@ function fraction_to_boundary(x,d,α,τ)
     return all(x + α*d .>= (1 - τ)*x)
 end
 
-function fraction_to_boundary_bnds(x,xl,xu,d,α,τ)
-    return all((xu-(x + α*d)) .>= (1 - τ)*(xu-x)) && all(((x + α*d)-xl) .>= (1 - τ)*(x-xl))
+function fraction_to_boundary_bnds(x,xl,xu,xl_bool,xu_bool,d,α,τ)
+    return all((xu-(x + α*d))[xu_bool] .>= (1 - τ)*(xu-x)[xu_bool]) && all(((x + α*d)-xl)[xl_bool] .>= (1 - τ)*(x-xl)[xl_bool])
 end
 
 function reset_z(z,x,μ,κΣ)
@@ -99,7 +99,7 @@ function init_λ(zl,zu,∇f,∇c,n,m,xl_bool,xu_bool,λ_max)
 
     λ = d[n .+ (1:m)]
 
-    if norm(λ,Inf) > λ_max
+    if norm(λ,Inf) > λ_max || any(isnan.(λ))
         @warn "least-squares λ init failure:\n λ_max = $(norm(λ,Inf))"
         return zeros(m)
     else

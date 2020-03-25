@@ -40,7 +40,7 @@ function α_max!(s::Solver)
     α_min!(s)
 
     s.α_max = 1.0
-    while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.d[1:s.n],s.α_max,s.τ)
+    while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.xl_bool,s.xu_bool,s.d[1:s.n],s.α_max,s.τ)
         s.α_max *= 0.5
         println("α = $(s.α_max)")
         # if s.α_max < s.α_min
@@ -72,7 +72,7 @@ end
 function β_max!(s::Solver)
 
     s.β = 1.0
-    while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.d[1:s.n],s.β,s.τ)
+    while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.xl_bool,s.xu_bool,s.d[1:s.n],s.β,s.τ)
         s.β *= 0.5
         println("β = $(s.β)")
         if s.β < 1.0e-32
@@ -107,9 +107,12 @@ function switching_condition(s::Solver)
     return switching_condition(s.∇φ,s.d[1:s.n],s.α,s.opts.sφ,s.opts.δ,s.θ,s.opts.sθ)
 end
 
-function sufficient_progress(s::Solver)
-    return sufficient_progress(θ(s.x + s.α*s.d[1:s.n],s),θ(s.x,s),
-        barrier(s.x + s.α*s.d[1:s.n],s),barrier(s.x,s),s.opts.γθ,s.opts.γφ)
+function sufficient_progress(x⁺,s::Solver)
+    # println("θ⁺: $(θ(x⁺,s)), θ: $(θ(s.x,s))")
+    # println("φ⁺: $(barrier(x⁺,s)), φ: $(barrier(s.x,s))")
+
+    return sufficient_progress(θ(x⁺,s),θ(s.x,s),
+        barrier(x⁺,s),barrier(s.x,s),s.opts.γθ,s.opts.γφ)
 end
 
 function armijo(x⁺,s::Solver)
@@ -137,7 +140,7 @@ function line_search(s::Solver)
                 end
             # case 2
             else
-                if sufficient_progress(s)
+                if sufficient_progress(s.x + s.α*s.d[1:s.n],s)
                     status = true
                     break
                 end
@@ -152,6 +155,8 @@ function line_search(s::Solver)
                 break
             end
         end
+        # s.α *= 0.5
+
         s.l += 1
     end
 
