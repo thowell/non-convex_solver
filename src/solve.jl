@@ -68,9 +68,8 @@ function solve!(s::Solver)
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
             search_direction!(s)
             if !line_search(s)
-                augment_filter!(s)
                 restoration!(s)
-                # augment_filter_restoration!(s.x,s)
+                augment_filter_restoration!(s.x,s)
             else
                 augment_filter!(s)
                 update!(s)

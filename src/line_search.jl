@@ -105,10 +105,10 @@ function search_direction!(s::Solver)
     s.h[1:s.n] .= s.∇φ + s.A'*s.λ
     s.h[s.n .+ (1:s.m)] .= s.c
 
-    # flag = inertia_correction!(s)
+    flag = inertia_correction!(s)
     #
-    # s.d .= -(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))\s.h
-    s.d .= -s.H\s.h
+    s.d .= -(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))\s.h
+    # s.d .= -s.H\s.h
 
     s.dzl .= -s.zl./((s.x - s.xl)[s.xl_bool]).*s.d[(1:s.n)[s.xl_bool]] - s.zl + s.μ./((s.x - s.xl)[s.xl_bool])
     s.dzu .= s.zu./((s.xu - s.x)[s.xu_bool]).*s.d[(1:s.n)[s.xu_bool]] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
@@ -175,7 +175,7 @@ function α_max!(s::Solver)
     s.α_max = 1.0
     while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.xl_bool,s.xu_bool,s.d[1:s.n],s.α_max,s.τ)
         s.α_max *= 0.5
-        println("α = $(s.α_max)")
+        # println("α = $(s.α_max)")
         # if s.α_max < s.α_min
         #     error("α < α_min")
         # end
@@ -185,7 +185,7 @@ function α_max!(s::Solver)
     s.αz = 1.0
     while !fraction_to_boundary(s.zl,s.dzl,s.αz,s.τ)
         s.αz *= 0.5
-        println("αzl = $(s.αz)")
+        # println("αzl = $(s.αz)")
         # if s.αz < s.α_min
         #     error("αzl < α_min")
         # end
@@ -193,7 +193,7 @@ function α_max!(s::Solver)
 
     while !fraction_to_boundary(s.zu,s.dzu,s.αz,s.τ)
         s.αz *= 0.5
-        println("αzu = $(s.αz)")
+        # println("αzu = $(s.αz)")
         # if s.αz < s.α_min
         #     error("αzu < α_min")
         # end
@@ -202,35 +202,35 @@ function α_max!(s::Solver)
     return nothing
 end
 
-function β_max!(s::Solver)
-
-    s.β = 1.0
-    while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.xl_bool,s.xu_bool,s.d[1:s.n],s.β,s.τ)
-        s.β *= 0.5
-        println("β = $(s.β)")
-        if s.β < 1.0e-32
-            error("β < 1e-32 ")
-        end
-    end
-
-    while !fraction_to_boundary(s.zl,s.dzl,s.β,s.τ)
-        s.β *= 0.5
-        println("β = $(s.β)")
-        if s.β < 1.0e-32
-            error("β < 1e-32 ")
-        end
-    end
-
-    while !fraction_to_boundary(s.zu,s.dzu,s.β,s.τ)
-        s.β *= 0.5
-        println("β = $(s.β)")
-        if s.β < 1.0e-32
-            error("β < 1e-32 ")
-        end
-    end
-
-    return nothing
-end
+# function β_max!(s::Solver)
+#
+#     s.β = 1.0
+#     while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.xl_bool,s.xu_bool,s.d[1:s.n],s.β,s.τ)
+#         s.β *= 0.5
+#         println("β = $(s.β)")
+#         if s.β < 1.0e-32
+#             error("β < 1e-32 ")
+#         end
+#     end
+#
+#     while !fraction_to_boundary(s.zl,s.dzl,s.β,s.τ)
+#         s.β *= 0.5
+#         println("β = $(s.β)")
+#         if s.β < 1.0e-32
+#             error("β < 1e-32 ")
+#         end
+#     end
+#
+#     while !fraction_to_boundary(s.zu,s.dzu,s.β,s.τ)
+#         s.β *= 0.5
+#         println("β = $(s.β)")
+#         if s.β < 1.0e-32
+#             error("β < 1e-32 ")
+#         end
+#     end
+#
+#     return nothing
+# end
 
 function switching_condition(s::Solver)
     s.∇φ .= s.∇f_func(s.x)
@@ -280,15 +280,15 @@ function line_search(s::Solver)
             end
         end
 
-        if s.l > 0 || θ(s.x + s.α_max*s.d[1:s.n],s) < θ(s.x,s) || s.restoration == true
-            s.α *= 0.5
-        else
-            if second_order_correction(s)
-                status = true
-                break
-            end
-        end
-        # s.α *= 0.5
+        # if s.l > 0 || θ(s.x + s.α_max*s.d[1:s.n],s) < θ(s.x,s) || s.restoration == true
+        #     s.α *= 0.5
+        # else
+        #     if second_order_correction(s)
+        #         status = true
+        #         break
+        #     end
+        # end
+        s.α *= 0.5
 
         s.l += 1
     end
