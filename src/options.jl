@@ -39,6 +39,8 @@
 
     κ1::T = 1.0e-2
     κ2::T = 1.0e-2
+
+    ϵ_mach::T = 1.0e-16
 end
 
 function Base.copy(o::Options{T}) where T

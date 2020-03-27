@@ -1,63 +1,64 @@
-# function RestorationSolver(s::Solver)
-#     s.c .= s.c_func(s.x)
-#
-#     opts = copy(s.opts)
-#     opts.λ_init_ls = false
-#     opts.μ0 = max(s.μ,norm(s.c,Inf))
-#
-#     n̄ = s.n + 2s.m
-#     m̄ = s.m
-#
-#     x̄ = zeros(n̄)
-#     x̄[1:s.n] .= s.x
-#
-#     # initialize p,n
-#     for i = 1:s.m
-#         x̄[s.n + s.m + i] = init_n(s.c[i],opts.μ0,s.opts.ρ)
-#     end
-#
-#     for i = 1:s.m
-#         x̄[s.n + i] = init_p(x̄[s.n + s.m + i],s.c[i])
-#     end
-#
-#     δ = 0.0
-#     x̄l = zeros(n̄)
-#     x̄l[1:s.n] .= s.xl .+ δ
-#
-#     x̄u = Inf*ones(n̄)
-#     x̄u[1:s.n] .= s.xu .- δ
-#
-#     ζ = sqrt(opts.μ0)
-#     DR = init_DR(s.x,s.n)
-#     xR = copy(s.x)
-#     f_func(x) = s.opts.ρ*(sum(x[s.n .+ (1:2s.m)])) + 0.5*ζ*norm(DR*(x[1:s.n] - xR))^2
-#     ∇f_func(x) = [ζ*DR'*DR*(x[1:s.n] - xR); s.opts.ρ*ones(2s.m)]
-#     # f_func(x) = s.opts.ρ*(x[s.n .+ (1:2s.m)]'*x[s.n .+ (1:2s.m)]) + 0.5*ζ*norm(DR*(x[1:s.n] - s.x))^2
-#     # ∇f_func(x) = [ζ*DR'*DR*(x[1:s.n] - s.x); 2.0*s.opts.ρ*x[s.n .+ (1:2s.m)]]
-#
-#     c_func(x) = s.c_func(x[1:s.n]) - x[s.n .+ (1:s.m)] + x[(s.n+s.m) .+ (1:s.m)]
-#     ∇c_func(x) = [s.∇c_func(x[1:s.n]) -I I]
-#
-#     rs = Solver(x̄,n̄,m̄,x̄l,x̄u,f_func,c_func,∇f_func,∇c_func,opts=opts)
-#
-#     # initialize zl, zu, zp, zn
-#     for i = 1:s.nl
-#         rs.zl[i] = min(opts.ρ,s.zl[i])
-#     end
-#
-#     for i = 1:s.nu
-#         rs.zu[i] = min(opts.ρ,s.zu[i])
-#     end
-#
-#     rs.zl[s.nl .+ (1:2s.m)] .= opts.μ0./rs.x[s.n .+ (1:2s.m)]
-#     # rs.zl[(s.nl+s.m) .+ (1:s.m)] .= opts.μ0./rs.x[(s.n+s.m) .+ (1:s.m)]
-#
-#     rs.DR = DR
-#
-#     rs.restoration = true
-#
-#     return rs
-# end
+function RestorationSolver_slack(s::Solver)
+    s.c .= s.c_func(s.x)
+
+    opts = copy(s.opts)
+    opts.λ_init_ls = true
+    opts.μ0 = max(s.μ,norm(s.c,Inf))
+
+    n̄ = s.n + 1
+    m̄ = 1
+
+    x̄ = zeros(n̄)
+    x̄[1:s.n] .= s.x
+
+    # initialize p,n
+    # for i = 1:s.m
+    #     x̄[s.n + s.m + i] = init_n(s.c[i],opts.μ0,s.opts.ρ)
+    # end
+
+
+    x̄[s.n + 1] = norm(s.c)^2
+
+    δ = 0.0
+    x̄l = zeros(n̄)
+    x̄l[1:s.n] .= s.xl .+ δ
+
+    x̄u = Inf*ones(n̄)
+    x̄u[1:s.n] .= s.xu .- δ
+
+    ζ = sqrt(opts.μ0)
+    DR = init_DR(s.x,s.n)
+    xR = copy(s.x)
+    f_func(x) = s.opts.ρ*x[s.n+1] + 0.5*ζ*norm(DR*(x[1:s.n] - xR))^2
+    ∇f_func(x) = [ζ*DR'*DR*(x[1:s.n] - xR); 1.0*s.opts.ρ]
+    # f_func(x) = s.opts.ρ*(x[s.n .+ (1:2s.m)]'*x[s.n .+ (1:2s.m)]) + 0.5*ζ*norm(DR*(x[1:s.n] - s.x))^2
+    # ∇f_func(x) = [ζ*DR'*DR*(x[1:s.n] - s.x); 2.0*s.opts.ρ*x[s.n .+ (1:2s.m)]]
+
+    c_func(x) = [x[s.n+1] - norm(s.c_func(x[1:s.n]))^2]
+    c_func_d(x) = x[s.n+1] - norm(s.c_func(x[1:s.n]))^2
+
+    ∇c_func(x) = Array(ForwardDiff.gradient(c_func_d,x)')
+
+    rs = Solver(x̄,n̄,m̄,x̄l,x̄u,f_func,c_func,∇f_func,∇c_func,opts=opts)
+
+    # initialize zl, zu, zp, zn
+    for i = 1:s.nl
+        rs.zl[i] = min(opts.ρ,s.zl[i])
+    end
+
+    for i = 1:s.nu
+        rs.zu[i] = min(opts.ρ,s.zu[i])
+    end
+
+    rs.zl[s.nl + 1] = opts.μ0/rs.x[s.n + 1]
+    # rs.zl[(s.nl+s.m) .+ (1:s.m)] .= opts.μ0./rs.x[(s.n+s.m) .+ (1:s.m)]
+
+    rs.DR = DR
+
+    rs.restoration = true
+
+    return rs
+end
 
 function RestorationSolver(s::Solver)
     s.c .= s.c_func(s.x)
@@ -162,7 +163,7 @@ function restoration!(s::Solver)
     if status
         return status
     else
-        rs = RestorationSolver(s)
+        rs = RestorationSolver_slack(s)
         solve_restoration!(rs,s)
 
         println("restoration update result")
@@ -201,10 +202,10 @@ function restoration!(s::Solver)
     end
 end
 
-function update_restoration_objective!(s::Solver,n,xR)
+function update_restoration_objective!(s::Solver,n,m,xR)
     ζ = sqrt(s.μ)
-    f_func(x) = s.opts.ρ*(sum(x[n .+ (1:2s.m)])) + 0.5*ζ*norm(s.DR*(x[1:n] - xR))^2
-    ∇f_func(x) = [ζ*s.DR'*s.DR*(x[1:n] - xR); s.opts.ρ*ones(2s.m)]
+    f_func(x) = s.opts.ρ*x[n +1] + 0.5*ζ*norm(DR*(x[1:n] - xR))^2
+    ∇f_func(x) = [ζ*DR'*DR*(x[1:n] - xR); s.opts.ρ]
 
     s.f_func = f_func
     s.∇f_func = ∇f_func
@@ -225,17 +226,17 @@ function solve_restoration!(s::Solver,sR::Solver)
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ || s.k == 0
             search_direction!(s)
             if !line_search(s)
-                println("restoration restoration")
+                error("restoration restoration")
                 s.c .= sR.c_func(s.x[1:sR.n])
 
-                # initialize p,n
-                for i = 1:s.m
-                    s.x[sR.n + s.m + i] = init_n(s.c[i],s.μ,s.opts.ρ)
-                end
-
-                for i = 1:s.m
-                    s.x[sR.n + i] = init_p(s.x[sR.n + s.m + i],s.c[i])
-                end
+                # # initialize p,n
+                # for i = 1:s.m
+                #     s.x[sR.n + s.m + i] = init_n(s.c[i],s.μ,s.opts.ρ)
+                # end
+                #
+                # for i = 1:s.m
+                #     s.x[sR.n + i] = init_p(s.x[sR.n + s.m + i],s.c[i])
+                # end
 
             end
             augment_filter!(s)
@@ -252,8 +253,8 @@ function solve_restoration!(s::Solver,sR::Solver)
 
             println("iteration (j,k): ($(s.j),$(s.k))")
             println("x: $(s.x[1:sR.n])")
-            println("p: $(s.x[sR.n .+ (1:s.m)])")
-            println("n: $(s.x[(sR.n+s.m) .+ (1:s.m)])")
+            # println("p: $(s.x[sR.n .+ (1:s.m)])")
+            # println("n: $(s.x[(sR.n+s.m) .+ (1:s.m)])")
             println("Eμ: $(eval_Eμ(s.μ,s))")
             println("θjk: $(θ(s.x,s)), φjk: $(barrier(s.x,s))\n")
             println("x: $(s.x[1:sR.n])")
@@ -264,7 +265,7 @@ function solve_restoration!(s::Solver,sR::Solver)
         update_μ!(s)
         update_τ!(s)
 
-        update_restoration_objective!(s,sR.n,copy(sR.x))
+        update_restoration_objective!(s,sR.n,sR.m,copy(sR.x))
 
         empty!(s.filter)
         push!(s.filter,(s.θ_max,Inf))

@@ -1,3 +1,89 @@
+function iterative_refinement(x,A,δ,b; max_iter=10,ϵ=1.0e-8,verbose=false)
+    iter = 0
+    res = b - A*x
+
+    println("res: $res")
+    while iter < max_iter && norm(res,Inf) > ϵ
+        x .+= (A+Diagonal(δ))\res
+        println("x: $x")
+
+        res = b - A*x
+        iter += 1
+    end
+
+    if verbose
+        println("norm(res): $(norm(res))")
+    end
+    return nothing
+end
+
+function inertia_correction!(s::Solver)
+    n = -1
+    m = -1
+    z = -1
+
+    try
+        LDL = ldl(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
+        n = sum(LDL.D .>= s.opts.ϵ_mach)
+        m = sum(LDL.D .<= -s.opts.ϵ_mach)
+        z = s.n+s.m - n - m
+    catch
+
+    end
+    println("n: $n, m: $m, z: $z")
+    # println("d: $(LDL.D)")
+    if n == s.n && m == s.m && z == 0
+        return false
+    end
+
+    if z != 0
+        println("zeros eigen values")
+        s.δc = s.opts.δc*s.μ^s.opts.κc
+    end
+
+    if s.δw_last == 0.
+        s.δw = s.opts.δw0
+    else
+        s.δw = max(s.opts.δw_min,s.opts.κw⁻*s.δw_last)
+    end
+
+    while n != s.n || m != s.m || z != 0
+        println("correcting interia ")
+        # s.H[1:s.n,1:s.n] .= (s.W + s.Σl + s.Σu)
+        # s.H[1:s.n,s.n .+ (1:s.m)] .= s.A'
+        # s.H[s.n .+ (1:s.m),1:s.n] .= s.A
+        # s.H[s.n .+ (1:s.m),s.n .+ (1:s.m)] .= -s.δc*Matrix(I,s.m,s.m)
+        try
+            LDL = ldl(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
+            n = sum(LDL.D .>= s.opts.ϵ_mach)
+            m = sum(LDL.D .<= -s.opts.ϵ_mach)
+            z = s.n+s.m - n - m
+        catch
+            n = -1
+            m = -1
+            z = -1
+        end
+
+        if n == s.n || m == s.m || z == 0
+            break
+        else
+            if s.δw_last == 0
+                s.δw = s.opts.κw⁺_*s.δw
+            else
+                s.δw = s.opts.κw⁺*s.δw
+            end
+        end
+
+        if s.δw > s.opts.δw_max
+            error("inertia correction failure")
+        end
+    end
+
+    s.δw_last = s.δw
+
+    return true
+end
+
 function search_direction!(s::Solver)
     ∇L(x) = s.∇f_func(x) + s.∇c_func(x)'*s.λ
     s.W .= ForwardDiff.jacobian(∇L,s.x)
@@ -11,17 +97,51 @@ function search_direction!(s::Solver)
     s.∇φ[s.xl_bool] .-= s.μ./(s.x - s.xl)[s.xl_bool]
     s.∇φ[s.xu_bool] .+= s.μ./(s.xu - s.x)[s.xu_bool]
 
-    s.H[1:s.n,1:s.n] .= (s.W + s.Σl + s.Σu + s.δw*I)
+    s.H[1:s.n,1:s.n] .= (s.W + s.Σl + s.Σu)
     s.H[1:s.n,s.n .+ (1:s.m)] .= s.A'
     s.H[s.n .+ (1:s.m),1:s.n] .= s.A
-    s.H[s.n .+ (1:s.m),s.n .+ (1:s.m)] .= -s.δc*Matrix(I,s.m,s.m)
+    # s.H[s.n .+ (1:s.m),s.n .+ (1:s.m)] .= -s.δc*Matrix(I,s.m,s.m)
 
     s.h[1:s.n] .= s.∇φ + s.A'*s.λ
     s.h[s.n .+ (1:s.m)] .= s.c
 
-    s.d .= -s.H\s.h
+    flag = inertia_correction!(s)
+
+    s.d .= -(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))\s.h
+
     s.dzl .= -s.zl./((s.x - s.xl)[s.xl_bool]).*s.d[1:s.n][s.xl_bool] - s.zl + s.μ./((s.x - s.xl)[s.xl_bool])
     s.dzu .= s.zu./((s.xu - s.x)[s.xu_bool]).*s.d[1:s.n][s.xu_bool] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
+
+
+    #iterative refinement
+    # H_ur = [s.H zeros(s.n+s.m,s.nl+s.nu); zeros(s.nl+s.nu,s.n+s.m+s.nl+s.nu)]
+    # H_ur[(1:s.n)[s.xl_bool],s.n+s.m .+ (1:s.nl)] .= Diagonal(-1.0*ones(s.nl))
+    # H_ur[(1:s.n)[s.xu_bool],s.n+s.m+s.nl .+ (1:s.nu)] .= Diagonal(-1.0*ones(s.nu))
+    #
+    # H_ur[s.n+s.m .+ (1:s.nl),(1:s.n)[s.xl_bool]] .= s.zl
+    # H_ur[s.n+s.m+s.nl .+ (1:s.nu),(1:s.n)[s.xu_bool]] .= s.zu
+    #
+    # H_ur[s.n+s.m .+ (1:s.nl),s.n+s.m .+ (1:s.nl)] .= s.x[s.xl_bool]
+    # H_ur[s.n+s.m+s.nl .+ (1:s.nu),s.n+s.m+s.nl .+ (1:s.nu)] .= s.x[s.xu_bool]
+    #
+    # s.c .= s.c_func(s.x)
+    # s.∇f .= s.∇f_func(s.x)
+    # s.A .= s.∇c_func(s.x)
+    #
+    # h_ur = zeros(s.n+s.m+s.nl+s.nu)
+    #
+    # h_ur[1:s.n] .= s.∇f + s.A'*s.λ
+    # h_ur[1:s.n][s.xl_bool] .-= s.zl
+    # h_ur[1:s.n][s.xu_bool] .+= s.zu
+    #
+    # h_ur[s.n .+ (1:s.m)] .= s.c
+    # h_ur[s.n + s.m .+ (1:s.nl)] .= ((s.x - s.xl)[s.xl_bool]).*s.zl .- s.μ
+    # h_ur[s.n + s.m + s.nl .+ (1:s.nu)] .= ((s.xu - s.x)[s.xu_bool]).*s.zu .- s.μ
+    #
+    # d = copy([s.d;s.dzl;s.dzu])
+    #
+    # iterative_refinement(d,H_ur,[s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nl+s.nu)],-1.0*h_ur,verbose=true)
+
     return nothing
 end
 
@@ -147,7 +267,7 @@ function line_search(s::Solver)
             end
         end
 
-        if s.l > 0 || θ(s.x + s.α_max*s.d[1:s.n],s) < θ(s.x,s)
+        if s.l > 0 || θ(s.x + s.α_max*s.d[1:s.n],s) < θ(s.x,s) || s.restoration == true
             s.α *= 0.5
         else
             if second_order_correction(s)

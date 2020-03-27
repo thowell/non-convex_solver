@@ -53,6 +53,7 @@ mutable struct Solver{T}
     τ::T
 
     δw::T
+    δw_last::T
     δc::T
 
     θ::T
@@ -143,6 +144,7 @@ function Solver(x0,n,m,xl,xu,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     τ = update_τ(μ,opts.τ_min)
 
     δw = 0.
+    δw_last = 0.
     δc = 0.
 
     θ = norm(c_func(x),1)
@@ -169,7 +171,7 @@ function Solver(x0,n,m,xl,xu,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
 
     Solver(x,xl,xu,xl_bool,xu_bool,x_soc,λ,zl,zu,n,nl,nu,m,f_func,∇f_func,c_func,
         ∇c_func,H,h,W,Σl,Σu,A,∇f,∇φ,∇L,c,c_soc,d,d_soc,dzl,dzu,μ,α,αz,α_max,α_min,
-        α_soc,β,update,τ,δw,δc,θ,θ_min,θ_max,θ_soc,sd,sc,filter,j,k,l,p,t,
+        α_soc,β,update,τ,δw,δw_last,δc,θ,θ_min,θ_max,θ_soc,sd,sc,filter,j,k,l,p,t,
         restoration,DR,opts)
 end
 

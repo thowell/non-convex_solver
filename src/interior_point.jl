@@ -1,4 +1,4 @@
-using LinearAlgebra, ForwardDiff, SparseArrays, StaticArrays, Parameters
+using LinearAlgebra, ForwardDiff, SparseArrays, StaticArrays, Parameters,LDLFactorizations
 
 include("options.jl")
 include("methods.jl")
