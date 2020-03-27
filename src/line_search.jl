@@ -1,4 +1,4 @@
-function iterative_refinement(x,A,δ,b; max_iter=1000,ϵ=1.0e-8,verbose=false)
+function iterative_refinement(x,A,δ,b; max_iter=10,ϵ=1.0e-8,verbose=false)
     iter = 0
     res = b - A*x
 
@@ -14,7 +14,11 @@ function iterative_refinement(x,A,δ,b; max_iter=1000,ϵ=1.0e-8,verbose=false)
     if verbose
         println("norm(res): $(norm(res))")
     end
-    return nothing
+    if iter < max_iter
+        return true
+    else
+        false
+    end
 end
 
 function inertia_correction!(s::Solver)
@@ -114,47 +118,50 @@ function search_direction!(s::Solver)
     s.dzu .= s.zu./((s.xu - s.x)[s.xu_bool]).*s.d[(1:s.n)[s.xu_bool]] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
 
 
-    # #iterative refinement
-    # H_ur = [[s.W s.A'; s.A zeros(s.m,s.m)] zeros(s.n+s.m,s.nl+s.nu); zeros(s.nl+s.nu,s.n+s.m+s.nl+s.nu)]
-    # H_ur[(1:s.n)[s.xl_bool],s.n+s.m .+ (1:s.nl)] .= Diagonal(-1.0*ones(s.nl))
-    # H_ur[(1:s.n)[s.xu_bool],s.n+s.m+s.nl .+ (1:s.nu)] .= Diagonal(1.0*ones(s.nu))
+    # # #iterative refinement
+    # if s.δw != 0.0 || s.δc != 0.0
+    #     H_ur = [[s.W s.A'; s.A zeros(s.m,s.m)] zeros(s.n+s.m,s.nl+s.nu); zeros(s.nl+s.nu,s.n+s.m+s.nl+s.nu)]
+    #     H_ur[(1:s.n)[s.xl_bool],s.n+s.m .+ (1:s.nl)] .= Diagonal(-1.0*ones(s.nl))
+    #     H_ur[(1:s.n)[s.xu_bool],s.n+s.m+s.nl .+ (1:s.nu)] .= Diagonal(1.0*ones(s.nu))
     #
-    # H_ur[s.n+s.m .+ (1:s.nl),(1:s.n)[s.xl_bool]] .= Diagonal(s.zl)
-    # H_ur[s.n+s.m+s.nl .+ (1:s.nu),(1:s.n)[s.xu_bool]] .= -Diagonal(s.zu)
+    #     H_ur[s.n+s.m .+ (1:s.nl),(1:s.n)[s.xl_bool]] .= Diagonal(s.zl)
+    #     H_ur[s.n+s.m+s.nl .+ (1:s.nu),(1:s.n)[s.xu_bool]] .= -Diagonal(s.zu)
     #
-    # H_ur[s.n+s.m .+ (1:s.nl),s.n+s.m .+ (1:s.nl)] .= Diagonal((s.x - s.xl)[s.xl_bool])
-    # H_ur[s.n+s.m+s.nl .+ (1:s.nu),s.n+s.m+s.nl .+ (1:s.nu)] .= Diagonal((s.xu - s.x)[s.xu_bool])
+    #     H_ur[s.n+s.m .+ (1:s.nl),s.n+s.m .+ (1:s.nl)] .= Diagonal((s.x - s.xl)[s.xl_bool])
+    #     H_ur[s.n+s.m+s.nl .+ (1:s.nu),s.n+s.m+s.nl .+ (1:s.nu)] .= Diagonal((s.xu - s.x)[s.xu_bool])
     #
-    # s.c .= s.c_func(s.x)
-    # s.∇f .= s.∇f_func(s.x)
-    # s.A .= s.∇c_func(s.x)
+    #     s.c .= s.c_func(s.x)
+    #     s.∇f .= s.∇f_func(s.x)
+    #     s.A .= s.∇c_func(s.x)
     #
-    # h_ur = zeros(s.n+s.m+s.nl+s.nu)
+    #     h_ur = zeros(s.n+s.m+s.nl+s.nu)
     #
-    # h_ur[1:s.n] .= s.∇f + s.A'*s.λ
-    # h_ur[1:s.n][s.xl_bool] .-= s.zl
-    # h_ur[1:s.n][s.xu_bool] .+= s.zu
+    #     h_ur[1:s.n] .= s.∇f + s.A'*s.λ
+    #     h_ur[1:s.n][s.xl_bool] .-= s.zl
+    #     h_ur[1:s.n][s.xu_bool] .+= s.zu
     #
-    # h_ur[s.n .+ (1:s.m)] .= s.c
-    # h_ur[s.n + s.m .+ (1:s.nl)] .= ((s.x - s.xl)[s.xl_bool]).*s.zl .- s.μ
-    # h_ur[s.n + s.m + s.nl .+ (1:s.nu)] .= ((s.xu - s.x)[s.xu_bool]).*s.zu .- s.μ
+    #     h_ur[s.n .+ (1:s.m)] .= s.c
+    #     h_ur[s.n + s.m .+ (1:s.nl)] .= ((s.x - s.xl)[s.xl_bool]).*s.zl .- s.μ
+    #     h_ur[s.n + s.m + s.nl .+ (1:s.nu)] .= ((s.xu - s.x)[s.xu_bool]).*s.zu .- s.μ
     #
-    # d = copy([s.d;s.dzl;s.dzu])
+    #     #
+    #     #
     #
-    # iterative_refinement(d,H_ur,[s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nl+s.nu)],-1.0*h_ur,verbose=true)
+    #     d = -(H_ur + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nl+s.nu)]))\h_ur
+    #     flag = iterative_refinement(d,H_ur,[s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nl+s.nu)],-1.0*h_ur,verbose=true)
     #
-    # # d = -H_ur\h_ur
-    #
-    # println(size(s.H))
-    # println(rank(s.H))
-    # println("--")
-    # println(size(H_ur))
-    # println(rank(H_ur))
-    # println("du: $(d[1:(s.n+s.m)]); d: $(s.d) ")
-    # #
-    # s.d .= d[1:(s.n+s.m)]
-    # s.dzl .= d[(s.n+s.m) .+ (1:s.nl)]
-    # s.dzu .= d[(s.n+s.m) + s.nl .+ (1:s.nu)]
+    #      #
+    #     println(size(s.H))
+    #     println(rank(s.H))
+    #     println("--")
+    #     println(size(H_ur))
+    #     println(rank(H_ur))
+    #     if flag
+    #         s.d .= d[1:(s.n+s.m)]
+    #         s.dzl .= d[(s.n+s.m) .+ (1:s.nl)]
+    #         s.dzu .= d[(s.n+s.m) + s.nl .+ (1:s.nu)]
+    #     end
+    # end
     return nothing
 end
 

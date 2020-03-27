@@ -20,5 +20,3 @@ c_func(x) = [x[1]^2 - x[2] - 1.0;
 
 s = Solver(x0,n,m,xl,xu,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}(max_iter=1000,ρ=1.0e3))
 solve!(s)
-
-sr.x
