@@ -1,4 +1,4 @@
-function iterative_refinement(x,A,δ,b; max_iter=10,ϵ=1.0e-8,verbose=false)
+function iterative_refinement(x,A,δ,b; max_iter=1000,ϵ=1.0e-8,verbose=false)
     iter = 0
     res = b - A*x
 
@@ -105,24 +105,25 @@ function search_direction!(s::Solver)
     s.h[1:s.n] .= s.∇φ + s.A'*s.λ
     s.h[s.n .+ (1:s.m)] .= s.c
 
-    flag = inertia_correction!(s)
+    # flag = inertia_correction!(s)
+    #
+    # s.d .= -(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))\s.h
+    s.d .= -s.H\s.h
 
-    s.d .= -(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))\s.h
-
-    s.dzl .= -s.zl./((s.x - s.xl)[s.xl_bool]).*s.d[1:s.n][s.xl_bool] - s.zl + s.μ./((s.x - s.xl)[s.xl_bool])
-    s.dzu .= s.zu./((s.xu - s.x)[s.xu_bool]).*s.d[1:s.n][s.xu_bool] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
+    s.dzl .= -s.zl./((s.x - s.xl)[s.xl_bool]).*s.d[(1:s.n)[s.xl_bool]] - s.zl + s.μ./((s.x - s.xl)[s.xl_bool])
+    s.dzu .= s.zu./((s.xu - s.x)[s.xu_bool]).*s.d[(1:s.n)[s.xu_bool]] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
 
 
-    #iterative refinement
-    # H_ur = [s.H zeros(s.n+s.m,s.nl+s.nu); zeros(s.nl+s.nu,s.n+s.m+s.nl+s.nu)]
+    # #iterative refinement
+    # H_ur = [[s.W s.A'; s.A zeros(s.m,s.m)] zeros(s.n+s.m,s.nl+s.nu); zeros(s.nl+s.nu,s.n+s.m+s.nl+s.nu)]
     # H_ur[(1:s.n)[s.xl_bool],s.n+s.m .+ (1:s.nl)] .= Diagonal(-1.0*ones(s.nl))
-    # H_ur[(1:s.n)[s.xu_bool],s.n+s.m+s.nl .+ (1:s.nu)] .= Diagonal(-1.0*ones(s.nu))
+    # H_ur[(1:s.n)[s.xu_bool],s.n+s.m+s.nl .+ (1:s.nu)] .= Diagonal(1.0*ones(s.nu))
     #
-    # H_ur[s.n+s.m .+ (1:s.nl),(1:s.n)[s.xl_bool]] .= s.zl
-    # H_ur[s.n+s.m+s.nl .+ (1:s.nu),(1:s.n)[s.xu_bool]] .= s.zu
+    # H_ur[s.n+s.m .+ (1:s.nl),(1:s.n)[s.xl_bool]] .= Diagonal(s.zl)
+    # H_ur[s.n+s.m+s.nl .+ (1:s.nu),(1:s.n)[s.xu_bool]] .= -Diagonal(s.zu)
     #
-    # H_ur[s.n+s.m .+ (1:s.nl),s.n+s.m .+ (1:s.nl)] .= s.x[s.xl_bool]
-    # H_ur[s.n+s.m+s.nl .+ (1:s.nu),s.n+s.m+s.nl .+ (1:s.nu)] .= s.x[s.xu_bool]
+    # H_ur[s.n+s.m .+ (1:s.nl),s.n+s.m .+ (1:s.nl)] .= Diagonal((s.x - s.xl)[s.xl_bool])
+    # H_ur[s.n+s.m+s.nl .+ (1:s.nu),s.n+s.m+s.nl .+ (1:s.nu)] .= Diagonal((s.xu - s.x)[s.xu_bool])
     #
     # s.c .= s.c_func(s.x)
     # s.∇f .= s.∇f_func(s.x)
@@ -141,7 +142,19 @@ function search_direction!(s::Solver)
     # d = copy([s.d;s.dzl;s.dzu])
     #
     # iterative_refinement(d,H_ur,[s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nl+s.nu)],-1.0*h_ur,verbose=true)
-
+    #
+    # # d = -H_ur\h_ur
+    #
+    # println(size(s.H))
+    # println(rank(s.H))
+    # println("--")
+    # println(size(H_ur))
+    # println(rank(H_ur))
+    # println("du: $(d[1:(s.n+s.m)]); d: $(s.d) ")
+    # #
+    # s.d .= d[1:(s.n+s.m)]
+    # s.dzl .= d[(s.n+s.m) .+ (1:s.nl)]
+    # s.dzu .= d[(s.n+s.m) + s.nl .+ (1:s.nu)]
     return nothing
 end
 
