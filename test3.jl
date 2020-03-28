@@ -14,5 +14,5 @@ c_func_d(x) = x[1]^2 + x[2]^2 - 1.0
 ∇c_func(x) = Array(ForwardDiff.gradient(c_func_d,x)')
 
 s = Solver(x0,n,m,xl,xu,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}())
-solve!(s)
+solve!(s,verbose=true)
 s.x

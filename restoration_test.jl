@@ -6,7 +6,9 @@ nx = 3
 m = 2
 nl = 2
 
-x0 = [-2.;3.;1.]
+κd = 1.0e-4
+
+x0 = [-2.0;3.0;1.0]
 xl = [-Inf;0.;0.]
 xu = [Inf; Inf; Inf]
 
@@ -15,10 +17,10 @@ xu = [Inf; Inf; Inf]
 DR = Diagonal(1.0./abs.(x0))
 #
 f(x,p,n,μ) = ρ'*[p;n] + 0.5*sqrt(μ)*norm(DR*(x-x0))^2
-barrier(x,p,n,μ) = f(x,p,n,μ) - μ*sum(log.(x[2:3])) - μ*sum(log.(p)) - μ*sum(log.(n))
-∇barrier(x,p,n,μ) = [sqrt(μ)*DR'*DR*(x-x0) - μ*[0.;1.0./x[2:3]];
-                     ρ[1:m] - μ./p;
-                     ρ[m .+ (1:m)] - μ./n]
+barrier(x,p,n,μ) = f(x,p,n,μ) - μ*sum(log.(x[2:3])) - μ*sum(log.(p)) - μ*sum(log.(n)) - μ*κd*sum(x[2:3]) - μ*κd*sum(p) - μ*κd*sum(n)
+∇barrier(x,p,n,μ) = [sqrt(μ)*DR'*DR*(x-x0) - μ*[0.;1.0./x[2:3]] - μ*κd*[0.;1.;1.];
+                     ρ[1:m] - μ./p - μ*κd*ones(m);
+                     ρ[m .+ (1:m)] - μ./n - μ*κd*ones(m)]
 # ∇barrier(x0,p0,n0,μ0)
 # ∇f(x,p,n,μ) = [sqrt(μ)*DR'*DR*(x-x0);ρ*ones(2m)]
 
@@ -28,9 +30,9 @@ c(x) = [x[1]^2 - x[2] - 1.0; x[1] - x[3] - 0.5]
 c_slack(x,p,n) = c(x) - p + n
 
 function kkt(x,p,n,λ,zl,zp,zn,μ)
-    [sqrt(μ)*DR'*DR*(x-x0) + ∇c(x)'*λ - [0.;zl];
-     ρ[1:m] .- zp - λ;
-     ρ[m .+ (1:m)] .- zn + λ;
+    [sqrt(μ)*DR'*DR*(x-x0) + ∇c(x)'*λ - [0.;zl] - μ*κd*[0.;1.;1.];
+     ρ[1:m] - zp - λ - μ*κd*ones(m);
+     ρ[m .+ (1:m)] - zn + λ - μ*κd*ones(m);
      c(x) - p + n;
      x[2:3].*zl .- μ;
      p.*zp .- μ;
@@ -154,7 +156,7 @@ function primaldual(x0;verbose=false,max_iter=35)
     zn = sqrt(μ)./n
 
     r = 0.
-    θ = norm(c_slack(x,p,n),Inf)
+    θ = norm(c_slack(x,p,n),1)
     φ = barrier(x,p,n,μ)
     ∇φ = ∇barrier(x,p,n,μ)
 
@@ -254,13 +256,14 @@ end
 @time x1, p1, n1, fil1 = primaldual(x0,verbose=false,max_iter=100)
 
 c_slack(x1,p1,n1)
+c(x1)
 println("x: $x1")
 println("p: $p1")
 println("n: $n1")
 
-@time x2, p2, n2, fil2 = primaldual(x1,verbose=false,max_iter=100)
-
-c_slack(x2,p2,n2)
-println("x: $x2")
-println("p: $p2")
-println("n: $n2")
+# @time x2, p2, n2, fil2 = primaldual(x1,verbose=false,max_iter=100)
+#
+# c_slack(x2,p2,n2)
+# println("x: $x2")
+# println("p: $p2")
+# println("n: $n2")

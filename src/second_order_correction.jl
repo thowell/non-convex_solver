@@ -1,7 +1,7 @@
 function second_order_correction(s::Solver)
     s.p = 1
     θ_soc = θ(s.x,s)
-    c_soc = s.α_max*s.c_func(s.x) + s.c_func(s.x + s.α_max*s.d[1:s.n])
+    c_soc = s.α_max*s.c_func(s.x) + s.c_func(s.x + s.α_max*s.dx)
     s.h[s.n .+ (1:s.m)] .= c_soc
     s.d_soc = -s.H\s.h
 
@@ -24,7 +24,7 @@ function second_order_correction(s::Solver)
             else
                 # println("check suff. progress")
                 # println("x: $(s.x)")
-                # println("xl: $(s.x + s.α*s.d[1:s.n])")
+                # println("xl: $(s.x + s.α*s.dx)")
                 # println("xsoc: $(s.x + s.α_soc*s.d_soc[1:s.n])")
                 # for f in s.filter
                 #     println("θ: $(f[1]), φ: $(f[2])")

@@ -51,7 +51,7 @@ end
 
 function augment_filter!(s::Solver)
     if s.update == :nominal
-        x⁺ = s.x + s.α*s.d[1:s.n]
+        x⁺ = s.x + s.α*s.dx
     elseif s.update == :soc
         x⁺ = s.x + s.α_soc*s.d_soc[1:s.n]
     else

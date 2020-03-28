@@ -14,4 +14,4 @@ c_func(x) = 0.
 ∇c_func(x) = zeros(0,n)
 
 s = Solver(x0,n,m,xl,xu,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}(max_iter=1e3))
-solve!(s)
+solve!(s,verbose=true)

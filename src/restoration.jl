@@ -181,7 +181,7 @@ end
 
 function check_kkt_error(s::Solver)
     Fμ = norm(eval_Fμ(s.x,s.λ,s.zl,s.zu,s),1)
-    Fμ⁺ = norm(eval_Fμ(s.x + s.β*s.d[1:s.n], s.λ + s.β*s.d[s.n .+ (1:s.m)],
+    Fμ⁺ = norm(eval_Fμ(s.x + s.β*s.dx, s.λ + s.β*s.d[s.n .+ (1:s.m)],
         s.zl + s.β*s.dzl, s.zu + s.β*s.dzu,s),1)
 
     println("Fμ: $(Fμ)")
@@ -198,7 +198,7 @@ function restoration!(s::Solver)
 
     # while check_kkt_error(s)
     #     println("t: $(s.t)")
-    #     if check_filter(θ(s.x + s.β*s.d[1:s.n],s),barrier(s.x + s.β*s.d[1:s.n],s),s::Solver)
+    #     if check_filter(θ(s.x + s.β*s.dx,s),barrier(s.x + s.β*s.dx,s),s::Solver)
     #         s.α = s.β
     #         s.αz = s.β
     #         println("KKT error reduction: success")
@@ -206,7 +206,7 @@ function restoration!(s::Solver)
     #         return
     #     else
     #         s.t += 1
-    #         s.x .= s.x + s.β*s.d[1:s.n]
+    #         s.x .= s.x + s.β*s.dx
     #         s.λ .= s.λ + s.β*s.d[s.n .+ (1:s.m)]
     #         s.zl .= s.zl + s.β*s.dzl
     #         s.zu .= s.zu + s.β*s.dzu
@@ -324,4 +324,22 @@ function solve!(s::Solver,s_ref::Solver)
         empty!(s.filter)
         push!(s.filter,(s.θ_max,Inf))
     end
+end
+
+function init_DR(xr,n)
+    DR = spzeros(n,n)
+    for i = 1:n
+        DR[i,i] = min(1.0,1.0/abs(xr[i]))
+    end
+    return DR
+end
+
+function init_n(c,μ,ρ)
+    n = (μ - ρ*c)/(2.0*ρ) + sqrt(((μ-ρ*c)/(2.0*ρ))^2 + (μ*c)/(2.0*ρ))
+    return n
+end
+
+function init_p(n,c)
+    p = c + n
+    return p
 end
