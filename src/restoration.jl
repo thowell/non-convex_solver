@@ -21,10 +21,10 @@ function RestorationSolver_slack(s::Solver)
 
     δ = 0.0
     x̄l = zeros(n̄)
-    x̄l[1:s.n] .= s.xl .+ δ
+    x̄l[1:s.n] .= s.xL .+ δ
 
     x̄u = Inf*ones(n̄)
-    x̄u[1:s.n] .= s.xu .- δ
+    x̄u[1:s.n] .= s.xU .- δ
 
     ζ = sqrt(opts.μ0)
     DR = init_DR(s.x,s.n)
@@ -41,17 +41,17 @@ function RestorationSolver_slack(s::Solver)
 
     rs = Solver(x̄,n̄,m̄,x̄l,x̄u,f_func,c_func,∇f_func,∇c_func,opts=opts)
 
-    # initialize zl, zu, zp, zn
-    for i = 1:s.nl
-        rs.zl[i] = min(opts.ρ,s.zl[i])
+    # initialize zL, zU, zp, zn
+    for i = 1:s.nL
+        rs.zL[i] = min(opts.ρ,s.zL[i])
     end
 
-    for i = 1:s.nu
-        rs.zu[i] = min(opts.ρ,s.zu[i])
+    for i = 1:s.nU
+        rs.zU[i] = min(opts.ρ,s.zU[i])
     end
 
-    rs.zl[s.nl + 1] = opts.μ0/rs.x[s.n + 1]
-    # rs.zl[(s.nl+s.m) .+ (1:s.m)] .= opts.μ0./rs.x[(s.n+s.m) .+ (1:s.m)]
+    rs.zL[s.nL + 1] = opts.μ0/rs.x[s.n + 1]
+    # rs.zL[(s.nL+s.m) .+ (1:s.m)] .= opts.μ0./rs.x[(s.n+s.m) .+ (1:s.m)]
 
     rs.DR = DR
 
@@ -84,10 +84,10 @@ function RestorationSolver(s::Solver)
 
     δ = 0.0
     x̄l = zeros(n̄)
-    x̄l[1:s.n] .= s.xl .+ δ
+    x̄l[1:s.n] .= s.xL .+ δ
 
     x̄u = Inf*ones(n̄)
-    x̄u[1:s.n] .= s.xu .- δ
+    x̄u[1:s.n] .= s.xU .- δ
 
     ζ = sqrt(opts.μ0)
     DR = init_DR(s.x,s.n)
@@ -102,17 +102,17 @@ function RestorationSolver(s::Solver)
 
     rs = Solver(x̄,n̄,m̄,x̄l,x̄u,f_func,c_func,∇f_func,∇c_func,opts=opts)
 
-    # # initialize zl, zu, zp, zn
-    # for i = 1:s.nl
-    #     rs.zl[i] = min(opts.ρ,s.zl[i])
+    # # initialize zL, zU, zp, zn
+    # for i = 1:s.nL
+    #     rs.zL[i] = min(opts.ρ,s.zL[i])
     # end
     #
-    # for i = 1:s.nu
-    #     rs.zu[i] = min(opts.ρ,s.zu[i])
+    # for i = 1:s.nU
+    #     rs.zU[i] = min(opts.ρ,s.zU[i])
     # end
 
-    # rs.zl[s.nl .+ (1:2s.m)] .= opts.μ0./rs.x[s.n .+ (1:2s.m)]
-    # rs.zl[(s.nl+s.m) .+ (1:s.m)] .= opts.μ0./rs.x[(s.n+s.m) .+ (1:s.m)]
+    # rs.zL[s.nL .+ (1:2s.m)] .= opts.μ0./rs.x[s.n .+ (1:2s.m)]
+    # rs.zL[(s.nL+s.m) .+ (1:s.m)] .= opts.μ0./rs.x[(s.n+s.m) .+ (1:s.m)]
 
     rs.DR = DR
 
@@ -144,10 +144,10 @@ function RestorationSolver_l1(s::Solver)
     end
 
     x̄l = zeros(n̄)
-    x̄l[1:s.n] .= s.xl
+    x̄l[1:s.n] .= s.xL
 
     x̄u = Inf*ones(n̄)
-    x̄u[1:s.n] .= s.xu
+    x̄u[1:s.n] .= s.xU
 
     ζ = sqrt(opts.μ0)
     DR = init_DR(s.x,s.n)
@@ -161,16 +161,16 @@ function RestorationSolver_l1(s::Solver)
 
     rs = Solver(x̄,n̄,m̄,x̄l,x̄u,f_func,c_func,∇f_func,∇c_func,opts=opts)
 
-    # initialize zl, zu, zp, zn
-    for i = 1:s.nl
-        rs.zl[i] = min(opts.ρ,s.zl[i])
+    # initialize zL, zU, zp, zn
+    for i = 1:s.nL
+        rs.zL[i] = min(opts.ρ,s.zL[i])
     end
 
-    for i = 1:s.nu
-        rs.zu[i] = min(opts.ρ,s.zu[i])
+    for i = 1:s.nU
+        rs.zU[i] = min(opts.ρ,s.zU[i])
     end
 
-    rs.zl[s.nl .+ (1:2s.m)] .= opts.μ0./rs.x[s.n .+ (1:2s.m)]
+    rs.zL[s.nL .+ (1:2s.m)] .= opts.μ0./rs.x[s.n .+ (1:2s.m)]
 
     rs.DR = DR
 
@@ -180,9 +180,9 @@ function RestorationSolver_l1(s::Solver)
 end
 
 function check_kkt_error(s::Solver)
-    Fμ = norm(eval_Fμ(s.x,s.λ,s.zl,s.zu,s),1)
+    Fμ = norm(eval_Fμ(s.x,s.λ,s.zL,s.zU,s),1)
     Fμ⁺ = norm(eval_Fμ(s.x + s.β*s.dx, s.λ + s.β*s.d[s.n .+ (1:s.m)],
-        s.zl + s.β*s.dzl, s.zu + s.β*s.dzu,s),1)
+        s.zL + s.β*s.dzL, s.zU + s.β*s.dzU,s),1)
 
     println("Fμ: $(Fμ)")
     println("Fμ⁺: $(Fμ⁺)")
@@ -208,8 +208,8 @@ function restoration!(s::Solver)
     #         s.t += 1
     #         s.x .= s.x + s.β*s.dx
     #         s.λ .= s.λ + s.β*s.d[s.n .+ (1:s.m)]
-    #         s.zl .= s.zl + s.β*s.dzl
-    #         s.zu .= s.zu + s.β*s.dzu
+    #         s.zL .= s.zL + s.β*s.dzL
+    #         s.zU .= s.zU + s.β*s.dzU
     #
     #         search_direction!(s)
     #         β_max!(s)
@@ -226,22 +226,22 @@ function restoration!(s::Solver)
         println("x0: $(s.x)")
         dx = rs.x[1:s.n] - s.x
 
-        s.dzl .= -s.zl./((s.x - s.xl)[s.xl_bool]).*dx[s.xl_bool] - s.zl + s.μ./((s.x - s.xl)[s.xl_bool])
-        s.dzu .= s.zu./((s.xu - s.x)[s.xu_bool]).*dx[s.xu_bool] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
+        s.dzL .= -s.zL./((s.x - s.xL)[s.xL_bool]).*dx[s.xL_bool] - s.zL + s.μ./((s.x - s.xL)[s.xL_bool])
+        s.dzU .= s.zU./((s.xU - s.x)[s.xU_bool]).*dx[s.xU_bool] - s.zU + s.μ./((s.xU - s.x)[s.xU_bool])
         s.x .= rs.x[1:s.n]
 
         s.αz = 1.0
-        while !fraction_to_boundary(s.zl,s.dzl,s.αz,s.τ)
+        while !fraction_to_boundary(s.zL,s.dzL,s.αz,s.τ)
             s.αz *= 0.5
         end
 
-        while !fraction_to_boundary(s.zu,s.dzu,s.αz,s.τ)
+        while !fraction_to_boundary(s.zU,s.dzU,s.αz,s.τ)
             s.αz *= 0.5
         end
 
-        s.zl .= s.zl + s.αz*s.dzl
-        s.zu .= s.zu + s.αz*s.dzu
-        s.λ .= init_λ(s.zl,s.zu,s.∇f_func(s.x),s.∇c_func(s.x),s.n,s.m,s.xl_bool,s.xu_bool,s.opts.λ_max)
+        s.zL .= s.zL + s.αz*s.dzL
+        s.zU .= s.zU + s.αz*s.dzU
+        s.λ .= init_λ(s.zL,s.zU,s.∇f_func(s.x),s.∇c_func(s.x),s.n,s.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
 
         println("x: $(s.x)")
         println("φ: $(barrier(s.x,s))")

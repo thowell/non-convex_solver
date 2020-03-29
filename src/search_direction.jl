@@ -8,10 +8,10 @@ end
 function kkt_hessian_sym!(s::Solver)
     ∇L(x) = s.∇f_func(x) + s.∇c_func(x)'*s.λ
     s.W .= ForwardDiff.jacobian(∇L,s.x)
-    s.Σl[CartesianIndex.((1:s.n)[s.xl_bool],(1:s.n)[s.xl_bool])] .= s.zl./((s.x - s.xl)[s.xl_bool])
-    s.Σu[CartesianIndex.((1:s.n)[s.xu_bool],(1:s.n)[s.xu_bool])] .= s.zu./((s.xu - s.x)[s.xu_bool])
+    s.ΣL[CartesianIndex.((1:s.n)[s.xL_bool],(1:s.n)[s.xL_bool])] .= s.zL./((s.x - s.xL)[s.xL_bool])
+    s.ΣU[CartesianIndex.((1:s.n)[s.xU_bool],(1:s.n)[s.xU_bool])] .= s.zU./((s.xU - s.x)[s.xU_bool])
 
-    s.H[1:s.n,1:s.n] .= (s.W + s.Σl + s.Σu)
+    s.H[1:s.n,1:s.n] .= (s.W + s.ΣL + s.ΣU)
     s.H[1:s.n,s.n .+ (1:s.m)] .= s.A'
     s.H[s.n .+ (1:s.m),1:s.n] .= s.A
 
@@ -30,8 +30,8 @@ function search_direction_sym!(s::Solver)
     kkt_gradient_sym!(s)
 
     s.d[1:(s.n+s.m)] .= -s.H\s.h
-    s.d[(s.n+s.m) .+ (1:s.nl)] = -s.zl./((s.x - s.xl)[s.xl_bool]).*s.d[(1:s.n)[s.xl_bool]] - s.zl + s.μ./((s.x - s.xl)[s.xl_bool])
-    s.d[(s.n+s.m+s.nl) .+ (1:s.nu)] .= s.zu./((s.xu - s.x)[s.xu_bool]).*s.d[(1:s.n)[s.xu_bool]] - s.zu + s.μ./((s.xu - s.x)[s.xu_bool])
+    s.d[(s.n+s.m) .+ (1:s.nL)] = -s.zL./((s.x - s.xL)[s.xL_bool]).*s.d[(1:s.n)[s.xL_bool]] - s.zL + s.μ./((s.x - s.xL)[s.xL_bool])
+    s.d[(s.n+s.m+s.nL) .+ (1:s.nU)] .= s.zU./((s.xU - s.x)[s.xU_bool]).*s.d[(1:s.n)[s.xU_bool]] - s.zU + s.μ./((s.xU - s.x)[s.xU_bool])
     return nothing
 end
 
@@ -40,10 +40,10 @@ end
 function kkt_hessian_full!(s::Solver)
     # ∇L(x) = s.∇f_func(x) + s.∇c_func(x)'*s.λ
     # s.W .= ForwardDiff.jacobian(∇L,s.x)
-    # s.Σl[CartesianIndex.((1:s.n)[s.xl_bool],(1:s.n)[s.xl_bool])] .= s.zl./((s.x - s.xl)[s.xl_bool])
-    # s.Σu[CartesianIndex.((1:s.n)[s.xu_bool],(1:s.n)[s.xu_bool])] .= s.zu./((s.xu - s.x)[s.xu_bool])
+    # s.ΣL[CartesianIndex.((1:s.n)[s.xL_bool],(1:s.n)[s.xL_bool])] .= s.zL./((s.x - s.xL)[s.xL_bool])
+    # s.ΣU[CartesianIndex.((1:s.n)[s.xU_bool],(1:s.n)[s.xU_bool])] .= s.zU./((s.xU - s.x)[s.xU_bool])
     #
-    # s.H[1:s.n,1:s.n] .= (s.W + s.Σl + s.Σu)
+    # s.H[1:s.n,1:s.n] .= (s.W + s.ΣL + s.ΣU)
     # s.H[1:s.n,s.n .+ (1:s.m)] .= s.A'
     # s.H[s.n .+ (1:s.m),1:s.n] .= s.A
 

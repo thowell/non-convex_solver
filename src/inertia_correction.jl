@@ -30,7 +30,7 @@ function inertia_correction!(s::Solver)
 
     while n != s.n || m != s.m || z != 0
         println("correcting interia ")
-        # s.H[1:s.n,1:s.n] .= (s.W + s.Σl + s.Σu)
+        # s.H[1:s.n,1:s.n] .= (s.W + s.ΣL + s.ΣU)
         # s.H[1:s.n,s.n .+ (1:s.m)] .= s.A'
         # s.H[s.n .+ (1:s.m),1:s.n] .= s.A
         # s.H[s.n .+ (1:s.m),s.n .+ (1:s.m)] .= -s.δc*Matrix(I,s.m,s.m)

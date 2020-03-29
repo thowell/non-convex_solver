@@ -1,8 +1,8 @@
 @with_kw mutable struct Options{T}
     ϵ_tol::T = 1.0e-8
     max_iter::Int = 100
-    zl0::T = 1.0
-    zu0::T = 1.0
+    zL0::T = 1.0
+    zU0::T = 1.0
     μ0::T = 0.1
     κϵ::T = 10.
     κμ::T = 0.2
@@ -40,14 +40,16 @@
     κ1::T = 1.0e-2
     κ2::T = 1.0e-2
 
+    κd::T = 1.0e-4
+
     ϵ_mach::T = 1.0e-16
 end
 
 function Base.copy(o::Options{T}) where T
     return Options{T}(ϵ_tol=copy(o.ϵ_tol),
                     max_iter=copy(o.max_iter),
-                    zl0=copy(o.zl0),
-                    zu0=copy(o.zu0),
+                    zL0=copy(o.zL0),
+                    zU0=copy(o.zU0),
                     μ0=copy(o.μ0),
                     κϵ=copy(o.κϵ),
                     κμ=copy(o.κμ),

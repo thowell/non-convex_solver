@@ -6,6 +6,7 @@ function line_search(s::Solver)
 
     # trial step
     s.x⁺ .= s.x + s.α*s.dx
+
     s.l = 0
     status = false
     while s.α > s.α_min
@@ -30,8 +31,11 @@ function line_search(s::Solver)
         else
             # second order correction
             if second_order_correction(s)
+                println("--success confirm")
                 status = true
                 break
+            else
+                println("--failure confirm")
             end
         end
 
@@ -61,7 +65,7 @@ end
 
 function α_max!(s::Solver)
     s.α_max = 1.0
-    while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.xl_bool,s.xu_bool,s.dx,s.α_max,s.τ)
+    while !fraction_to_boundary_bnds(s.x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.dx,s.α_max,s.τ)
         s.α_max *= 0.5
     end
     s.α = copy(s.α_max)
@@ -71,11 +75,11 @@ end
 
 function αz_max!(s::Solver)
     s.αz = 1.0
-    while !fraction_to_boundary(s.zl,s.dzl,s.αz,s.τ)
+    while !fraction_to_boundary(s.zL,s.dzL,s.αz,s.τ)
         s.αz *= 0.5
     end
 
-    while !fraction_to_boundary(s.zu,s.dzu,s.αz,s.τ)
+    while !fraction_to_boundary(s.zU,s.dzU,s.αz,s.τ)
         s.αz *= 0.5
     end
 
@@ -85,7 +89,7 @@ end
 # function β_max!(s::Solver)
 #
 #     s.β = 1.0
-#     while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.xl_bool,s.xu_bool,s.dx,s.β,s.τ)
+#     while !fraction_to_boundary_bnds(s.x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.dx,s.β,s.τ)
 #         s.β *= 0.5
 #         println("β = $(s.β)")
 #         if s.β < 1.0e-32
@@ -93,7 +97,7 @@ end
 #         end
 #     end
 #
-#     while !fraction_to_boundary(s.zl,s.dzl,s.β,s.τ)
+#     while !fraction_to_boundary(s.zL,s.dzL,s.β,s.τ)
 #         s.β *= 0.5
 #         println("β = $(s.β)")
 #         if s.β < 1.0e-32
@@ -101,7 +105,7 @@ end
 #         end
 #     end
 #
-#     while !fraction_to_boundary(s.zu,s.dzu,s.β,s.τ)
+#     while !fraction_to_boundary(s.zU,s.dzU,s.β,s.τ)
 #         s.β *= 0.5
 #         println("β = $(s.β)")
 #         if s.β < 1.0e-32

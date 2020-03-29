@@ -4,13 +4,13 @@ using Plots
 
 nx = 3
 m = 2
-nl = 2
+nL = 2
 
 κd = 1.0e-4
 
 x0 = [-2.0;3.0;1.0]
-xl = [-Inf;0.;0.]
-xu = [Inf; Inf; Inf]
+xL = [-Inf;0.;0.]
+xU = [Inf; Inf; Inf]
 
 ρ = [1000.;1000.;1000.;1000.]
 # ρ = 1000.0*rand(2m)
@@ -29,12 +29,12 @@ c(x) = [x[1]^2 - x[2] - 1.0; x[1] - x[3] - 0.5]
 
 c_slack(x,p,n) = c(x) - p + n
 
-function kkt(x,p,n,λ,zl,zp,zn,μ)
-    [sqrt(μ)*DR'*DR*(x-x0) + ∇c(x)'*λ - [0.;zl] - μ*κd*[0.;1.;1.];
+function kkt(x,p,n,λ,zL,zp,zn,μ)
+    [sqrt(μ)*DR'*DR*(x-x0) + ∇c(x)'*λ - [0.;zL] - μ*κd*[0.;1.;1.];
      ρ[1:m] - zp - λ - μ*κd*ones(m);
      ρ[m .+ (1:m)] - zn + λ - μ*κd*ones(m);
      c(x) - p + n;
-     x[2:3].*zl .- μ;
+     x[2:3].*zL .- μ;
      p.*zp .- μ;
      n.*zn .- μ]
 end
@@ -42,26 +42,26 @@ end
 p0 = ones(m)
 n0 = ones(m)
 λ0 = zeros(m)
-zl0 = zeros(2)
+zL0 = zeros(2)
 zp0 = ones(m)
 zn0 = ones(m)
 μ0 = 1.0
-_kkt = kkt(x0,p0,n0,λ0,zl0,zp0,zn0,μ0)
+_kkt = kkt(x0,p0,n0,λ0,zL0,zp0,zn0,μ0)
 
-function dkkt(x,p,n,λ,zl,zp,zn,μ)
+function dkkt(x,p,n,λ,zL,zp,zn,μ)
     ∇²cλ(x) = ∇c(x)'*λ
 
     [
-     (sqrt(μ)*DR'*DR + ForwardDiff.jacobian(∇²cλ,x)) zeros(nx,2m) ∇c(x)' [zeros(1,nl); -1.0*Matrix(I,nl,nl)] zeros(nx,2m);
-     zeros(2m,nx+2m) [-1.0*Matrix(I,m,m); Matrix(I,m,m)] zeros(2m,nl) -1.0*Matrix(I,2m,2m);
-     ∇c(x) -1.0*Matrix(I,m,m) 1.0*Matrix(I,m,m) zeros(m,m+nl+2m);
-     zeros(nl,1) Diagonal(zl) zeros(nl,2m+m) Diagonal(x[2:3]) zeros(nl,2m);
-     zeros(m,nx) Diagonal(zp) zeros(m,m+m+nl) Diagonal(p) zeros(m,m);
-     zeros(m,nx+m) Diagonal(zn) zeros(m,m+nl+m) Diagonal(n);
+     (sqrt(μ)*DR'*DR + ForwardDiff.jacobian(∇²cλ,x)) zeros(nx,2m) ∇c(x)' [zeros(1,nL); -1.0*Matrix(I,nL,nL)] zeros(nx,2m);
+     zeros(2m,nx+2m) [-1.0*Matrix(I,m,m); Matrix(I,m,m)] zeros(2m,nL) -1.0*Matrix(I,2m,2m);
+     ∇c(x) -1.0*Matrix(I,m,m) 1.0*Matrix(I,m,m) zeros(m,m+nL+2m);
+     zeros(nL,1) Diagonal(zL) zeros(nL,2m+m) Diagonal(x[2:3]) zeros(nL,2m);
+     zeros(m,nx) Diagonal(zp) zeros(m,m+m+nL) Diagonal(p) zeros(m,m);
+     zeros(m,nx+m) Diagonal(zn) zeros(m,m+nL+m) Diagonal(n);
      ]
 end
 
-_dkkt = dkkt(x0,p0,n0,λ0,zl0,zp0,zn0,μ0)
+_dkkt = dkkt(x0,p0,n0,λ0,zL0,zp0,zn0,μ0)
 rank(_dkkt)
 
 function check_filter(θ,φ,fil)
@@ -110,15 +110,15 @@ function add_to_filter!(p,fil)
     return nothing
 end
 
-function init_x0(x,xl,xu,κ1,κ2)
-    pl = min(κ1*max(1.0,abs(xl)),κ2*(xu-xl))
-    pu = min(κ1*max(1.0,abs(xu)),κ2*(xu-xl))
+function init_x0(x,xL,xU,κ1,κ2)
+    pl = min(κ1*max(1.0,abs(xL)),κ2*(xU-xL))
+    pu = min(κ1*max(1.0,abs(xU)),κ2*(xU-xL))
 
     # projection
-    if x < xl+pl
-        x = xl+pl
-    elseif x > xu-pu
-        x = xu-pu
+    if x < xL+pl
+        x = xL+pl
+    elseif x > xU-pu
+        x = xU-pu
     end
     return x
 end
@@ -136,7 +136,7 @@ function primaldual(x0;verbose=false,max_iter=35)
 
     x = copy(x0)
     for i = 1:nx
-        x[i] = init_x0(x0[i],xl[i],xu[i],1.0e-2,1.0e-2)
+        x[i] = init_x0(x0[i],xL[i],xU[i],1.0e-2,1.0e-2)
     end
 
     _c = c(x)
@@ -151,7 +151,7 @@ function primaldual(x0;verbose=false,max_iter=35)
         p[i] = _c[i] + n[i]
     end
     λ = zeros(m)
-    zl = ones(nl)
+    zL = ones(nL)
     zp = sqrt(μ)./p
     zn = sqrt(μ)./n
 
@@ -167,14 +167,14 @@ function primaldual(x0;verbose=false,max_iter=35)
     push!(fil,(θ_max,Inf))
 
     while μ > 1e-8
-        r = kkt(x,p,n,λ,zl,zp,zn,μ)
+        r = kkt(x,p,n,λ,zL,zp,zn,μ)
         while norm(r,Inf) > 1e-8
-            δ = -dkkt(x,p,n,λ,zl,zp,zn,μ)\r
+            δ = -dkkt(x,p,n,λ,zL,zp,zn,μ)\r
             α = 1.
             αz = 1.
-            while any(zl + αz*δ[(nx + m + m + m) .+ (1:nl)] .< (1-τ)*zl) ||
-                    any(zp + αz*δ[(nx + m + m + m + nl) .+ (1:m)] .< (1-τ)*zp) ||
-                    any(zn + αz*δ[(nx + m + m + m + nl + m) .+ (1:m)] .< (1-τ)*zn)
+            while any(zL + αz*δ[(nx + m + m + m) .+ (1:nL)] .< (1-τ)*zL) ||
+                    any(zp + αz*δ[(nx + m + m + m + nL) .+ (1:m)] .< (1-τ)*zp) ||
+                    any(zn + αz*δ[(nx + m + m + m + nL + m) .+ (1:m)] .< (1-τ)*zn)
                 αz = αz/2
                 iter += 1
 
@@ -230,11 +230,11 @@ function primaldual(x0;verbose=false,max_iter=35)
             p .+= α*δ[nx .+ (1:m)]
             n .+= α*δ[(nx + m) .+ (1:m)]
             λ .+= α*δ[(nx + m + m) .+ (1:m)]
-            zl .+= αz*δ[(nx + m + m + m) .+ (1:nl)]
-            zp .+= αz*δ[(nx + m + m + m + nl) .+ (1:m)]
-            zn .+= αz*δ[(nx + m + m + m + nl + m) .+ (1:m)]
+            zL .+= αz*δ[(nx + m + m + m) .+ (1:nL)]
+            zp .+= αz*δ[(nx + m + m + m + nL) .+ (1:m)]
+            zn .+= αz*δ[(nx + m + m + m + nL + m) .+ (1:m)]
 
-            r = kkt(x,p,n,λ,zl,zp,zn,μ)
+            r = kkt(x,p,n,λ,zL,zp,zn,μ)
             θ = norm(c_slack(x,p,n),1)
             φ = barrier(x,p,n,μ)
             ∇φ = ∇barrier(x,p,n,μ)
