@@ -17,10 +17,10 @@ xU = [Inf; Inf; Inf]
 DR = Diagonal(1.0./abs.(x0))
 #
 f(x,p,n,μ) = ρ'*[p;n] + 0.5*sqrt(μ)*norm(DR*(x-x0))^2
-barrier(x,p,n,μ) = f(x,p,n,μ) - μ*sum(log.(x[2:3])) - μ*sum(log.(p)) - μ*sum(log.(n)) - μ*κd*sum(x[2:3]) - μ*κd*sum(p) - μ*κd*sum(n)
-∇barrier(x,p,n,μ) = [sqrt(μ)*DR'*DR*(x-x0) - μ*[0.;1.0./x[2:3]] - μ*κd*[0.;1.;1.];
-                     ρ[1:m] - μ./p - μ*κd*ones(m);
-                     ρ[m .+ (1:m)] - μ./n - μ*κd*ones(m)]
+barrier(x,p,n,μ) = f(x,p,n,μ) - μ*sum(log.(x[2:3])) - μ*sum(log.(p)) - μ*sum(log.(n)) + μ*κd*sum(x[2:3]) + μ*κd*sum(p) + μ*κd*sum(n)
+∇barrier(x,p,n,μ) = [sqrt(μ)*DR'*DR*(x-x0) - μ*[0.;1.0./x[2:3]] + μ*κd*[0.;1.;1.];
+                     ρ[1:m] - μ./p + μ*κd*ones(m);
+                     ρ[m .+ (1:m)] - μ./n + μ*κd*ones(m)]
 # ∇barrier(x0,p0,n0,μ0)
 # ∇f(x,p,n,μ) = [sqrt(μ)*DR'*DR*(x-x0);ρ*ones(2m)]
 
@@ -30,9 +30,9 @@ c(x) = [x[1]^2 - x[2] - 1.0; x[1] - x[3] - 0.5]
 c_slack(x,p,n) = c(x) - p + n
 
 function kkt(x,p,n,λ,zL,zp,zn,μ)
-    [sqrt(μ)*DR'*DR*(x-x0) + ∇c(x)'*λ - [0.;zL] - μ*κd*[0.;1.;1.];
-     ρ[1:m] - zp - λ - μ*κd*ones(m);
-     ρ[m .+ (1:m)] - zn + λ - μ*κd*ones(m);
+    [sqrt(μ)*DR'*DR*(x-x0) + ∇c(x)'*λ - [0.;zL] + μ*κd*[0.;1.;1.];
+     ρ[1:m] - zp - λ + μ*κd*ones(m);
+     ρ[m .+ (1:m)] - zn + λ + μ*κd*ones(m);
      c(x) - p + n;
      x[2:3].*zL .- μ;
      p.*zp .- μ;

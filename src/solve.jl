@@ -45,6 +45,8 @@ function solve!(s::Solver; verbose=false)
         empty!(s.filter)
         push!(s.filter,(s.θ_max,Inf))
 
+        check_bnds(s)
+
         if s.k == 0
             update_μ!(s)
             update_τ!(s)
@@ -52,6 +54,8 @@ function solve!(s::Solver; verbose=false)
             s.j += 1
             empty!(s.filter)
             push!(s.filter,(s.θ_max,Inf))
+
+            check_bnds(s)
         end
     end
     verbose ? println("solve complete") : nothing

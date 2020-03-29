@@ -25,7 +25,6 @@ function line_search(s::Solver)
                 end
             end
         end
-
         if s.l > 0 || θ(s.x⁺,s) < s.θ || s.restoration == true
             s.α *= 0.5
         else

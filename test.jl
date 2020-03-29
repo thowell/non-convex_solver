@@ -14,5 +14,14 @@ c_func(x) = x[1:m].^2 .- 1.2
 ∇f_func(x) = ForwardDiff.gradient(f_func,x)
 ∇c_func(x) = ForwardDiff.jacobian(c_func,x)
 
-s = Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}())
+s = Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}(kkt_solve=:unreduced))
 solve!(s,verbose=true)
+
+
+s.opts.kkt_solve
+eval_iterate!(s)
+search_direction!(s)
+
+s.d
+
+s.dx

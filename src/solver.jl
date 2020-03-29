@@ -6,6 +6,9 @@ mutable struct Solver{T}
     xU::Vector{T}
     xL_bool::Vector{Bool}
     xU_bool::Vector{Bool}
+    xLs_bool::Vector{Bool}
+    xUs_bool::Vector{Bool}
+
 
     x_soc::Vector{T}
 
@@ -96,6 +99,8 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     # primal bounds
     xL_bool = ones(Bool,n)
     xU_bool = ones(Bool,n)
+    xLs_bool = ones(Bool,n)
+    xUs_bool = ones(Bool,n)
 
     for i = 1:n
         # relax bounds
@@ -106,9 +111,24 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
         if xL[i] < -1.0*opts.bnd_tol
             xL_bool[i] = 0
         end
+
         if xU[i] > opts.bnd_tol
             xU_bool[i] = 0
         end
+
+        # single bounds
+        if xL_bool[i] == 1 && xU_bool[i] == 0
+            xLs_bool[i] = 1
+        else
+            xLs_bool[i] = 0
+        end
+
+        if xL_bool[i] == 0 && xU_bool[i] == 1
+            xUs_bool[i] = 1
+        else
+            xUs_bool[i] = 0
+        end
+
     end
 
     for i = 1:n
@@ -126,8 +146,8 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     H = spzeros(n+m,n+m)
     h = zeros(n+m)
 
-    Hu = spzeros(n+m,n+m)
-    hu = zeros(n+m)
+    Hu = spzeros(n+m+nL+nU,n+m+nL+nU)
+    hu = zeros(n+m+nL+nU)
 
 
     W = spzeros(n,n)
@@ -188,7 +208,7 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     restoration = false
     DR = spzeros(0,0)
 
-    Solver(x,x⁺,xL,xU,xL_bool,xU_bool,x_soc,λ,zL,zU,n,nL,nU,m,f_func,∇f_func,
+    Solver(x,x⁺,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,x_soc,λ,zL,zU,n,nL,nU,m,f_func,∇f_func,
         c_func,∇c_func,H,h,Hu,hu,W,ΣL,ΣU,A,f,∇f,φ,∇φ,∇L,c,c_soc,d,d_soc,dx,dλ,
         dzL,dzU,μ,α,αz,α_max,α_min,α_soc,β,τ,δw,δw_last,δc,θ,θ_min,θ_max,
         θ_soc,sd,sc,filter,j,k,l,p,t,restoration,DR,opts)
@@ -222,6 +242,15 @@ function eval_lagrangian!(s::Solver)
     s.∇L .+= s.A'*s.λ
     s.∇L[s.xL_bool] .-= s.zL
     s.∇L[s.xU_bool] .+= s.zU
+
+    ∇L(x) = s.∇f_func(x) + s.∇c_func(x)'*s.λ
+    s.W .= ForwardDiff.jacobian(∇L,s.x)
+
+    # damping
+    κd = s.opts.κd
+    μ = s.μ
+    s.∇L[s.xLs_bool] .+= κd*μ
+    s.∇L[s.xUs_bool] .-= κd*μ
     return nothing
 end
 
@@ -233,6 +262,14 @@ function eval_barrier!(s::Solver)
     s.∇φ .= s.∇f
     s.∇φ[s.xL_bool] .-= s.μ./(s.x - s.xL)[s.xL_bool]
     s.∇φ[s.xU_bool] .+= s.μ./(s.xU - s.x)[s.xU_bool]
+
+    # damping
+    κd = s.opts.κd
+    μ = s.μ
+    s.φ += κd*μ*sum((s.x - s.xL)[s.xLs_bool])
+    s.φ += κd*μ*sum((s.xU - s.x)[s.xUs_bool])
+    s.∇φ[s.xLs_bool] .+= κd*μ
+    s.∇φ[s.xUs_bool] .-= κd*μ
     return nothing
 end
 
@@ -333,10 +370,10 @@ end
 
 θ(x,s::Solver) = norm(s.c_func(x),1)
 
-function barrier(x,xL,xU,xL_bool,xU_bool,μ,f_func)
-    return (f_func(x) - μ*sum(log.((xU - x)[xU_bool])) - μ*sum(log.((x - xL)[xL_bool])))
+function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func)
+    return (f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]))
 end
-barrier(x,s::Solver) = barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.μ,s.f_func)
+barrier(x,s::Solver) = barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,s.xUs_bool,s.μ,s.opts.κd,s.f_func)
 
 function update!(s::Solver)
     s.x .= s.x⁺
@@ -358,6 +395,19 @@ function relax_bnd(x_bnd,ϵ_tol,bnd_type)
     end
 end
 
+function check_bnds(s::Solver)
+    for i = (1:n)[s.xLs_bool]
+        if s.x[i] - s.xL[i] < s.opts.ϵ_mach*s.μ
+            println("lower bound needs to be relaxed")
+        end
+    end
+
+    for i = (1:n)[s.xUs_bool]
+        if s.xU[i] - s.x[i] < s.opts.ϵ_mach*s.μ
+            println("upper bound needs to be relaxed")
+        end
+    end
+end
 # function eval_Fμ!(Fμ,x,λ,zL,zU,xL,xU,xL_bool,xU_bool,c,∇L,μ,n,m,nL,nU)
 #     Fμ[1:n] = ∇L
 #     Fμ[n .+ (1:m)] = c

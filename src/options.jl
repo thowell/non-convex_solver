@@ -42,6 +42,8 @@
 
     κd::T = 1.0e-4
 
+    kkt_solve::Symbol = :symmetric # :symmetric, :unreduced
+
     ϵ_mach::T = 1.0e-16
 end
 
@@ -82,8 +84,8 @@ function Base.copy(o::Options{T}) where T
                     κF=copy(o.κF),
                     κ_resto=copy(o.κ_resto),
                     κ1=copy(o.κ1),
-                    κ2=copy(o.κ2))
+                    κ2=copy(o.κ2),
+                    κd=copy(o.κd),
+                    kkt_solve=copy(o.kkt_solve),
+                    ϵ_mach=copy(o.ϵ_mach))
 end
-
-o = Options{Float64}()
-o_ = copy(o)
