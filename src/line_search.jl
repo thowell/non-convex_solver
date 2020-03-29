@@ -11,13 +11,13 @@ function line_search(s::Solver)
     while s.α > s.α_min
         if check_filter(θ(s.x⁺,s),barrier(s.x⁺,s),s)
             # case 1
-            if (s.θ < s.θ_min && switching_condition(s))
+            if (s.θ <= s.θ_min && switching_condition(s))
                 if armijo(s.x⁺,s)
                     status = true
                     break
                 end
             # case 2
-            else
+            else #(s.θ > s.θ_min || !switching_condition(s))
                 if sufficient_progress(s.x⁺,s)
                     status = true
                     break
@@ -25,15 +25,15 @@ function line_search(s::Solver)
             end
         end
 
-        # if s.l > 0 || θ(s.x⁺,s) < s.θ || s.restoration == true
-        #     s.α *= 0.5
-        # else
-        #     if second_order_correction(s)
-        #         status = true
-        #         break
-        #     end
-        # end
-        s.α *= 0.5
+        if s.l > 0 || θ(s.x⁺,s) < s.θ || s.restoration == true
+            s.α *= 0.5
+        else
+            # second order correction
+            if second_order_correction(s)
+                status = true
+                break
+            end
+        end
 
         s.x⁺ .= s.x + s.α*s.dx
 

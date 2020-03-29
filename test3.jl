@@ -2,7 +2,7 @@ include("src/interior_point.jl")
 
 n = 2
 m = 1
-x0 = [0.1; 10.]
+x0 = [-1.; 10.]
 
 xl = -Inf*ones(n)
 xu = Inf*ones(n)

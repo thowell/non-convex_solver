@@ -18,7 +18,6 @@ function solve!(s::Solver; verbose=false)
             if !line_search(s)
                 augment_filter!(s)
                 restoration!(s)
-                augment_filter_restoration!(s.x,s)
             else
                 augment_filter!(s)
                 update!(s)
@@ -39,14 +38,21 @@ function solve!(s::Solver; verbose=false)
             end
         end
 
-        s.k = 0
-        s.j += 1
-
         update_μ!(s)
         update_τ!(s)
         eval_barrier!(s)
-
+        s.j += 1
         empty!(s.filter)
         push!(s.filter,(s.θ_max,Inf))
+
+        if s.k == 0
+            update_μ!(s)
+            update_τ!(s)
+            eval_barrier!(s)
+            s.j += 1
+            empty!(s.filter)
+            push!(s.filter,(s.θ_max,Inf))
+        end
     end
+    verbose ? println("solve complete") : nothing
 end

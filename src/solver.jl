@@ -331,14 +331,7 @@ end
 barrier(x,s::Solver) = barrier(x,s.xl,s.xu,s.xl_bool,s.xu_bool,s.μ,s.f_func)
 
 function update!(s::Solver)
-    if s.update == :nominal
-        s.x .= s.x + s.α*s.dx
-    elseif s.update == :soc
-        s.x .= s.x + s.α_soc*s.d_soc[1:s.n]
-        s.update = :nominal # reset update
-    else
-        error("update error")
-    end
+    s.x .= s.x⁺
     s.λ .= s.λ + s.α*s.dλ
     s.zl .= s.zl + s.αz*s.dzl
     s.zu .= s.zu + s.αz*s.dzu

@@ -1,64 +1,56 @@
 function second_order_correction(s::Solver)
     s.p = 1
-    θ_soc = θ(s.x,s)
-    c_soc = s.α_max*s.c_func(s.x) + s.c_func(s.x + s.α_max*s.dx)
+    θ_soc = s.θ
+    c_soc = s.α*s.c + s.c_func(s.x⁺)
     s.h[s.n .+ (1:s.m)] .= c_soc
-    s.d_soc = -s.H\s.h
+    s.d_soc[1:(s.n+s.m)] = -s.H\s.h
 
+    # α_soc_max
     s.α_soc = 1.0
     while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.xl_bool,s.xu_bool,s.d_soc[1:s.n],s.α_soc,s.τ)
         s.α_soc *= 0.5
-        println("α = $(s.α_soc)")
     end
 
+    s.x⁺ .= s.x + s.α_soc*s.d_soc[1:s.n]
+
     while true
-        if check_filter(θ(s.x + s.α_soc*s.d_soc[1:s.n],s),barrier(s.x + s.α_soc*s.d_soc[1:s.n],s),s)
-            # println("second order good to filter")
-            if (θ(s.x,s) < s.θ_min && switching_condition(s))
-                if armijo(s.x + s.α_soc*s.d_soc[1:s.n],s)
+        if check_filter(θ(s.x⁺,s),barrier(s.x⁺,s),s)
+            # case 1
+            if (s.θ <= s.θ_min && switching_condition(s))
+                if armijo(s.x⁺,s)
                     s.update = :soc
                     s.α = s.α_soc
                     break
                 end
             # case 2
-            else
-                # println("check suff. progress")
-                # println("x: $(s.x)")
-                # println("xl: $(s.x + s.α*s.dx)")
-                # println("xsoc: $(s.x + s.α_soc*s.d_soc[1:s.n])")
-                # for f in s.filter
-                #     println("θ: $(f[1]), φ: $(f[2])")
-                # end
-                if sufficient_progress(s.x + s.α_soc*s.d_soc[1:s.n],s)
+            else#(s.θ > s.θ_min || !switching_condition(s))
+                if sufficient_progress(s.x⁺,s)
                     s.update = :soc
                     s.α = s.α_soc
-                    # println("inside suff progress")
                     break
                 end
             end
-        end
-
-        if s.p == s.opts.p_max || θ(s.x + s.α_soc*s.d_soc[1:s.n],s) > s.opts.κ_soc*θ_soc
-            # @warn "second order correction failure"
-            s.α = s.α_max
+        else
+            s.α = 0.5*s.α_max
             break
         end
 
-        s.p += 1
+        if s.p == s.opts.p_max || θ(s.x⁺,s) > s.opts.κ_soc*θ_soc
+            s.α = 0.5*s.α_max
+            break
+        else
+            s.p += 1
 
-        θ_soc = θ(s.x + s.α_soc*s.d_soc[1:s.n],s)
-        s.c_soc .= s.α_soc*s.c_soc .+ s.c_func(s.x + s.α_soc*s.d_soc[1:s.n])
+            s.c_soc .= s.α_soc*s.c_soc + s.c_func(s.x⁺)
+            θ_soc = θ(s.x⁺,s)
 
-        s.h[s.n .+ (1:s.m)] .= c_soc
-        s.d_soc .= -s.H\s.h
+            s.h[s.n .+ (1:s.m)] .= c_soc
+            s.d_soc .= -s.H\s.h
 
-        s.α_soc = 1.0
-        while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.xl_bool,s.xu_bool,s.d_soc[1:s.n],s.α_soc,s.τ)
-            s.α_soc *= 0.5
-            println("α = $(s.α_soc)")
-            # if s.α_soc < s.α_min
-            #     error("α_soc < α_min")
-            # end
+            s.α_soc = 1.0
+            while !fraction_to_boundary_bnds(s.x,s.xl,s.xu,s.xl_bool,s.xu_bool,s.d_soc[1:s.n],s.α_soc,s.τ)
+                s.α_soc *= 0.5
+            end
         end
     end
 
