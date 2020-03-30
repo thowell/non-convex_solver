@@ -254,6 +254,9 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
     kkt_hessian_symmetric_restoration!(s̄,s)
     kkt_gradient_symmetric_restoration!(s̄,s)
 
+    flag = inertia_correction!(s.H,s)
+
+
     x = s̄.x[(1:s.n)]
     p = s̄.x[s.n .+ (1:s.m)]
     n = s̄.x[(s.n + s.m) .+ (1:s.m)]
@@ -273,7 +276,7 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
     Σn = Diagonal(zn./n)
 
     # dx, dλ
-    s̄.d[[(1:s.n)...,((s.n+2s.m) .+ (1:s.m))...]] = -s.H\s.h
+    s̄.d[[(1:s.n)...,((s.n+2s.m) .+ (1:s.m))...]] = -Symmetric(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))\s.h
 
     dx = s̄.d[(1:s.n)]
     dλ = s̄.d[((s.n+2s.m) .+ (1:s.m))]
@@ -301,6 +304,14 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
     # dzn
     s̄.d[(s.n + 2s.m + s.m + s.nL + s.m) .+ (1:s.m)] = μ*Diagonal(n)*ones(s.m) - zn - Σn*dn
     dzn = s̄.d[(s.n + 2s.m + s.m + s.nL + s.m) .+ (1:s.m)]
+
+    if flag
+        kkt_hessian_unreduced!(s̄)
+        kkt_gradient_unreduced!(s̄)
+        iterative_refinement(s̄.d,s̄.Hu,[s.δw*ones(s.n);zeros(2s.m);-s.δc*ones(s.m);zeros(s̄.nL+s̄.nU)],-s̄.hu)
+        s.δw = 0.
+        s.δc = 0.
+    end
 
     return nothing
 end

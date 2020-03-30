@@ -1,10 +1,10 @@
-function inertia_correction!(s::Solver)
+function inertia_correction!(H,s::Solver)
     n = -1
     m = -1
     z = -1
 
     try
-        LDL = ldl(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
+        LDL = ldl(H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
         n = sum(LDL.D .>= s.opts.ϵ_mach)
         m = sum(LDL.D .<= -s.opts.ϵ_mach)
         z = s.n+s.m - n - m
@@ -18,7 +18,7 @@ function inertia_correction!(s::Solver)
     end
 
     if z != 0
-        println("zeros eigen values")
+        println("$z zero eigen values")
         s.δc = s.opts.δc*s.μ^s.opts.κc
     end
 
@@ -29,13 +29,9 @@ function inertia_correction!(s::Solver)
     end
 
     while n != s.n || m != s.m || z != 0
-        println("correcting interia ")
-        # s.H[1:s.n,1:s.n] .= (s.W + s.ΣL + s.ΣU)
-        # s.H[1:s.n,s.n .+ (1:s.m)] .= s.A'
-        # s.H[s.n .+ (1:s.m),1:s.n] .= s.A
-        # s.H[s.n .+ (1:s.m),s.n .+ (1:s.m)] .= -s.δc*Matrix(I,s.m,s.m)
+        println("correct interia ")
         try
-            LDL = ldl(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
+            LDL = ldl(H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
             n = sum(LDL.D .>= s.opts.ϵ_mach)
             m = sum(LDL.D .<= -s.opts.ϵ_mach)
             z = s.n+s.m - n - m
@@ -65,11 +61,12 @@ function inertia_correction!(s::Solver)
     return true
 end
 
-function iterative_refinement(x,A,δ,b; max_iter=10,ϵ=1.0e-8,verbose=false)
+function iterative_refinement(x_,A,δ,b; max_iter=10,ϵ=1.0e-8,verbose=false)
+
+    x = copy(x_)
     iter = 0
     res = b - A*x
 
-    println("res: $res")
     while iter < max_iter && norm(res,Inf) > ϵ
         x .+= (A+Diagonal(δ))\res
         println("x: $x")
@@ -78,12 +75,12 @@ function iterative_refinement(x,A,δ,b; max_iter=10,ϵ=1.0e-8,verbose=false)
         iter += 1
     end
 
-    if verbose
-        println("norm(res): $(norm(res))")
-    end
-    if iter < max_iter
+    if norm(res,Inf) < ϵ
+        x_ .= x
+        println("iterative refinement success")
         return true
     else
+        println("iterative refinement failure")
         false
     end
 end
