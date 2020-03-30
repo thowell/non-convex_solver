@@ -258,8 +258,8 @@ function eval_lagrangian!(s::Solver)
     s.∇L[s.xL_bool] -= s.zL
     s.∇L[s.xU_bool] += s.zU
 
-    ∇L(x) = s.∇f_func(x) + s.∇c_func(x)'*s.λ
-    s.W .= ForwardDiff.jacobian(∇L,s.x)
+    tmp(x) = s.∇f_func(x) + s.∇c_func(x)'*s.λ
+    s.W .= ForwardDiff.jacobian(tmp,s.x)
 
     # damping
     κd = s.opts.κd
