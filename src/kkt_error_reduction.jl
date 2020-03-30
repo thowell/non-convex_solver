@@ -62,5 +62,3 @@ function β_max!(s::Solver)
     s.β = min(s.α,s.αz)
     return nothing
 end
-
-kkt_error_reduction(s)

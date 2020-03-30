@@ -105,13 +105,13 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     # primal bounds
     xL_bool = ones(Bool,n)
     xU_bool = ones(Bool,n)
-    xLs_bool = ones(Bool,n)
-    xUs_bool = ones(Bool,n)
+    xLs_bool = zeros(Bool,n)
+    xUs_bool = zeros(Bool,n)
 
     for i = 1:n
         # relax bounds
-        xL[i] = relax_bnd(xL[i],opts.ϵ_tol,:L)
-        xU[i] = relax_bnd(xU[i],opts.ϵ_tol,:U)
+        # xL[i] = relax_bnd(xL[i],opts.ϵ_tol,:L)
+        # xU[i] = relax_bnd(xU[i],opts.ϵ_tol,:U)
 
         # boolean bounds
         if xL[i] < -1.0*opts.bnd_tol

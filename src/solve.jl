@@ -16,6 +16,8 @@ function solve!(s::Solver; verbose=false)
             search_direction!(s)
 
             if !line_search(s)
+                println("α_min: $(s.α_min)")
+                println("α: $(s.α)")
                 augment_filter!(s)
                 restoration!(s)
             else
