@@ -86,6 +86,13 @@ mutable struct Solver{T}
     restoration::Bool
     DR::SparseMatrixCSC{T,Int}
 
+    x_copy::Vector{T}
+    λ_copy::Vector{T}
+    zL_copy::Vector{T}
+    zU_copy::Vector{T}
+
+    Fμ::Vector{T}
+
     opts::Options{T}
 end
 
@@ -93,7 +100,6 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
 
     # initialize primals
     x = zeros(n)
-
     x⁺ = zeros(n)
 
     # primal bounds
@@ -208,10 +214,19 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     restoration = false
     DR = spzeros(0,0)
 
+    x_copy = zeros(n)
+    λ_copy = zeros(m)
+    zL_copy = zeros(nL)
+    zU_copy = zeros(nU)
+
+    Fμ = zeros(n+m+nL+nU)
+
     Solver(x,x⁺,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,x_soc,λ,zL,zU,n,nL,nU,m,f_func,∇f_func,
         c_func,∇c_func,H,h,Hu,hu,W,ΣL,ΣU,A,f,∇f,φ,∇φ,∇L,c,c_soc,d,d_soc,dx,dλ,
         dzL,dzU,μ,α,αz,α_max,α_min,α_soc,β,τ,δw,δw_last,δc,θ,θ_min,θ_max,
-        θ_soc,sd,sc,filter,j,k,l,p,t,restoration,DR,opts)
+        θ_soc,sd,sc,filter,j,k,l,p,t,restoration,DR,
+        x_copy,λ_copy,zL_copy,zU_copy,Fμ,
+        opts)
 end
 
 function eval_Eμ(x,λ,zL,zU,xL,xU,xL_bool,xU_bool,c,∇L,μ,sd,sc)
@@ -240,8 +255,8 @@ end
 function eval_lagrangian!(s::Solver)
     s.∇L .= s.∇f
     s.∇L .+= s.A'*s.λ
-    s.∇L[s.xL_bool] .-= s.zL
-    s.∇L[s.xU_bool] .+= s.zU
+    s.∇L[s.xL_bool] -= s.zL
+    s.∇L[s.xU_bool] += s.zU
 
     ∇L(x) = s.∇f_func(x) + s.∇c_func(x)'*s.λ
     s.W .= ForwardDiff.jacobian(∇L,s.x)
@@ -260,8 +275,8 @@ function eval_barrier!(s::Solver)
     s.φ -= s.μ*sum(log.((s.xU - s.x)[s.xU_bool]))
 
     s.∇φ .= s.∇f
-    s.∇φ[s.xL_bool] .-= s.μ./(s.x - s.xL)[s.xL_bool]
-    s.∇φ[s.xU_bool] .+= s.μ./(s.xU - s.x)[s.xU_bool]
+    s.∇φ[s.xL_bool] -= s.μ./(s.x - s.xL)[s.xL_bool]
+    s.∇φ[s.xU_bool] += s.μ./(s.xU - s.x)[s.xU_bool]
 
     # damping
     κd = s.opts.κd
@@ -349,9 +364,9 @@ function init_λ(zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
     if m > 0
         H = [Matrix(I,n,n) ∇c';∇c zeros(m,m)]
         h = zeros(n+m)
-        h[1:n] .= ∇f
-        h[1:n][xL_bool] .-= zL
-        h[1:n][xU_bool] .+= zU
+        h[1:n] = ∇f
+        h[1:n][xL_bool] -= zL
+        h[1:n][xU_bool] += zU
 
         d = -H\h
 
@@ -408,10 +423,3 @@ function check_bnds(s::Solver)
         end
     end
 end
-# function eval_Fμ!(Fμ,x,λ,zL,zU,xL,xU,xL_bool,xU_bool,c,∇L,μ,n,m,nL,nU)
-#     Fμ[1:n] = ∇L
-#     Fμ[n .+ (1:m)] = c
-#     Fμ[(n+m) .+ (1:nL)] = (x-xL)[xL_bool].*zL .- μ
-#     Fμ[(n+m+nL) .+ (1:nU)] = (xU-x)[xU_bool].*zU .- μ
-#     return nothing
-# end

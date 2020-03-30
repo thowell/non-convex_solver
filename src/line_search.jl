@@ -85,36 +85,6 @@ function αz_max!(s::Solver)
     return nothing
 end
 
-# function β_max!(s::Solver)
-#
-#     s.β = 1.0
-#     while !fraction_to_boundary_bnds(s.x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.dx,s.β,s.τ)
-#         s.β *= 0.5
-#         println("β = $(s.β)")
-#         if s.β < 1.0e-32
-#             error("β < 1e-32 ")
-#         end
-#     end
-#
-#     while !fraction_to_boundary(s.zL,s.dzL,s.β,s.τ)
-#         s.β *= 0.5
-#         println("β = $(s.β)")
-#         if s.β < 1.0e-32
-#             error("β < 1e-32 ")
-#         end
-#     end
-#
-#     while !fraction_to_boundary(s.zU,s.dzU,s.β,s.τ)
-#         s.β *= 0.5
-#         println("β = $(s.β)")
-#         if s.β < 1.0e-32
-#             error("β < 1e-32 ")
-#         end
-#     end
-#
-#     return nothing
-# end
-
 switching_condition(∇φ,d,α,sφ,δ,θ,sθ) = (∇φ'*d < 0. && α*(-∇φ'*d)^sφ > δ*θ^sθ)
 function switching_condition(s::Solver)
     return switching_condition(s.∇φ,s.dx,s.α,s.opts.sφ,s.opts.δ,s.θ,s.opts.sθ)

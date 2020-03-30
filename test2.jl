@@ -13,5 +13,5 @@ c_func(x) = zeros(m)
 ∇f_func(x) = ForwardDiff.gradient(f_func,x)
 ∇c_func(x) = zeros(m,n)
 
-s = Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}(max_iter=1e3,kkt_solve=:unreduced))
+s = Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}(max_iter=1e3))
 solve!(s,verbose=true)

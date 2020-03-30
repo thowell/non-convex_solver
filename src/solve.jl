@@ -6,7 +6,7 @@ function solve!(s::Solver; verbose=false)
     push!(s.filter,(s.θ_max,Inf))
 
     if verbose
-        println("--Interior-point solve--")
+        println("<interior-point solve>\n")
         println("φ0: $(s.φ), θ0: $(s.θ)")
         println("Eμ0: $(eval_Eμ(0.0,s))")
     end
@@ -34,7 +34,8 @@ function solve!(s::Solver; verbose=false)
                 println("iteration (j,k): ($(s.j),$(s.k))")
                 println("x: $(s.x)")
                 println("θjk: $(θ(s.x,s)), φjk: $(barrier(s.x,s))")
-                println("Eμ: $(eval_Eμ(s.μ,s))\n")
+                println("Eμ: $(eval_Eμ(s.μ,s))")
+                println("α: $(s.α)\n")
             end
         end
 
@@ -58,5 +59,5 @@ function solve!(s::Solver; verbose=false)
             check_bnds(s)
         end
     end
-    verbose ? println("solve complete") : nothing
+    verbose ? println("<interior-point solve complete>") : nothing
 end
