@@ -90,10 +90,12 @@ function switching_condition(s::Solver)
     return switching_condition(s.∇φ,s.dx,s.α,s.opts.sφ,s.opts.δ,s.θ,s.opts.sθ)
 end
 
-sufficient_progress(θ⁺,θ,φ⁺,φ,γθ,γφ) = (θ⁺ <= (1-γθ)*θ || φ⁺ <= φ - γφ*θ)
+sufficient_progress(θ⁺,θ,φ⁺,φ,γθ,γφ,ϵ_mach) = (θ⁺ - 10.0*ϵ_mach*abs(θ) <= (1-γθ)*θ || φ⁺ - 10.0*ϵ_mach*abs(φ) <= φ - γφ*θ)
 function sufficient_progress(x⁺,s::Solver)
-    return sufficient_progress(θ(x⁺,s),s.θ,barrier(x⁺,s),s.φ,s.opts.γθ,s.opts.γφ)
+    return sufficient_progress(θ(x⁺,s),s.θ,barrier(x⁺,s),s.φ,s.opts.γθ,s.opts.γφ,
+        s.opts.ϵ_mach)
 end
 
-armijo(φ⁺,φ,η,α,∇φ,d) = (φ⁺ <= φ + η*α*∇φ'*d)
-armijo(x⁺,s::Solver) = armijo(barrier(x⁺,s),s.φ,s.opts.ηφ,s.α,s.∇φ,s.dx)
+armijo(φ⁺,φ,η,α,∇φ,d,ϵ_mach) = (φ⁺ - φ - 10.0*ϵ_mach*abs(φ) <= η*α*∇φ'*d)
+armijo(x⁺,s::Solver) = armijo(barrier(x⁺,s),s.φ,s.opts.ηφ,s.α,s.∇φ,s.dx,
+    s.opts.ϵ_mach)

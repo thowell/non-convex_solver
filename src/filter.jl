@@ -5,7 +5,6 @@ function check_filter(θ,φ,s::Solver)
 
     for f in s.filter
         if θ < f[1] || φ < f[2]
-        # if θ < (1.0 - s.opts.γθ)*f[1] || φ < f[2] - s.opts.γφ*f[1]
             cnt += 1
         end
     end

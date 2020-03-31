@@ -18,6 +18,7 @@ function restoration!(s::Solver)
         s.zL .+= s.αz*s.dzL
         s.zU .+= s.αz*s.dzU
         s.λ .= init_λ(s.zL,s.zU,∇f_func(s.x),∇c_func(s.x),s.n,s.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
+
     else
         println("-KKT error reduction success")
     end
@@ -101,7 +102,7 @@ function solve_restoration!(s̄::Solver,s_ref::Solver; verbose=false)
             empty!(s̄.filter)
             push!(s̄.filter,(s̄.θ_max,Inf))
 
-            check_bnds(s̄)
+            # check_bnds(s̄)
         end
 
         update_restoration_objective!(s̄,s_ref)

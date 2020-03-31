@@ -9,7 +9,6 @@ mutable struct Solver{T}
     xLs_bool::Vector{Bool}
     xUs_bool::Vector{Bool}
 
-
     x_soc::Vector{T}
 
     λ::Vector{T}
@@ -200,6 +199,8 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
 
     λ = opts.λ_init_ls ? init_λ(zL,zU,∇f_func(x),∇c_func(x),n,m,xL_bool,xU_bool,opts.λ_max) : zeros(m)
 
+    h = zeros(n+m)
+
     sd = init_sd(λ,[zL;zU],n,m,opts.s_max)
     sc = init_sc([zL;zU],n,opts.s_max)
 
@@ -362,7 +363,11 @@ end
 function init_λ(zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
 
     if m > 0
-        H = [Matrix(I,n,n) ∇c';∇c zeros(m,m)]
+        H = spzeros(n+m,n+m)
+        H[1:n,1:n] .= Matrix(I,n,n)
+        H[1:n,n .+ (1:m)] .= ∇c'
+        H[n .+ (1:m),1:n] .= ∇c
+        # H = [Matrix(I,n,n) ∇c';∇c zeros(m,m)]
         h = zeros(n+m)
         h[1:n] = ∇f
         h[1:n][xL_bool] -= zL

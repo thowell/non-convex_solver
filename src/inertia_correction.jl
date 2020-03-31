@@ -29,7 +29,6 @@ function inertia_correction!(H,s::Solver)
     end
 
     while n != s.n || m != s.m || z != 0
-        println("correct interia ")
         try
             LDL = ldl(H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
             n = sum(LDL.D .>= s.opts.ϵ_mach)
