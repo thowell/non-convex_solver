@@ -13,16 +13,31 @@ function solve!(s::Solver; verbose=false)
 
     while eval_Eμ(0.0,s) > s.opts.ϵ_tol
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
-            search_direction!(s)
-
-            if !line_search(s)
+            if search_direction!(s)
+                s.small_search_direction_cnt += 1
+                if s.small_search_direction_cnt == s.opts.small_search_direction_max
+                    if s.μ < 0.1*s.opts.ϵ_tol
+                        verbose ? println("<interior-point solve complete>: small search direction") : nothing
+                        return
+                    else
+                        break
+                    end
+                end
+                α_max!(s)
+                αz_max!(s)
+                augment_filter!(s)
+                update!(s)
+            elseif !line_search(s)
                 println("α_min: $(s.α_min)")
                 println("α: $(s.α)")
                 augment_filter!(s)
                 restoration!(s)
+                s.small_search_direction_cnt = 0
+
             else
                 augment_filter!(s)
                 update!(s)
+                s.small_search_direction_cnt = 0
             end
 
             eval_iterate!(s)
@@ -48,7 +63,7 @@ function solve!(s::Solver; verbose=false)
         empty!(s.filter)
         push!(s.filter,(s.θ_max,Inf))
 
-        check_bnds(s)
+        # check_bnds(s)
 
         if s.k == 0
             update_μ!(s)
@@ -58,7 +73,7 @@ function solve!(s::Solver; verbose=false)
             empty!(s.filter)
             push!(s.filter,(s.θ_max,Inf))
 
-            check_bnds(s)
+            # check_bnds(s)
         end
     end
     verbose ? println("<interior-point solve complete>") : nothing

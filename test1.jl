@@ -19,7 +19,3 @@ c_func(x) = [x[1]^2 - x[2] - 1.0;
 
 s = Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}(max_iter=1000))
 solve!(s,verbose=true)
-
-s.H .= spzeros(n+m,n+m)
-
-s.H

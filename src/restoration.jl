@@ -41,9 +41,21 @@ function solve_restoration!(s̄::Solver,s_ref::Solver; verbose=false)
 
     while eval_Eμ(0.0,s̄) > s̄.opts.ϵ_tol
         while eval_Eμ(s̄.μ,s̄) > s̄.opts.κϵ*s̄.μ
-            search_direction_symmetric_restoration!(s̄,s_ref)
-            # search_direction!(s̄)
-            if !line_search(s̄)
+            if search_direction_symmetric_restoration!(s̄,s_ref)
+                s̄.small_search_direction_cnt += 1
+                if s̄.small_search_direction_cnt == s̄.opts.small_search_direction_max
+                    if s̄.μ < 0.1*s̄.opts.ϵ_tol
+                        verbose ? println("<phase 2 complete>: small search direction") : nothing
+                        return
+                    end
+                else
+                    break
+                end
+                α_max!(s̄)
+                αz_max!(s̄)
+                augment_filter!(s̄)
+                update!(s̄)
+            elseif !line_search(s̄)
                 s_ref.c .= s_ref.c_func(s̄.x[1:s_ref.n])
                 # initialize p,n
                 for i = 1:s_ref.m
@@ -55,10 +67,11 @@ function solve_restoration!(s̄::Solver,s_ref::Solver; verbose=false)
                 end
                 s̄.λ .= 0
 
-                # error("-restoration phase failure")
+                s̄.small_search_direction_cnt = 0
             else
                 augment_filter!(s̄)
                 update!(s̄)
+                s̄.small_search_direction_cnt = 0
             end
 
             if check_filter(θ(s̄.x[1:s_ref.n],s_ref),barrier(s̄.x[1:s_ref.n],s_ref),s_ref) && θ(s̄.x[1:s_ref.n],s_ref) <= s̄.opts.κ_resto*s_ref.θ
@@ -314,5 +327,5 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
         s.δc = 0.
     end
 
-    return nothing
+    return small_search_direction(s̄)
 end

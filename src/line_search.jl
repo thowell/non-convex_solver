@@ -42,7 +42,6 @@ function line_search(s::Solver)
 
         s.l += 1
     end
-
     return status
 end
 

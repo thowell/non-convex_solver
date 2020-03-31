@@ -45,6 +45,7 @@
 
     kkt_solve::Symbol = :symmetric # :symmetric, :unreduced
 
+    small_search_direction_max::Int = 2
     ϵ_mach::T = 1.0e-16
 end
 
@@ -89,5 +90,6 @@ function Base.copy(o::Options{T}) where T
                     κ2=copy(o.κ2),
                     κd=copy(o.κd),
                     kkt_solve=o.kkt_solve,
+                    small_search_direction_max=copy(o.small_search_direction_max),
                     ϵ_mach=copy(o.ϵ_mach))
 end

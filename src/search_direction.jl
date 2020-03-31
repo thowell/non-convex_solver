@@ -6,7 +6,7 @@ function search_direction!(s::Solver)
     else
         error("KKT solve not implemented")
     end
-    return nothing
+    return small_search_direction(s)
 end
 
 # symmetric KKT system
