@@ -17,5 +17,11 @@ c_func(x) = [x[1]^2 - x[2] - 1.0;
 ∇f_func(x) = ForwardDiff.gradient(f_func,x)
 ∇c_func(x) = ForwardDiff.jacobian(c_func,x)
 
-s = Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}(max_iter=1000))
+s = Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}(max_iter=1000,relax_bnds=false))
 solve!(s,verbose=true)
+
+s.xL
+s.xU
+
+s.xL_bool
+s.xU_bool

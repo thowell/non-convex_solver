@@ -109,9 +109,11 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     xUs_bool = zeros(Bool,n)
 
     for i = 1:n
-        # relax bounds
-        # xL[i] = relax_bnd(xL[i],opts.ϵ_tol,:L)
-        # xU[i] = relax_bnd(xU[i],opts.ϵ_tol,:U)
+        if opts.relax_bnds
+            # relax bounds
+            xL[i] = relax_bnd(xL[i],opts.ϵ_tol,:L)
+            xU[i] = relax_bnd(xU[i],opts.ϵ_tol,:U)
+        end
 
         # boolean bounds
         if xL[i] < -1.0*opts.bnd_tol
@@ -408,26 +410,28 @@ function update!(s::Solver)
     return nothing
 end
 
-function relax_bnd(x_bnd,ϵ_tol,bnd_type)
+function relax_bnd(x_bnd,ϵ,bnd_type)
     if bnd_type == :L
-        return x_bnd - ϵ_tol*max(1.0,abs(x_bnd))
+        return x_bnd - ϵ*max(1.0,abs(x_bnd))
     elseif bnd_type == :U
-        return x_bnd + ϵ_tol*max(1.0,abs(x_bnd))
+        return x_bnd + ϵ*max(1.0,abs(x_bnd))
     else
         error("bound type error")
     end
 end
 
-function check_bnds(s::Solver)
-    for i = (1:n)[s.xLs_bool]
+function relax_bnds!(s::Solver)
+    for i = (1:s.n)[s.xLs_bool]
         if s.x[i] - s.xL[i] < s.opts.ϵ_mach*s.μ
-            println("lower bound needs to be relaxed")
+            s.xL[i] -= (s.opts.ϵ_mach^0.75)*max(1.0,s.xL[i])
+            @warn "lower bound needs to be relaxed"
         end
     end
 
-    for i = (1:n)[s.xUs_bool]
+    for i = (1:s.n)[s.xUs_bool]
         if s.xU[i] - s.x[i] < s.opts.ϵ_mach*s.μ
-            println("upper bound needs to be relaxed")
+            s.xU[i] += (s.opts.ϵ_mach^0.75)*max(1.0,s.xU[i])
+            @warn "upper bound needs to be relaxed"
         end
     end
 end

@@ -13,6 +13,7 @@ function solve!(s::Solver; verbose=false)
 
     while eval_Eμ(0.0,s) > s.opts.ϵ_tol
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
+            relax_bnds!(s)
             if search_direction!(s)
                 s.small_search_direction_cnt += 1
                 if s.small_search_direction_cnt == s.opts.small_search_direction_max

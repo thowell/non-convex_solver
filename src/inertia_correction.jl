@@ -60,7 +60,7 @@ function inertia_correction!(H,s::Solver)
     return true
 end
 
-function iterative_refinement(x_,A,δ,b; max_iter=10,ϵ=1.0e-8,verbose=false)
+function iterative_refinement(x_,A,δ,b; max_iter=10,ϵ=1.0e-16,verbose=false)
 
     x = copy(x_)
     iter = 0
@@ -68,7 +68,7 @@ function iterative_refinement(x_,A,δ,b; max_iter=10,ϵ=1.0e-8,verbose=false)
 
     while iter < max_iter && norm(res,Inf) > ϵ
         x .+= (A+Diagonal(δ))\res
-        println("x: $x")
+        # println("x: $x")
 
         res = b - A*x
         iter += 1

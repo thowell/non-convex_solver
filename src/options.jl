@@ -46,6 +46,8 @@
     kkt_solve::Symbol = :symmetric # :symmetric, :unreduced
 
     small_search_direction_max::Int = 2
+    relax_bnds::Bool = true
+    max_iterative_refinement::Int = 10
     ϵ_mach::T = 1.0e-16
 end
 
@@ -91,5 +93,7 @@ function Base.copy(o::Options{T}) where T
                     κd=copy(o.κd),
                     kkt_solve=o.kkt_solve,
                     small_search_direction_max=copy(o.small_search_direction_max),
+                    relax_bnds=copy(o.relax_bnds),
+                    max_iterative_refinement=copy(o.max_iterative_refinement),
                     ϵ_mach=copy(o.ϵ_mach))
 end

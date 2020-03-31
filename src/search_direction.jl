@@ -42,7 +42,9 @@ function search_direction_symmetric!(s::Solver)
     if flag
         kkt_hessian_unreduced!(s)
         kkt_gradient_unreduced!(s)
-        iterative_refinement(s.d,s.Hu,[s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)],-s.hu)
+        iterative_refinement(s.d,s.Hu,
+            [s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)],-s.hu,
+            max_iter=s.opts.max_iterative_refinement,ϵ=s.opts.ϵ_mach)
         s.δw = 0.
         s.δc = 0.
     end

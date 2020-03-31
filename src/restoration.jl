@@ -41,6 +41,7 @@ function solve_restoration!(s̄::Solver,s_ref::Solver; verbose=false)
 
     while eval_Eμ(0.0,s̄) > s̄.opts.ϵ_tol
         while eval_Eμ(s̄.μ,s̄) > s̄.opts.κϵ*s̄.μ
+            # relax_bnds!(s̄)
             if search_direction_symmetric_restoration!(s̄,s_ref)
                 s̄.small_search_direction_cnt += 1
                 if s̄.small_search_direction_cnt == s̄.opts.small_search_direction_max
@@ -105,8 +106,6 @@ function solve_restoration!(s̄::Solver,s_ref::Solver; verbose=false)
         empty!(s̄.filter)
         push!(s̄.filter,(s̄.θ_max,Inf))
 
-        # check_bnds(s̄)
-
         if s̄.k == 0
             update_μ!(s̄)
             update_τ!(s̄)
@@ -114,8 +113,6 @@ function solve_restoration!(s̄::Solver,s_ref::Solver; verbose=false)
             s̄.j += 1
             empty!(s̄.filter)
             push!(s̄.filter,(s̄.θ_max,Inf))
-
-            # check_bnds(s̄)
         end
 
         update_restoration_objective!(s̄,s_ref)
@@ -129,6 +126,7 @@ function RestorationSolver(s::Solver)
     opts = copy(s.opts)
     opts.λ_init_ls = false
     opts.μ0 = max(s.μ,norm(s.c,Inf))
+    opts.relax_bnds = false
 
     n̄ = s.n + 2s.m
     m̄ = s.m
@@ -322,7 +320,9 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
     if flag
         kkt_hessian_unreduced!(s̄)
         kkt_gradient_unreduced!(s̄)
-        iterative_refinement(s̄.d,s̄.Hu,[s.δw*ones(s.n);zeros(2s.m);-s.δc*ones(s.m);zeros(s̄.nL+s̄.nU)],-s̄.hu)
+        iterative_refinement(s̄.d,s̄.Hu,
+            [s.δw*ones(s.n);zeros(2s.m);-s.δc*ones(s.m);zeros(s̄.nL+s̄.nU)],-s̄.hu,
+            max_iter=s.opts.max_iterative_refinement,ϵ=s.opts.ϵ_mach)
         s.δw = 0.
         s.δc = 0.
     end
