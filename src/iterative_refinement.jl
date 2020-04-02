@@ -13,20 +13,20 @@ function iterative_refinement(d_,s::Solver; verbose=false)
 
     while iter < s.opts.max_iterative_refinement && norm(res,Inf) > s.opts.ϵ_iterative_refinement
         d = zero(d_)
-        r̄ = copy(res)
-        r̄3 = r̄[s.n+s.m .+ (1:s.nL)]
-        r̄4 = r̄[s.n+s.m+s.nL .+ (1:s.nU)]
-        r̄[(1:s.n)[s.xL_bool]] += r̄3./((s.x - s.xL)[s.xL_bool])
-        r̄[(1:s.n)[s.xU_bool]] -= r̄4./((s.xU - s.x)[s.xU_bool])
+        # r̄ = copy(res)
+        # r̄3 = r̄[s.n+s.m .+ (1:s.nL)]
+        # r̄4 = r̄[s.n+s.m+s.nL .+ (1:s.nU)]
+        # r̄[(1:s.n)[s.xL_bool]] += r̄3./((s.x - s.xL)[s.xL_bool])
+        # r̄[(1:s.n)[s.xU_bool]] -= r̄4./((s.xU - s.x)[s.xU_bool])
+        #
+        # LBL = Ma57(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
+        # ma57_factorize(LBL)
+        # d[1:(s.n+s.m)] = ma57_solve(LBL,r̄[1:(s.n+s.m)])
+        #
+        # d[(s.n+s.m) .+ (1:s.nL)] = -s.zL./((s.x - s.xL)[s.xL_bool]).*d[1:s.n][s.xL_bool] + r̄3./((s.x - s.xL)[s.xL_bool])
+        # d[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU./((s.xU - s.x)[s.xU_bool]).*d[1:s.n][s.xU_bool] + r̄4./((s.xU - s.x)[s.xU_bool])
 
-        LBL = Ma57(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
-        ma57_factorize(LBL)
-        d[1:(s.n+s.m)] = ma57_solve(LBL,r̄[1:(s.n+s.m)])
-
-        d[(s.n+s.m) .+ (1:s.nL)] = -s.zL./((s.x - s.xL)[s.xL_bool]).*d[1:s.n][s.xL_bool] + r̄3./((s.x - s.xL)[s.xL_bool])
-        d[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU./((s.xU - s.x)[s.xU_bool]).*d[1:s.n][s.xU_bool] + r̄4./((s.xU - s.x)[s.xU_bool])
-
-        # d .+= (s.Hu+Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)]))\res
+        d = (s.Hu+Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)]))\res
         dd .+= d
         res = -s.hu - s.Hu*dd
         # println("d: $d")
@@ -62,20 +62,20 @@ function iterative_refinement_soc(d_,s::Solver; verbose=false)
 
     while iter < s.opts.max_iterative_refinement && norm(res,Inf) > s.opts.ϵ_iterative_refinement
         d = zero(d_)
-        r̄ = copy(res)
-        r̄3 = r̄[s.n+s.m .+ (1:s.nL)]
-        r̄4 = r̄[s.n+s.m+s.nL .+ (1:s.nU)]
-        r̄[(1:s.n)[s.xL_bool]] += r̄3./((s.x - s.xL)[s.xL_bool])
-        r̄[(1:s.n)[s.xU_bool]] -= r̄4./((s.xU - s.x)[s.xU_bool])
+        # r̄ = copy(res)
+        # r̄3 = r̄[s.n+s.m .+ (1:s.nL)]
+        # r̄4 = r̄[s.n+s.m+s.nL .+ (1:s.nU)]
+        # r̄[(1:s.n)[s.xL_bool]] += r̄3./((s.x - s.xL)[s.xL_bool])
+        # r̄[(1:s.n)[s.xU_bool]] -= r̄4./((s.xU - s.x)[s.xU_bool])
+        #
+        # LBL = Ma57(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
+        # ma57_factorize(LBL)
+        # d[1:(s.n+s.m)] = ma57_solve(LBL,r̄[1:(s.n+s.m)])
+        #
+        # d[(s.n+s.m) .+ (1:s.nL)] = -s.zL./((s.x - s.xL)[s.xL_bool]).*d[1:s.n][s.xL_bool] + r̄3./((s.x - s.xL)[s.xL_bool])
+        # d[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU./((s.xU - s.x)[s.xU_bool]).*d[1:s.n][s.xU_bool] + r̄4./((s.xU - s.x)[s.xU_bool])
 
-        LBL = Ma57(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
-        ma57_factorize(LBL)
-        d[1:(s.n+s.m)] = ma57_solve(LBL,r̄[1:(s.n+s.m)])
-
-        d[(s.n+s.m) .+ (1:s.nL)] = -s.zL./((s.x - s.xL)[s.xL_bool]).*d[1:s.n][s.xL_bool] + r̄3./((s.x - s.xL)[s.xL_bool])
-        d[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU./((s.xU - s.x)[s.xU_bool]).*d[1:s.n][s.xU_bool] + r̄4./((s.xU - s.x)[s.xU_bool])
-
-        # d .+= (s.Hu+Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)]))\res
+        d = (s.Hu+Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)]))\res
         dd .+= d
         res = -s.hu - s.Hu*dd
         # println("d: $d")
@@ -146,38 +146,40 @@ function iterative_refinement(d_,s̄::Solver,s::Solver; verbose=false)
 
     while iter < s.opts.max_iterative_refinement && norm(res,Inf) > s.opts.ϵ_iterative_refinement
         d = zero(d_)
-        r = copy(res)
-        r1 = r[1:s.n]
-        r2 = r[s.n .+ (1:s.m)]
-        r3 = r[s.n + s.m .+ (1:s.m)]
-        r4 = r[s.n + s.m + s.m .+ (1:s.m)]
-        r5 = r[s.n + s.m + s.m + s.m .+ (1:s.nL)]
-        r6 = r[s.n + s.m + s.m + s.m + s.nL .+ (1:s.m)]
-        r7 = r[s.n + s.m + s.m + s.m + s.nL + s.m .+ (1:s.m)]
-        r8 = r[s.n + s.m + s.m + s.m + s.nL + s.m + s.m .+ (1:s.nU)]
+        # r = copy(res)
+        # r1 = r[1:s.n]
+        # r2 = r[s.n .+ (1:s.m)]
+        # r3 = r[s.n + s.m .+ (1:s.m)]
+        # r4 = r[s.n + s.m + s.m .+ (1:s.m)]
+        # r5 = r[s.n + s.m + s.m + s.m .+ (1:s.nL)]
+        # r6 = r[s.n + s.m + s.m + s.m + s.nL .+ (1:s.m)]
+        # r7 = r[s.n + s.m + s.m + s.m + s.nL + s.m .+ (1:s.m)]
+        # r8 = r[s.n + s.m + s.m + s.m + s.nL + s.m + s.m .+ (1:s.nU)]
+        #
+        # r̄1 = copy(r1)
+        # r̄1[s.xL_bool] += r5./xL
+        # r̄1[s.xU_bool] -= r8./xU
+        # r̄4 = copy(r4)
+        # r̄4 .+= p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
+        #
+        #
+        #
+        # LBL = Ma57(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
+        # # LBL = Ma57([s.W s̄.A[:,1:s.n]'; s̄.A[:,1:s.n] (-Diagonal(p./zp) - Diagonal(n./zn))])
+        # ma57_factorize(LBL)
+        # d[idx] = ma57_solve(LBL,[r̄1;r̄4])
+        #
+        # dx = d[1:s.n]
+        # dλ = d[s.n+2s.m .+ (1:s.m)]
+        #
+        # d[s.n .+ (1:s.m)] = -p.*(-dλ - r2)./zp + r6./zp
+        # d[s.n + s.m .+ (1:s.m)] = -n.*(dλ - r3)./zn + r7./zn
+        # d[s.n + 3s.m .+ (1:s.nL)] = -zL./xL.*dx[s.xL_bool] + r5./xL
+        # d[s.n + 3s.m + s.nL .+ (1:s.m)] = -dλ - r2
+        # d[s.n + 4s.m + s.nL .+ (1:s.m)] = dλ - r3
+        # d[s.n + 5s.m + s.nL .+ (1:s.nU)] = zU./xU.*dx[s.xU_bool] + r8./xU
 
-        r̄1 = copy(r1)
-        r̄1[s.xL_bool] += r5./xL
-        r̄1[s.xU_bool] -= r8./xU
-        r̄4 = copy(r4)
-        r̄4 .+= p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
-
-
-
-        LBL = Ma57(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
-        # LBL = Ma57([s.W s̄.A[:,1:s.n]'; s̄.A[:,1:s.n] (-Diagonal(p./zp) - Diagonal(n./zn))])
-        ma57_factorize(LBL)
-        d[idx] = ma57_solve(LBL,[r̄1;r̄4])
-
-        dx = d[1:s.n]
-        dλ = d[s.n+2s.m .+ (1:s.m)]
-
-        d[s.n .+ (1:s.m)] = -p.*(-dλ - r2)./zp + r6./zp
-        d[s.n + s.m .+ (1:s.m)] = -n.*(dλ - r3)./zn + r7./zn
-        d[s.n + 3s.m .+ (1:s.nL)] = -zL./xL.*dx[s.xL_bool] + r5./xL
-        d[s.n + 3s.m + s.nL .+ (1:s.m)] = -dλ - r2
-        d[s.n + 4s.m + s.nL .+ (1:s.m)] = dλ - r3
-        d[s.n + 5s.m + s.nL .+ (1:s.nU)] = zU./xU.*dx[s.xU_bool] + r8./xU
+        d = (s̄.Hu + Diagonal([s.δw*ones(s.n);zeros(2s.m);-s.δc*ones(s.m);zeros(s̄.nL+s̄.nU)]))\res
 
         dd .+= d
         res = -s̄.hu - s̄.Hu*dd
