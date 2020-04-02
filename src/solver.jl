@@ -408,7 +408,6 @@ function update!(s::Solver)
     s.zL .= s.zL + s.αz*s.dzL
     s.zU .= s.zU + s.αz*s.dzU
 
-    reset_z!(s)
     return nothing
 end
 

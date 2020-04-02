@@ -21,7 +21,7 @@ function restoration!(s::Solver)
         s.zL .+= s.αz*s.dzL
         s.zU .+= s.αz*s.dzU
         s.λ .= init_λ(s.zL,s.zU,∇f_func(s.x),∇c_func(s.x),s.n,s.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
-        # s.H[s.n .+ (1:s.m),s.n .+ (1:s.m)] .= 0.
+        s.H[s.n .+ (1:s.m),s.n .+ (1:s.m)] .= 0.
     else
         println("-KKT error reduction success")
     end
@@ -187,8 +187,8 @@ function update_restoration_objective!(s̄::Solver,s_ref::Solver)
     ζ = sqrt(s̄.μ)
     DR = s̄.DR
     function f_func(x)
-        println("updated!- ζ: $(ζ)")
-        s̄.opts.ρ*sum(x[s_ref.n .+ (1:2s_ref.m)]) + 0.5*ζ*(x[1:s.n] - xR)'*DR'*DR*(x[1:s.n] - xR)
+        # println("updated!- ζ: $(ζ)")
+        s̄.opts.ρ*sum(x[s_ref.n .+ (1:2s_ref.m)]) + 0.5*ζ*(x[1:s.n] - s_ref.x)'*DR'*DR*(x[1:s.n] - s_ref.x)
     end
 
     ∇f_func(x) = ForwardDiff.gradient(f_func,x)
@@ -327,12 +327,13 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
     dzn = s̄.d[(s.n + 2s.m + s.m + s.nL + s.m) .+ (1:s.m)]
 
     if flag
-        kkt_hessian_unreduced!(s̄)
-        kkt_gradient_unreduced!(s̄)
-        iterative_refinement(s̄.d,s̄.Hu,
-            [s.δw*ones(s.n);zeros(2s.m);-s.δc*ones(s.m);zeros(s̄.nL+s̄.nU)],-s̄.hu,s̄.n,s̄.m,
-            max_iter=s.opts.max_iterative_refinement,
-            ϵ=s.opts.ϵ_iterative_refinement)
+        # kkt_hessian_unreduced!(s̄)
+        # kkt_gradient_unreduced!(s̄)
+        # iterative_refinement(s̄.d,s̄.Hu,
+        #     [s.δw*ones(s.n);zeros(2s.m);-s.δc*ones(s.m);zeros(s̄.nL+s̄.nU)],-s̄.hu,s̄.n,s̄.m,
+        #     max_iter=s.opts.max_iterative_refinement,
+        #     ϵ=s.opts.ϵ_iterative_refinement)
+        iterative_refinement(s̄.d,s̄,s)
     end
     s.δw = 0.
     s.δc = 0.

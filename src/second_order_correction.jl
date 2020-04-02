@@ -84,7 +84,11 @@ function search_direction_soc_symmetric!(s::Solver)
     ma57_factorize(LBL)
     s.d_soc[1:(s.n+s.m)] = ma57_solve(LBL, -s.h)
     # s.d_soc[1:(s.n+s.m)] = -s.H\s.h
-
+    s.d_soc[(s.n+s.m) .+ (1:s.nL)] = -s.zL./((s.x - s.xL)[s.xL_bool]).*s.d[(1:s.n)[s.xL_bool]] - s.zL + s.μ./((s.x - s.xL)[s.xL_bool])
+    s.d_soc[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU./((s.xU - s.x)[s.xU_bool]).*s.d[(1:s.n)[s.xU_bool]] - s.zU + s.μ./((s.xU - s.x)[s.xU_bool])
+    if flag
+        iterative_refinement_soc(s.d_soc,s)
+    end
     return nothing
 end
 

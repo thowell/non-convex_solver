@@ -40,6 +40,7 @@ function solve!(s::Solver; verbose=false)
                 update!(s)
                 s.small_search_direction_cnt = 0
             end
+            # reset_z!(s)
 
             eval_iterate!(s)
 
