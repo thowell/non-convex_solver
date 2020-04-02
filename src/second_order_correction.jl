@@ -6,7 +6,7 @@ function second_order_correction(s::Solver)
     s.c_soc .= s.α*s.c + s.c_func(s.x⁺)
 
     search_direction_soc!(s)
-    
+
     α_soc_max!(s)
 
     s.x⁺ .= s.x + s.α_soc*s.d_soc[1:s.n]
@@ -31,6 +31,7 @@ function second_order_correction(s::Solver)
                 end
             end
         else
+            s.fail_cnt += 1
             s.α = 0.5*s.α_max
             println("second order correction: failure")
             break

@@ -32,22 +32,31 @@ function search_direction_symmetric!(s::Solver)
     kkt_hessian_symmetric!(s)
     kkt_gradient_symmetric!(s)
 
-    flag = inertia_correction!(s.H,s)
-    # flag = false
+    flag = inertia_correction_hsl!(s.H,s)
 
-    s.d[1:(s.n+s.m)] = -Symmetric(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))\s.h
+    LBL = Ma57(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
+    ma57_factorize(LBL)
+    s.d[1:(s.n+s.m)] = ma57_solve(LBL, -s.h)
+
+    # s.d[1:(s.n+s.m)] = -Symmetric(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))\s.h
     s.d[(s.n+s.m) .+ (1:s.nL)] = -s.zL./((s.x - s.xL)[s.xL_bool]).*s.d[(1:s.n)[s.xL_bool]] - s.zL + s.μ./((s.x - s.xL)[s.xL_bool])
     s.d[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU./((s.xU - s.x)[s.xU_bool]).*s.d[(1:s.n)[s.xU_bool]] - s.zU + s.μ./((s.xU - s.x)[s.xU_bool])
 
     if flag
         kkt_hessian_unreduced!(s)
         kkt_gradient_unreduced!(s)
+        # if s.restoration
         iterative_refinement(s.d,s.Hu,
-            [s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)],-s.hu,
-            max_iter=s.opts.max_iterative_refinement,ϵ=s.opts.ϵ_mach)
-        s.δw = 0.
-        s.δc = 0.
+            [s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)],-s.hu,s.n,s.m,
+            max_iter=s.opts.max_iterative_refinement,ϵ=s.opts.ϵ_iterative_refinement)
+        # else
+        # iterative_refinement_phase1(s.d,s.x,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_bool,s.Hu,s.H,
+        #     [s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)],-s.hu,s.n,s.nL,s.nU,s.m,
+        #     max_iter=s.opts.max_iterative_refinement,ϵ=s.opts.ϵ_iterative_refinement)
+        # # end
     end
+    s.δw = 0.
+    s.δc = 0.
     return nothing
 end
 
@@ -73,11 +82,29 @@ function kkt_gradient_unreduced!(s::Solver)
     s.hu[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU.*((s.xU - s.x)[s.xU_bool]) .- s.μ
     return nothing
 end
-
+#
 function search_direction_unreduced!(s::Solver)
+
+    kkt_hessian_symmetric!(s)
+    kkt_gradient_symmetric!(s)
+
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
 
-    s.d .= -lu(s.Hu + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)]))\s.hu
+    flag = inertia_correction_hsl!(s.H,s)
+
+
+
+    # flag = inertia_correction_unreduced!(s.Hu,s,false)
+
+    s.d .= lu(s.Hu + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)]))\(-1.0*s.hu)
+
+    if flag
+        iterative_refinement(s.d,s.Hu,
+            [s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)],-s.hu,s.n,s.m,
+            max_iter=s.opts.max_iterative_refinement,ϵ=s.opts.ϵ_iterative_refinement)
+    end
+    s.δw = 0.
+    s.δc = 0.
     return nothing
 end

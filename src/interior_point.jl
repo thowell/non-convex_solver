@@ -1,4 +1,5 @@
 using LinearAlgebra, ForwardDiff, SparseArrays, StaticArrays, Parameters,LDLFactorizations
+using HSL
 
 include("options.jl")
 include("solver.jl")
