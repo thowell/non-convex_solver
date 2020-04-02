@@ -15,13 +15,9 @@ function restoration!(s::Solver)
         αz_max!(s)
 
         s.x .= s̄.x[1:s.n]
-        # for i = 1:s.n
-        #     s.x[i] = init_x0(s.x[i],s.xL[i],s.xU[i],s.opts.κ1,s.opts.κ2)
-        # end
         s.zL .+= s.αz*s.dzL
         s.zU .+= s.αz*s.dzU
         s.λ .= init_λ(s.zL,s.zU,∇f_func(s.x),∇c_func(s.x),s.n,s.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
-        s.H[s.n .+ (1:s.m),s.n .+ (1:s.m)] .= 0.
     else
         println("-KKT error reduction success")
     end
@@ -58,24 +54,26 @@ function solve_restoration!(s̄::Solver,s_ref::Solver; verbose=false)
                 αz_max!(s̄)
                 augment_filter!(s̄)
                 update!(s̄)
-            elseif !line_search(s̄)
-                s_ref.c .= s_ref.c_func(s̄.x[1:s_ref.n])
-                # initialize p,n
-                for i = 1:s_ref.m
-                    s̄.x[s_ref.n + s_ref.m + i] = init_n(s_ref.c[i],s̄.μ,s̄.opts.ρ)
-                end
-
-                for i = 1:s_ref.m
-                    s̄.x[s_ref.n + i] = init_p(s̄.x[s_ref.n + s_ref.m + i],s_ref.c[i])
-                end
-                s̄.λ .= 0
-
-                @warn "resetting restoration"
-                s̄.small_search_direction_cnt = 0
             else
-                augment_filter!(s̄)
-                update!(s̄)
                 s̄.small_search_direction_cnt = 0
+
+                if !line_search(s̄)
+                    s_ref.c .= s_ref.c_func(s̄.x[1:s_ref.n])
+                    # initialize p,n
+                    for i = 1:s_ref.m
+                        s̄.x[s_ref.n + s_ref.m + i] = init_n(s_ref.c[i],s̄.μ,s̄.opts.ρ)
+                    end
+
+                    for i = 1:s_ref.m
+                        s̄.x[s_ref.n + i] = init_p(s̄.x[s_ref.n + s_ref.m + i],s_ref.c[i])
+                    end
+                    s̄.λ .= 0
+
+                    @warn "resetting restoration"
+                else
+                    augment_filter!(s̄)
+                    update!(s̄)
+                end
             end
 
             if check_filter(θ(s̄.x[1:s_ref.n],s_ref),barrier(s̄.x[1:s_ref.n],s_ref),s_ref) && θ(s̄.x[1:s_ref.n],s_ref) <= s̄.opts.κ_resto*s_ref.θ
@@ -85,7 +83,6 @@ function solve_restoration!(s̄::Solver,s_ref::Solver; verbose=false)
                 println("-restoration phase success\n")
                 return true
             end
-            # reset_z!(s̄)
 
             eval_iterate!(s̄)
 
@@ -187,7 +184,6 @@ function update_restoration_objective!(s̄::Solver,s_ref::Solver)
     ζ = sqrt(s̄.μ)
     DR = s̄.DR
     function f_func(x)
-        # println("updated!- ζ: $(ζ)")
         s̄.opts.ρ*sum(x[s_ref.n .+ (1:2s_ref.m)]) + 0.5*ζ*(x[1:s.n] - s_ref.x)'*DR'*DR*(x[1:s.n] - s_ref.x)
     end
 
@@ -216,151 +212,23 @@ function init_p(n,c)
     return p
 end
 
-
-
-# symmetric KKT system
-function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
-    s.W .= s̄.W[1:s.n,1:s.n]
-    s̄.ΣL[CartesianIndex.((1:s̄.n)[s̄.xL_bool],(1:s̄.n)[s̄.xL_bool])] .= s̄.zL./((s̄.x - s̄.xL)[s̄.xL_bool])
-    s̄.ΣU[CartesianIndex.((1:s̄.n)[s̄.xU_bool],(1:s̄.n)[s̄.xU_bool])] .= s̄.zU./((s̄.xU - s̄.x)[s̄.xU_bool])
-    s.ΣL .= s̄.ΣL[1:s.n,1:s.n]
-    s.ΣU .= s̄.ΣU[1:s.n,1:s.n]
-
-    # Σp = Array(s̄.ΣL[s.n .+ (1:s.m),s.n .+ (1:s.m)])
-    # Σn = Array(s̄.ΣU[(s.n+s.m) .+ (1:s.m),(s.n+s.m) .+ (1:s.m)])
-
-    p = s̄.x[s.n .+ (1:s.m)]
-    n = s̄.x[(s.n + s.m) .+ (1:s.m)]
-
-    zL = s̄.zL[1:s.nL]
-    zp = s̄.zL[s.nL .+ (1:s.m)]
-    zn = s̄.zL[(s.nL+s.m) .+ (1:s.m)]
-
-    s.A .= s̄.A[1:s.m,1:s.n]
-
-    s.H[1:s.n,1:s.n] .= s.W + s.ΣL + s.ΣU
-    s.H[1:s.n,s.n .+ (1:s.m)] .= s.A'
-    s.H[s.n .+ (1:s.m),1:s.n] .= s.A
-    s.H[s.n .+ (1:s.m),s.n .+ (1:s.m)] = -Diagonal(p./zp) - Diagonal(n./zn)
-
-    return nothing
-end
-
-function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
-    s.∇φ .= s̄.∇φ[1:s.n]
-    s.A .= s̄.A[1:s.m,1:s.n]
-
-    p = s̄.x[s.n .+ (1:s.m)]
-    n = s̄.x[(s.n + s.m) .+ (1:s.m)]
-
-    λ = s̄.λ
-
-    ρ = s̄.opts.ρ
-    μ = s̄.μ
-
-    zL = s̄.zL[1:s.nL]
-    zp = s̄.zL[s.nL .+ (1:s.m)]
-    zn = s̄.zL[(s.nL+s.m) .+ (1:s.m)]
-
-    s.h[1:s.n] = s.∇φ + s.A'*λ
-    s.h[s.n .+ (1:s.m)] = s̄.c + ρ*Diagonal(zp)\(μ*ones(s.m) - p) + ρ*Diagonal(zn)\(μ*ones(s.m) - n)
-
-    return nothing
-end
-
-function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
-    kkt_hessian_symmetric_restoration!(s̄,s)
-    kkt_gradient_symmetric_restoration!(s̄,s)
-
-    flag = inertia_correction_hsl!(s.H,s,true)
-
-    x = s̄.x[(1:s.n)]
-    p = s̄.x[s.n .+ (1:s.m)]
-    n = s̄.x[(s.n + s.m) .+ (1:s.m)]
-
-    λ = s̄.λ
-
-    zL = s̄.zL[1:s.nL]
-    zp = s̄.zL[s.nL .+ (1:s.m)]
-    zn = s̄.zL[(s.nL+s.m) .+ (1:s.m)]
-
-    zU = s̄.zU[1:s.nU]
-
-    μ = s̄.μ
-    ρ = s̄.opts.ρ
-
-    Σp = Diagonal(zp./p)
-    Σn = Diagonal(zn./n)
-
-    # dx, dλ
-    LBL = Ma57(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
-    ma57_factorize(LBL)
-    s̄.d[[(1:s.n)...,((s.n+2s.m) .+ (1:s.m))...]] = ma57_solve(LBL, -s.h)
-
-    # s̄.d[[(1:s.n)...,((s.n+2s.m) .+ (1:s.m))...]] = -Symmetric(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))\s.h
-
-    dx = s̄.d[(1:s.n)]
-    dλ = s̄.d[((s.n+2s.m) .+ (1:s.m))]
-
-    # dp
-    s̄.d[s.n .+ (1:s.m)] = Diagonal(zp)\(μ*ones(s.m) + Diagonal(p)*(λ + dλ) - ρ*p)
-    dp = s̄.d[s.n .+ (1:s.m)]
-
-    # dn
-    s̄.d[(s.n+s.m) .+ (1:s.m)] = Diagonal(zn)\(μ*ones(s.m) - Diagonal(n)*(λ + dλ) - ρ*n)
-    dn = s̄.d[(s.n+s.m) .+ (1:s.m)]
-
-    # dzL
-    s̄.d[(s.n + 2s.m + s.m) .+ (1:s.nL)] = -zL./((x - s.xL)[s.xL_bool]).*dx[s.xL_bool] - zL + μ./((x - s.xL)[s.xL_bool])
-    dzL = s̄.d[(s.n + 2s.m + s.m) .+ (1:s.nL)]
-
-    #dzU
-    s̄.d[(s.n + 2s.m + s.m + s.nL + s.m + s.m) .+ (1:s.nU)] = zU./((s.xU - x)[s.xU_bool]).*dx[s.xU_bool] - zU + μ./((s.xU - x)[s.xU_bool])
-    dzU = s̄.d[(s.n + 2s.m + s.m + s.nL + s.m + s.m) .+ (1:s.nU)]
-
-    # dzp
-    s̄.d[(s.n + 2s.m + s.m + s.nL) .+ (1:s.m)] = μ*Diagonal(p)\ones(s.m) - zp - Σp*dp
-    dzp = s̄.d[(s.n + 2s.m + s.m + s.nL) .+ (1:s.m)]
-
-    # dzn
-    s̄.d[(s.n + 2s.m + s.m + s.nL + s.m) .+ (1:s.m)] = μ*Diagonal(n)*ones(s.m) - zn - Σn*dn
-    dzn = s̄.d[(s.n + 2s.m + s.m + s.nL + s.m) .+ (1:s.m)]
-
-    if flag
-        # kkt_hessian_unreduced!(s̄)
-        # kkt_gradient_unreduced!(s̄)
-        # iterative_refinement(s̄.d,s̄.Hu,
-        #     [s.δw*ones(s.n);zeros(2s.m);-s.δc*ones(s.m);zeros(s̄.nL+s̄.nU)],-s̄.hu,s̄.n,s̄.m,
-        #     max_iter=s.opts.max_iterative_refinement,
-        #     ϵ=s.opts.ϵ_iterative_refinement)
-        iterative_refinement(s̄.d,s̄,s)
-    end
-    s.δw = 0.
-    s.δc = 0.
-
-    return small_search_direction(s̄)
-end
-
 function search_direction_restoration!(s̄::Solver,s::Solver)
-    if s̄.opts.kkt_solve == :symmetric
-        search_direction_symmetric_restoration!(s̄,s)
-    elseif s.opts.kkt_solve == :unreduced
+    if s.opts.kkt_solve == :unreduced
         kkt_hessian_unreduced!(s̄)
         kkt_gradient_unreduced!(s̄)
 
-        flag = inertia_correction_hsl!(s.H,s)
+        flag = inertia_correction!(s̄)
 
-        δ = [s.δw*ones(s.n);zeros(2s.m);-s.δc*ones(s.m);zeros(s̄.nL+s̄.nU)]
-        s̄.d .= -(s̄.Hu + Diagonal(δ))\s̄.hu
+        s̄.δ[1:s.n] .= s̄.δw
+        s̄.δ[s.n + 2s.m .+ (1:s.m)] .= -s̄.δc
+        s̄.d .= -(s̄.Hu + Diagonal(s̄.δ))\s̄.hu
 
         if flag
-            s̄.δw = s.δw
-            s̄.δc = s.δc
-            iterative_refinement(s̄.d,δ,s̄)
+            iterative_refinement(s̄.d,s̄)
         end
 
-        s.δw = 0.
-        s.δc = 0.
+        s̄.δw = 0.
+        s̄.δc = 0.
     else
         error("KKT solve not implemented")
     end

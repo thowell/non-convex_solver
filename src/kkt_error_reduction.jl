@@ -48,6 +48,7 @@ function eval_Fμ(x,λ,zL,zU,s)
     s.∇L .= s.∇f + s.A'*λ
     s.∇L[s.xL_bool] -= zL
     s.∇L[s.xU_bool] += zU
+
     # damping
     κd = s.opts.κd
     μ = s.μ

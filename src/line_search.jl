@@ -4,16 +4,12 @@ function line_search(s::Solver)
     α_max!(s)
     αz_max!(s)
 
-    if s.restoration
-        println("α_min: $(s.α_min)")
-    end
-
     # trial step
     s.x⁺ .= s.x + s.α*s.dx
 
     s.l = 0
     status = false
-    while s.α > s.α_min #&& s.α > 1.0e-8
+    while s.α > s.α_min
         if check_filter(θ(s.x⁺,s),barrier(s.x⁺,s),s)
             # case 1
             if (s.θ <= s.θ_min && switching_condition(s))

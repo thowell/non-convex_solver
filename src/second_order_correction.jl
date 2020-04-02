@@ -31,7 +31,6 @@ function second_order_correction(s::Solver)
                 end
             end
         else
-            s.fail_cnt += 1
             s.α = 0.5*s.α_max
             println("second order correction: failure")
             break
@@ -65,29 +64,10 @@ function α_soc_max!(s::Solver)
 end
 
 function search_direction_soc!(s::Solver)
-    if s.opts.kkt_solve == :symmetric
-        search_direction_soc_symmetric!(s)
-    elseif s.opts.kkt_solve == :unreduced
+    if s.opts.kkt_solve == :unreduced
         search_direction_soc_unreduced!(s)
     else
-        error("KKT solve not implemented")
-    end
-    return nothing
-end
-
-function search_direction_soc_symmetric!(s::Solver)
-    s.h[s.n .+ (1:s.m)] = s.c_soc
-
-    flag = inertia_correction_hsl!(s.H,s)
-
-    LBL = Ma57(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
-    ma57_factorize(LBL)
-    s.d_soc[1:(s.n+s.m)] = ma57_solve(LBL, -s.h)
-    # s.d_soc[1:(s.n+s.m)] = -s.H\s.h
-    s.d_soc[(s.n+s.m) .+ (1:s.nL)] = -s.zL./((s.x - s.xL)[s.xL_bool]).*s.d[(1:s.n)[s.xL_bool]] - s.zL + s.μ./((s.x - s.xL)[s.xL_bool])
-    s.d_soc[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU./((s.xU - s.x)[s.xU_bool]).*s.d[(1:s.n)[s.xU_bool]] - s.zU + s.μ./((s.xU - s.x)[s.xU_bool])
-    if flag
-        iterative_refinement_soc(s.d_soc,s)
+        error("KKT solve (soc) not implemented")
     end
     return nothing
 end
@@ -98,13 +78,14 @@ function search_direction_soc_unreduced!(s::Solver)
 
     s.hu[s.n .+ (1:s.m)] = s.c_soc
 
-    flag = inertia_correction_hsl!(s.H,s)
-    δ = [s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)]
+    flag = inertia_correction!(s)
 
-    s.d_soc .= -(s.Hu + Diagonal(δ))\s.hu
+    s.δ[1:s.n] .= s.δw
+    s.δ[s.n .+ (1:s.m)] .= -s.δc
+    s.d_soc .= -(s.Hu + Diagonal(s.δ))\s.hu
 
     if flag
-        iterative_refinement(s.d_soc,δ,s)
+        iterative_refinement(s.d_soc,s)
     end
 
     s.δw = 0.

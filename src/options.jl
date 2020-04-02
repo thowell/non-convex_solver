@@ -43,13 +43,11 @@
 
     κd::T = 1.0e-4
 
-    kkt_solve::Symbol = :symmetric # :symmetric, :unreduced
+    kkt_solve::Symbol = :unreduced # :unreduced, :custom
 
     small_search_direction_max::Int = 2
     max_iterative_refinement::Int = 10
     ϵ_iterative_refinement::T = 1.0e-8
-
-    max_fail::Int = 4
 
     ϵ_mach::T = 1.0e-16
 end
@@ -98,6 +96,5 @@ function Base.copy(o::Options{T}) where T
                     small_search_direction_max=copy(o.small_search_direction_max),
                     max_iterative_refinement=copy(o.max_iterative_refinement),
                     ϵ_iterative_refinement=copy(o.ϵ_iterative_refinement),
-                    max_fail=copy(o.max_fail),
                     ϵ_mach=copy(o.ϵ_mach))
 end

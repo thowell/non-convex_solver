@@ -52,6 +52,9 @@ mutable struct Solver{T}
     dzL
     dzU
 
+    Δ::Vector{T}
+    res::Vector{T}
+
     μ::T
     α::T
     αz::T
@@ -62,9 +65,11 @@ mutable struct Solver{T}
 
     τ::T
 
+    δ::Vector{T}
     δw::T
     δw_last::T
     δc::T
+
 
     θ::T
     θ_min::T
@@ -90,10 +95,9 @@ mutable struct Solver{T}
     λ_copy::Vector{T}
     zL_copy::Vector{T}
     zU_copy::Vector{T}
+    d_copy::Vector{T}
 
     Fμ::Vector{T}
-
-    fail_cnt::Int
 
     opts::Options{T}
 end
@@ -111,10 +115,6 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     xUs_bool = zeros(Bool,n)
 
     for i = 1:n
-        # # relax bounds
-        # xL[i] = relax_bnd(xL[i],opts.ϵ_tol,:L)
-        # xU[i] = relax_bnd(xU[i],opts.ϵ_tol,:U)
-
         # boolean bounds
         if xL[i] < -1.0*opts.bnd_tol
             xL_bool[i] = 0
@@ -179,6 +179,9 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     dzL = view(d,n+m .+ (1:nL))
     dzU = view(d,n+m+nL .+ (1:nU))
 
+    Δ = zero(d)
+    res = zero(d)
+
     μ = copy(opts.μ0)
 
     α = 1.0
@@ -190,6 +193,7 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
 
     τ = update_τ(μ,opts.τ_min)
 
+    δ = zero(d)
     δw = 0.
     δw_last = 0.
     δc = 0.
@@ -224,16 +228,15 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     λ_copy = zeros(m)
     zL_copy = zeros(nL)
     zU_copy = zeros(nU)
+    d_copy = zero(d)
 
     Fμ = zeros(n+m+nL+nU)
 
-    fail_cnt = 0
-
     Solver(x,x⁺,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,x_soc,λ,zL,zU,n,nL,nU,m,f_func,∇f_func,
         c_func,∇c_func,H,h,Hu,hu,W,ΣL,ΣU,A,f,∇f,φ,∇φ,∇L,c,c_soc,d,d_soc,dx,dλ,
-        dzL,dzU,μ,α,αz,α_max,α_min,α_soc,β,τ,δw,δw_last,δc,θ,θ_min,θ_max,
+        dzL,dzU,Δ,res,μ,α,αz,α_max,α_min,α_soc,β,τ,δ,δw,δw_last,δc,θ,θ_min,θ_max,
         θ_soc,sd,sc,filter,j,k,l,p,t,small_search_direction_cnt,restoration,DR,
-        x_copy,λ_copy,zL_copy,zU_copy,Fμ,fail_cnt,
+        x_copy,λ_copy,zL_copy,zU_copy,d_copy,Fμ,
         opts)
 end
 
@@ -407,37 +410,9 @@ function update!(s::Solver)
     s.λ .= s.λ + s.α*s.dλ
     s.zL .= s.zL + s.αz*s.dzL
     s.zU .= s.zU + s.αz*s.dzU
-
     return nothing
 end
 
-function relax_bnd(x_bnd,ϵ,bnd_type)
-    if bnd_type == :L
-        return x_bnd - ϵ*max(1.0,abs(x_bnd))
-    elseif bnd_type == :U
-        return x_bnd + ϵ*max(1.0,abs(x_bnd))
-    else
-        error("bound type error")
-    end
-end
-
-function relax_bnds!(s::Solver)
-    for i = (1:s.n)[s.xLs_bool]
-        if s.x[i] - s.xL[i] < s.opts.ϵ_mach*s.μ
-            s.xL[i] -= (s.opts.ϵ_mach^0.75)*max(1.0,s.xL[i])
-            @warn "lower bound needs to be relaxed"
-        end
-    end
-
-    for i = (1:s.n)[s.xUs_bool]
-        if s.xU[i] - s.x[i] < s.opts.ϵ_mach*s.μ
-            s.xU[i] += (s.opts.ϵ_mach^0.75)*max(1.0,s.xU[i])
-            @warn "upper bound needs to be relaxed"
-        end
-    end
-end
-
 function small_search_direction(s::Solver)
-    return (maximum(abs.(s.dx)./(1.0 .+ abs.(s.x))) <
-        10.0*s.opts.ϵ_mach)
+    return (maximum(abs.(s.dx)./(1.0 .+ abs.(s.x))) < 10.0*s.opts.ϵ_mach)
 end
