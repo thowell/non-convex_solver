@@ -345,7 +345,22 @@ function search_direction_restoration!(s̄::Solver,s::Solver)
     if s̄.opts.kkt_solve == :symmetric
         search_direction_symmetric_restoration!(s̄,s)
     elseif s.opts.kkt_solve == :unreduced
-        search_direction_unreduced!(s̄)
+        kkt_hessian_unreduced!(s̄)
+        kkt_gradient_unreduced!(s̄)
+
+        flag = inertia_correction_hsl!(s.H,s)
+
+        δ = [s.δw*ones(s.n);zeros(2s.m);-s.δc*ones(s.m);zeros(s̄.nL+s̄.nU)]
+        s̄.d .= -(s̄.Hu + Diagonal(δ))\s̄.hu
+
+        if flag
+            s̄.δw = s.δw
+            s̄.δc = s.δc
+            iterative_refinement(s̄.d,δ,s̄)
+        end
+
+        s.δw = 0.
+        s.δc = 0.
     else
         error("KKT solve not implemented")
     end

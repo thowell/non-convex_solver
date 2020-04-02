@@ -93,7 +93,22 @@ function search_direction_soc_symmetric!(s::Solver)
 end
 
 function search_direction_soc_unreduced!(s::Solver)
+    kkt_hessian_unreduced!(s)
+    kkt_gradient_unreduced!(s)
+
     s.hu[s.n .+ (1:s.m)] = s.c_soc
-    s.d_soc .= -s.Hu\s.hu
+
+    flag = inertia_correction_hsl!(s.H,s)
+    δ = [s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)]
+
+    s.d_soc .= -(s.Hu + Diagonal(δ))\s.hu
+
+    if flag
+        iterative_refinement(s.d_soc,δ,s)
+    end
+
+    s.δw = 0.
+    s.δc = 0.
+
     return nothing
 end

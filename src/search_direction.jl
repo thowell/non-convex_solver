@@ -73,3 +73,21 @@ function kkt_gradient_unreduced!(s::Solver)
     s.hu[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU.*((s.xU - s.x)[s.xU_bool]) .- s.μ
     return nothing
 end
+
+function search_direction_unreduced!(s::Solver)
+    kkt_hessian_unreduced!(s)
+    kkt_gradient_unreduced!(s)
+
+    flag = inertia_correction_hsl!(s.H,s)
+
+    δ = [s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)]
+    s.d .= -(s.Hu + Diagonal(δ))\s.hu
+
+    if flag
+        iterative_refinement(s.d,δ,s)
+    end
+
+    s.δw = 0.
+    s.δc = 0.
+    return nothing
+end

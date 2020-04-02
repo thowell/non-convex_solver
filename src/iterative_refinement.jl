@@ -1,6 +1,6 @@
-function iterative_refinement(d_,s::Solver; verbose=false)
-    kkt_hessian_unreduced!(s)
-    kkt_gradient_unreduced!(s)
+function iterative_refinement(d_,δ,s::Solver; verbose=false)
+    # kkt_hessian_unreduced!(s)
+    # kkt_gradient_unreduced!(s)
 
     # kkt_hessian_symmetric!(s)
     # kkt_gradient_symmetric!(s)
@@ -26,7 +26,7 @@ function iterative_refinement(d_,s::Solver; verbose=false)
         # d[(s.n+s.m) .+ (1:s.nL)] = -s.zL./((s.x - s.xL)[s.xL_bool]).*d[1:s.n][s.xL_bool] + r̄3./((s.x - s.xL)[s.xL_bool])
         # d[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU./((s.xU - s.x)[s.xU_bool]).*d[1:s.n][s.xU_bool] + r̄4./((s.xU - s.x)[s.xU_bool])
 
-        d = (s.Hu+Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)]))\res
+        d = (s.Hu+Diagonal(δ))\res
         dd .+= d
         res = -s.hu - s.Hu*dd
         # println("d: $d")
