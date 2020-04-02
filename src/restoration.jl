@@ -85,6 +85,7 @@ function solve_restoration!(s̄::Solver,s_ref::Solver; verbose=false)
                 println("-restoration phase success\n")
                 return true
             end
+            # reset_z!(s̄)
 
             eval_iterate!(s̄)
 
@@ -156,7 +157,7 @@ function RestorationSolver(s::Solver)
     DR = init_DR(s.x,s.n)
     xR = copy(s.x)
 
-    f_func(x) = s.opts.ρ*sum(x[s.n .+ (1:2s.m)]) + 0.5*ζ*norm(DR*(x[1:s.n] - xR))^2# + 2.0*s.opts.ρ*x[end]
+    f_func(x) = s.opts.ρ*sum(x[s.n .+ (1:2s.m)]) + 0.5*ζ*(x[1:s.n] - xR)'*DR'*DR*(x[1:s.n] - xR)
     ∇f_func(x) = ForwardDiff.gradient(f_func,x)
 
     c_func(x) = s.c_func(x[1:s.n]) - x[s.n .+ (1:s.m)] + x[(s.n+s.m) .+ (1:s.m)]
@@ -187,7 +188,7 @@ function update_restoration_objective!(s̄::Solver,s_ref::Solver)
     DR = s̄.DR
     function f_func(x)
         println("updated!- ζ: $(ζ)")
-        s̄.opts.ρ*sum(x[s_ref.n .+ (1:2s_ref.m)]) + 0.5*ζ*norm(DR*(x[1:s_ref.n] - s_ref.x))^2
+        s̄.opts.ρ*sum(x[s_ref.n .+ (1:2s_ref.m)]) + 0.5*ζ*(x[1:s.n] - xR)'*DR'*DR*(x[1:s.n] - xR)
     end
 
     ∇f_func(x) = ForwardDiff.gradient(f_func,x)

@@ -43,3 +43,28 @@ function iterative_refinement(d_,s::Solver; verbose=false)
         false
     end
 end
+
+function iterative_refinement(x_,A,δ,b,n,m; max_iter=10,ϵ=1.0e-16,verbose=false)
+
+    x = copy(x_)
+    iter = 0
+    res = b - A*x
+
+    while iter < max_iter && norm(res,Inf) > ϵ
+        x .+= (A+Diagonal(δ))\res
+        # println("x: $x")
+
+        res = b - A*x
+        iter += 1
+    end
+
+    if norm(res,Inf) < ϵ
+        x_ .= x
+        println("iterative refinement success")
+        return true
+    else
+        println("iterative refinement failure: $(norm(res,Inf))")
+        println("δ: $(δ)")
+        false
+    end
+end
