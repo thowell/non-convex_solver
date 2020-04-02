@@ -46,7 +46,7 @@
     kkt_solve::Symbol = :symmetric # :symmetric, :unreduced
 
     small_search_direction_max::Int = 2
-    max_iterative_refinement::Int = 1e4
+    max_iterative_refinement::Int = 10
     ϵ_iterative_refinement::T = 1.0e-8
 
     max_fail::Int = 4

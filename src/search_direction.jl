@@ -43,18 +43,9 @@ function search_direction_symmetric!(s::Solver)
     s.d[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU./((s.xU - s.x)[s.xU_bool]).*s.d[(1:s.n)[s.xU_bool]] - s.zU + s.μ./((s.xU - s.x)[s.xU_bool])
 
     if flag
-        kkt_hessian_unreduced!(s)
-        kkt_gradient_unreduced!(s)
-        # if s.restoration
-        iterative_refinement(s.d,s.Hu,
-            [s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)],-s.hu,s.n,s.m,
-            max_iter=s.opts.max_iterative_refinement,ϵ=s.opts.ϵ_iterative_refinement)
-        # else
-        # iterative_refinement_phase1(s.d,s.x,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_bool,s.Hu,s.H,
-        #     [s.δw*ones(s.n);-s.δc*ones(s.m);zeros(s.nL+s.nU)],-s.hu,s.n,s.nL,s.nU,s.m,
-        #     max_iter=s.opts.max_iterative_refinement,ϵ=s.opts.ϵ_iterative_refinement)
-        # # end
+        iterative_refinement(s.d,s)
     end
+
     s.δw = 0.
     s.δc = 0.
     return nothing

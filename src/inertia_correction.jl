@@ -146,6 +146,7 @@ function inertia_correction_hsl!(H,s::Solver,restoration=false)
     end
 
     s.δw_last = s.δw
+
     return true
 end
 

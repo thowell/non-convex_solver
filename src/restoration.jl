@@ -21,7 +21,7 @@ function restoration!(s::Solver)
         s.zL .+= s.αz*s.dzL
         s.zU .+= s.αz*s.dzU
         s.λ .= init_λ(s.zL,s.zU,∇f_func(s.x),∇c_func(s.x),s.n,s.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
-
+        # s.H[s.n .+ (1:s.m),s.n .+ (1:s.m)] .= 0.
     else
         println("-KKT error reduction success")
     end

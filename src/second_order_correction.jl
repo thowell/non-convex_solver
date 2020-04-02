@@ -77,7 +77,14 @@ end
 
 function search_direction_soc_symmetric!(s::Solver)
     s.h[s.n .+ (1:s.m)] = s.c_soc
-    s.d_soc[1:(s.n+s.m)] = -s.H\s.h
+
+    flag = inertia_correction_hsl!(s.H,s)
+
+    LBL = Ma57(s.H + Diagonal([s.δw*ones(s.n);-s.δc*ones(s.m)]))
+    ma57_factorize(LBL)
+    s.d_soc[1:(s.n+s.m)] = ma57_solve(LBL, -s.h)
+    # s.d_soc[1:(s.n+s.m)] = -s.H\s.h
+
     return nothing
 end
 
