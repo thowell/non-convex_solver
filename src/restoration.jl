@@ -165,7 +165,9 @@ function RestorationSolver(s::Solver)
     c̄_func(x) = zeros(m̄)
     ∇c̄_func(x) = zeros(m̄,n̄)
 
-    s̄ = Solver(x̄,n̄,m̄,x̄L,x̄U,f̄_func,c̄_func,∇f̄_func,∇c̄_func,opts=opts)
+    ∇²L̄_func(x) = zeros(n̄,n̄)
+
+    s̄ = Solver(x̄,n̄,m̄,x̄L,x̄U,f̄_func,c̄_func,∇f̄_func,∇c̄_func,∇²L̄_func,opts=opts)
     s̄.DR = spzeros(s.n,s.n)
     return s̄
 end
@@ -216,8 +218,14 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
 
     ∇f_func(x) = ForwardDiff.gradient(f_func,x)
 
+    function ∇²L_func(x,λ)
+        ∇L(x) = ∇f_func(x) + s̄.∇c_func(x)'*s̄.λ
+        return ForwardDiff.jacobian(∇L,x)
+    end
+
     s̄.f_func = f_func
     s̄.∇f_func = ∇f_func
+    s̄.∇²L_func = ∇²L_func
     return nothing
 end
 
@@ -256,7 +264,7 @@ function search_direction_restoration!(s̄::Solver,s::Solver)
 
         s̄.δ[s.idx.x] .= s̄.δw
         s̄.δ[s̄.idx.λ] .= -s̄.δc
-        s̄.d .= -(s̄.Hu + Diagonal(s̄.δ))\s̄.hu
+        s̄.d .= -(s̄.H + Diagonal(s̄.δ))\s̄.h
 
         if flag
             iterative_refinement(s̄.d,s̄)

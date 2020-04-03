@@ -76,13 +76,13 @@ function search_direction_soc_unreduced!(s::Solver)
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
 
-    s.hu[s.idx.λ] = s.c_soc
+    s.h[s.idx.λ] = s.c_soc
 
     flag = inertia_correction!(s)
 
     s.δ[s.idx.x] .= s.δw
     s.δ[s.idx.λ] .= -s.δc
-    s.d_soc .= -(s.Hu + Diagonal(s.δ))\s.hu
+    s.d_soc .= -(s.H + Diagonal(s.δ))\s.h
 
     if flag
         iterative_refinement(s.d_soc,s)

@@ -24,12 +24,10 @@ mutable struct Solver{T}
     ∇f_func::Function
     c_func::Function
     ∇c_func::Function
+    ∇²L_func::Function
 
     H::SparseMatrixCSC{T,Int}
     h::Vector{T}
-
-    Hu::SparseMatrixCSC{T,Int}
-    hu::Vector{T}
 
     W::SparseMatrixCSC{T,Int}
     ΣL::SparseMatrixCSC{T,Int}
@@ -104,7 +102,7 @@ mutable struct Solver{T}
     opts::Options{T}
 end
 
-function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}())
+function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func,∇²L_func; opts=Options{Float64}())
 
     # initialize primals
     x = zeros(n)
@@ -160,11 +158,8 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Flo
     zL = opts.zL0*ones(nL)
     zU = opts.zU0*ones(nU)
 
-    H = spzeros(n+m,n+m)
-    h = zeros(n+m)
-
-    Hu = spzeros(n+m+nL+nU,n+m+nL+nU)
-    hu = zeros(n+m+nL+nU)
+    H = spzeros(n+m+nL+nU,n+m+nL+nU)
+    h = zeros(n+m+nL+nU)
 
 
     W = spzeros(n,n)
@@ -242,11 +237,11 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Flo
 
     idx = indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool)
 
-    Solver(x,x⁺,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,x_soc,λ,zL,zU,n,nL,nU,m,f_func,∇f_func,
-        c_func,∇c_func,H,h,Hu,hu,W,ΣL,ΣU,A,f,∇f,φ,∇φ,∇L,c,c_soc,d,d_soc,dx,dλ,
-        dzL,dzU,Δ,res,μ,α,αz,α_max,α_min,α_soc,β,τ,δ,δw,δw_last,δc,θ,θ_min,θ_max,
-        θ_soc,sd,sc,filter,j,k,l,p,t,small_search_direction_cnt,restoration,DR,
-        x_copy,λ_copy,zL_copy,zU_copy,d_copy,Fμ,idx,
+    Solver(x,x⁺,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,x_soc,λ,zL,zU,n,nL,nU,m,
+        f_func,∇f_func,c_func,∇c_func,∇²L_func,H,h,W,ΣL,ΣU,A,f,∇f,φ,∇φ,∇L,c,c_soc,d,
+        d_soc,dx,dλ,dzL,dzU,Δ,res,μ,α,αz,α_max,α_min,α_soc,β,τ,δ,δw,δw_last,δc,
+        θ,θ_min,θ_max,θ_soc,sd,sc,filter,j,k,l,p,t,small_search_direction_cnt,
+        restoration,DR,x_copy,λ_copy,zL_copy,zU_copy,d_copy,Fμ,idx,
         opts)
 end
 
@@ -279,8 +274,9 @@ function eval_lagrangian!(s::Solver)
     s.∇L[s.xL_bool] -= s.zL
     s.∇L[s.xU_bool] += s.zU
 
-    tmp(x) = s.∇f_func(x) + s.∇c_func(x)'*s.λ
-    s.W .= ForwardDiff.jacobian(tmp,s.x)
+    # tmp(x) = s.∇f_func(x) + s.∇c_func(x)'*s.λ
+    # s.W .= ForwardDiff.jacobian(tmp,s.x)
+    s.W .= s.∇²L_func(s.x,s.λ)
 
     # damping
     κd = s.opts.κd
@@ -456,8 +452,8 @@ struct InteriorPointSolver{T}
     s̄::Solver{T}
 end
 
-function InteriorPointSolver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}()) where T
-    s = Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func,opts=opts)
+function InteriorPointSolver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func,∇²L_func; opts=Options{Float64}()) where T
+    s = Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func,∇²L_func,opts=opts)
     s̄ = RestorationSolver(s)
 
     InteriorPointSolver(s,s̄)

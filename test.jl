@@ -14,5 +14,10 @@ c_func(x) = x[1:m].^2 .- 1.2
 ∇f_func(x) = ForwardDiff.gradient(f_func,x)
 ∇c_func(x) = ForwardDiff.jacobian(c_func,x)
 
-s = InteriorPointSolver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}())
+function ∇²L_func(x,λ)
+    ∇L(x) = ∇f_func(x) + ∇c_func(x)'*λ
+    return ForwardDiff.jacobian(∇L,x)
+end
+
+s = InteriorPointSolver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func,∇²L_func; opts=Options{Float64}())
 @time solve!(s,verbose=true)

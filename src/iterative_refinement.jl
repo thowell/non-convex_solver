@@ -1,15 +1,15 @@
 function iterative_refinement(d,s::Solver; verbose=false)
     s.d_copy = copy(d)
     iter = 0
-    s.res = -s.hu - s.Hu*d
+    s.res = -s.h - s.H*d
 
     res_norm = norm(s.res,Inf)
 
     while iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement
 
-        s.Δ .= (s.Hu+Diagonal(s.δ))\s.res
+        s.Δ .= (s.H+Diagonal(s.δ))\s.res
         d .+= s.Δ
-        s.res = -s.hu - s.Hu*d
+        s.res = -s.h - s.H*d
 
         res_norm = norm(s.res,Inf)
 
