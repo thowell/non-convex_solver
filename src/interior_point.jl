@@ -1,6 +1,7 @@
 using LinearAlgebra, ForwardDiff, SparseArrays, Parameters
 
 include("options.jl")
+include("indices.jl")
 include("solver.jl")
 include("filter.jl")
 include("second_order_correction.jl")

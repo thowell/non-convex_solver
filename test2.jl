@@ -14,4 +14,4 @@ c_func(x) = zeros(m)
 ∇c_func(x) = zeros(m,n)
 
 s = InteriorPointSolver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}(max_iter=1e3))
-solve!(s,verbose=true)
+@time solve!(s,verbose=true)

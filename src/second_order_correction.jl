@@ -57,7 +57,7 @@ end
 
 function α_soc_max!(s::Solver)
     s.α_soc = 1.0
-    while !fraction_to_boundary_bnds(s.x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.d_soc[1:s.n],s.α_soc,s.τ)
+    while !fraction_to_boundary_bnds(s.x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.d_soc[s.idx.x],s.α_soc,s.τ)
         s.α_soc *= 0.5
     end
     return nothing
@@ -76,12 +76,12 @@ function search_direction_soc_unreduced!(s::Solver)
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
 
-    s.hu[s.n .+ (1:s.m)] = s.c_soc
+    s.hu[s.idx.λ] = s.c_soc
 
     flag = inertia_correction!(s)
 
-    s.δ[1:s.n] .= s.δw
-    s.δ[s.n .+ (1:s.m)] .= -s.δc
+    s.δ[s.idx.x] .= s.δw
+    s.δ[s.idx.λ] .= -s.δc
     s.d_soc .= -(s.Hu + Diagonal(s.δ))\s.hu
 
     if flag

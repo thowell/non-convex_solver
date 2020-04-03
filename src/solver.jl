@@ -99,6 +99,8 @@ mutable struct Solver{T}
 
     Fμ::Vector{T}
 
+    idx::Indices
+
     opts::Options{T}
 end
 
@@ -238,11 +240,13 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Flo
 
     Fμ = zeros(n+m+nL+nU)
 
+    idx = indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool)
+
     Solver(x,x⁺,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,x_soc,λ,zL,zU,n,nL,nU,m,f_func,∇f_func,
         c_func,∇c_func,H,h,Hu,hu,W,ΣL,ΣU,A,f,∇f,φ,∇φ,∇L,c,c_soc,d,d_soc,dx,dλ,
         dzL,dzU,Δ,res,μ,α,αz,α_max,α_min,α_soc,β,τ,δ,δw,δw_last,δc,θ,θ_min,θ_max,
         θ_soc,sd,sc,filter,j,k,l,p,t,small_search_direction_cnt,restoration,DR,
-        x_copy,λ_copy,zL_copy,zU_copy,d_copy,Fμ,
+        x_copy,λ_copy,zL_copy,zU_copy,d_copy,Fμ,idx,
         opts)
 end
 

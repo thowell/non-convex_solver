@@ -15,4 +15,4 @@ c_func(x) = x[1:m].^2 .- 1.2
 ∇c_func(x) = ForwardDiff.jacobian(c_func,x)
 
 s = InteriorPointSolver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}())
-solve!(s,verbose=true)
+@time solve!(s,verbose=true)

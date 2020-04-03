@@ -16,14 +16,15 @@ function restoration!(s̄::Solver,s::Solver)
 end
 
 function update_phase1_solver!(s̄::Solver,s::Solver)
-    s.dx .= s̄.x[1:s.n] - s.x
-    s.dzL .= -s.zL./((s.x - s.xL)[s.xL_bool]).*s.d[(1:s.n)[s.xL_bool]] - s.zL + s.μ./((s.x - s.xL)[s.xL_bool])
-    s.dzU .= s.zU./((s.xU - s.x)[s.xU_bool]).*s.d[(1:s.n)[s.xU_bool]] - s.zU + s.μ./((s.xU - s.x)[s.xU_bool])
+    s.dx .= s̄.x[s.idx.x] - s.x
+    s.dzL .= -s.zL./((s.x - s.xL)[s.xL_bool]).*s.d[s.idx.xL] - s.zL + s.μ./((s.x - s.xL)[s.xL_bool])
+    s.dzU .= s.zU./((s.xU - s.x)[s.xU_bool]).*s.d[s.idx.xU] - s.zU + s.μ./((s.xU - s.x)[s.xU_bool])
 
     αz_max!(s)
 
-    s.x .= s̄.x[1:s.n]
+    s.x .= s̄.x[s.idx.x]
 
+    # project phase 2 solution on phase 1 bounds
     for i = 1:s.n
         s.x[i] = init_x0(s̄.x[i],s.xL[i],s.xU[i],s.opts.κ1,s.opts.κ2)
     end
@@ -77,8 +78,8 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                 end
             end
 
-            if check_filter(θ(s̄.x[1:s.n],s),barrier(s̄.x[1:s.n],s),s) && θ(s̄.x[1:s.n],s) <= s̄.opts.κ_resto*s.θ
-                println("x: $(s̄.x[1:s.n])")
+            if check_filter(θ(s̄.x[s.idx.x],s),barrier(s̄.x[s.idx.x],s),s) && θ(s̄.x[s.idx.x],s) <= s̄.opts.κ_resto*s.θ
+                println("x: $(s̄.x[s.idx.x])")
                 println("p: $(s̄.x[s.n .+ (1:s.m)])")
                 println("n: $(s̄.x[(s.n+s.m) .+ (1:s.m)])")
                 println("-restoration phase success\n")
@@ -86,7 +87,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
             end
 
             reset_z!(s̄)
-            
+
             eval_iterate!(s̄)
 
             s̄.k += 1
@@ -126,7 +127,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 end
 
 function restoration_reset!(s̄::Solver,s::Solver)
-    s.c .= s.c_func(s̄.x[1:s.n])
+    s.c .= s.c_func(s̄.x[s.idx.x])
 
     # initialize p,n
     for i = 1:s.m
@@ -153,10 +154,10 @@ function RestorationSolver(s::Solver)
     x̄ = zeros(n̄)
 
     x̄L = zeros(n̄)
-    x̄L[1:s.n] = s.xL
+    x̄L[s.idx.x] = s.xL
 
     x̄U = Inf*ones(n̄)
-    x̄U[1:s.n] = s.xU
+    x̄U[s.idx.x] = s.xU
 
     f̄_func(x) = 0
     ∇f̄_func(x) = zeros(n̄)
@@ -173,7 +174,7 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     s̄.μ = max(s.μ,norm(s.c,Inf))
     s̄.τ = update_τ(s̄.μ,s̄.opts.τ_min)
 
-    s̄.x[1:s.n] = copy(s.x)
+    s̄.x[s.idx.x] = copy(s.x)
 
     # initialize p,n
     for i = 1:s.m
@@ -210,7 +211,7 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
     DR = s̄.DR
 
     function f_func(x)
-        s̄.opts.ρ*sum(x[s.n .+ (1:2s.m)]) + 0.5*ζ*(x[1:s.n] - s.x)'*DR'*DR*(x[1:s.n] - s.x)
+        s̄.opts.ρ*sum(x[s.n .+ (1:2s.m)]) + 0.5*ζ*(x[s.idx.x] - s.x)'*DR'*DR*(x[s.idx.x] - s.x)
     end
 
     ∇f_func(x) = ForwardDiff.gradient(f_func,x)
@@ -221,8 +222,8 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
 end
 
 function update_restoration_constraints!(s̄::Solver,s::Solver)
-    c_func(x) = s.c_func(x[1:s.n]) - x[s.n .+ (1:s.m)] + x[(s.n+s.m) .+ (1:s.m)]
-    ∇c_func(x) = [s.∇c_func(x[1:s.n]) -I I]
+    c_func(x) = s.c_func(x[s.idx.x]) - x[s.n .+ (1:s.m)] + x[(s.n+s.m) .+ (1:s.m)]
+    ∇c_func(x) = [s.∇c_func(x[s.idx.x]) -I I]
 
     s̄.c_func = c_func
     s̄.∇c_func = ∇c_func
@@ -253,8 +254,8 @@ function search_direction_restoration!(s̄::Solver,s::Solver)
 
         flag = inertia_correction!(s̄)
 
-        s̄.δ[1:s.n] .= s̄.δw
-        s̄.δ[s.n + 2s.m .+ (1:s.m)] .= -s̄.δc
+        s̄.δ[s.idx.x] .= s̄.δw
+        s̄.δ[s̄.idx.λ] .= -s̄.δc
         s̄.d .= -(s̄.Hu + Diagonal(s̄.δ))\s̄.hu
 
         if flag

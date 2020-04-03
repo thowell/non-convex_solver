@@ -8,23 +8,23 @@ function search_direction!(s::Solver)
 end
 
 function kkt_hessian_unreduced!(s::Solver)
-    s.Hu[1:s.n,1:s.n] .= s.W
-    s.Hu[1:s.n,s.n .+ (1:s.m)] .= s.A'
-    s.Hu[s.n .+ (1:s.m),1:s.n] .= s.A
-    s.Hu[(1:s.n)[s.xL_bool],(s.n+s.m) .+ (1:s.nL)] .= -1.0*Matrix(I,s.nL,s.nL)
-    s.Hu[(1:s.n)[s.xU_bool],(s.n+s.m+s.nL) .+ (1:s.nU)] .= 1.0*Matrix(I,s.nU,s.nU)
-    s.Hu[(s.n+s.m) .+ (1:s.nL),(1:s.n)[s.xL_bool]] .= Diagonal(s.zL)
-    s.Hu[(s.n+s.m+s.nL) .+ (1:s.nU),(1:s.n)[s.xU_bool]] .= -1.0*Diagonal(s.zU)
-    s.Hu[(s.n+s.m) .+ (1:s.nL),(s.n+s.m) .+ (1:s.nL)] .= Diagonal((s.x - s.xL)[s.xL_bool])
-    s.Hu[(s.n+s.m+s.nL) .+ (1:s.nU),(s.n+s.m+s.nL) .+ (1:s.nU)] .= Diagonal((s.xU - s.x)[s.xU_bool])
+    s.Hu[s.idx.x,s.idx.x] .= s.W
+    s.Hu[s.idx.x,s.idx.λ] .= s.A'
+    s.Hu[s.idx.λ,s.idx.x] .= s.A
+    s.Hu[CartesianIndex.(s.idx.xL,s.idx.zL)] .= -1.0
+    s.Hu[CartesianIndex.(s.idx.xU,s.idx.zU)] .= 1.0
+    s.Hu[CartesianIndex.(s.idx.zL,s.idx.xL)] .= s.zL
+    s.Hu[CartesianIndex.(s.idx.zU,s.idx.xU)] .= -1.0*s.zU
+    s.Hu[CartesianIndex.(s.idx.zL,s.idx.zL)] .= (s.x - s.xL)[s.xL_bool]
+    s.Hu[CartesianIndex.(s.idx.zU,s.idx.zU)] .= (s.xU - s.x)[s.xU_bool]
     return nothing
 end
 
 function kkt_gradient_unreduced!(s::Solver)
-    s.hu[1:s.n] = s.∇L
-    s.hu[s.n .+ (1:s.m)] = s.c
-    s.hu[(s.n+s.m) .+ (1:s.nL)] = s.zL.*((s.x - s.xL)[s.xL_bool]) .- s.μ
-    s.hu[(s.n+s.m+s.nL) .+ (1:s.nU)] = s.zU.*((s.xU - s.x)[s.xU_bool]) .- s.μ
+    s.hu[s.idx.x] = s.∇L
+    s.hu[s.idx.λ] = s.c
+    s.hu[s.idx.zL] = s.zL.*((s.x - s.xL)[s.xL_bool]) .- s.μ
+    s.hu[s.idx.zU] = s.zU.*((s.xU - s.x)[s.xU_bool]) .- s.μ
     return nothing
 end
 
@@ -34,8 +34,8 @@ function search_direction_unreduced!(s::Solver)
 
     flag = inertia_correction!(s)
 
-    s.δ[1:s.n] .= s.δw
-    s.δ[s.n .+ (1:s.m)] .= -s.δc
+    s.δ[s.idx.x] .= s.δw
+    s.δ[s.idx.λ] .= -s.δc
     s.d .= -(s.Hu + Diagonal(s.δ))\s.hu
 
     if flag
