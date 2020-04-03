@@ -49,6 +49,8 @@
     max_iterative_refinement::Int = 10
     ϵ_iterative_refinement::T = 1.0e-8
 
+    relax_bnds::Bool = true
+
     ϵ_mach::T = 1.0e-16
 end
 
@@ -96,5 +98,6 @@ function Base.copy(o::Options{T}) where T
                     small_search_direction_max=copy(o.small_search_direction_max),
                     max_iterative_refinement=copy(o.max_iterative_refinement),
                     ϵ_iterative_refinement=copy(o.ϵ_iterative_refinement),
+                    relax_bnds=copy(o.relax_bnds),
                     ϵ_mach=copy(o.ϵ_mach))
 end

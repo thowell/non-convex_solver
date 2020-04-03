@@ -1,4 +1,6 @@
-function solve!(s::Solver; verbose=false)
+function solve!(solver::InteriorPointSolver; verbose=false)
+    s = solver.s
+
     # evaluate problem
     eval_iterate!(s)
 
@@ -13,6 +15,7 @@ function solve!(s::Solver; verbose=false)
 
     while eval_Eμ(0.0,s) > s.opts.ϵ_tol
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
+            s.opts.relax_bnds ? relax_bnds!(s) : nothing
             if search_direction!(s)
                 s.small_search_direction_cnt += 1
                 if s.small_search_direction_cnt == s.opts.small_search_direction_max
@@ -32,13 +35,14 @@ function solve!(s::Solver; verbose=false)
 
                 if !line_search(s)
                     augment_filter!(s)
-                    restoration!(s)
+                    restoration!(solver.s̄,s)
                 else
                     augment_filter!(s)
                     update!(s)
                 end
             end
 
+            reset_z!(s)
             eval_iterate!(s)
 
             s.k += 1

@@ -102,7 +102,7 @@ mutable struct Solver{T}
     opts::Options{T}
 end
 
-function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float64}())
+function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}())
 
     # initialize primals
     x = zeros(n)
@@ -115,6 +115,13 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
     xUs_bool = zeros(Bool,n)
 
     for i = 1:n
+
+        if opts.relax_bnds
+           # relax bounds
+           xL[i] = relax_bnd(xL[i],opts.ϵ_tol,:L)
+           xU[i] = relax_bnd(xU[i],opts.ϵ_tol,:U)
+       end
+
         # boolean bounds
         if xL[i] < -1.0*opts.bnd_tol
             xL_bool[i] = 0
@@ -204,9 +211,8 @@ function Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=opts{Float6
 
     θ_soc = 0.
 
-    λ = opts.λ_init_ls ? init_λ(zL,zU,∇f_func(x),∇c_func(x),n,m,xL_bool,xU_bool,opts.λ_max) : zeros(m)
-
-    h = zeros(n+m)
+    λ = zeros(m)
+    opts.λ_init_ls ? init_λ!(λ,H,h,d,zL,zU,∇f_func(x),∇c_func(x),n,m,xL_bool,xU_bool,opts.λ_max) : zeros(m)
 
     sd = init_sd(λ,[zL;zU],n,m,opts.s_max)
     sc = init_sc([zL;zU],n,opts.s_max)
@@ -338,11 +344,11 @@ reset_z(z,x,μ,κΣ) = max(min(z,κΣ*μ/x),μ/(κΣ*x))
 
 function reset_z!(s::Solver)
     for i = 1:s.nL
-        s.zL[i] = reset_z(s.zL[i],s.x[s.xL_bool][i],s.μ,s.opts.κΣ)
+        s.zL[i] = reset_z(s.zL[i],(s.x - s.xL)[s.xL_bool][i],s.μ,s.opts.κΣ)
     end
 
     for i = 1:s.nU
-        s.zU[i] = reset_z(s.zU[i],s.x[s.xU_bool][i],s.μ,s.opts.κΣ)
+        s.zU[i] = reset_z(s.zU[i],(s.xU - s.x)[s.xU_bool][i],s.μ,s.opts.κΣ)
     end
     return nothing
 end
@@ -370,32 +376,30 @@ function init_x0(x,xL,xU,κ1,κ2)
     return x
 end
 
-function init_λ(zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
+function init_λ!(λ,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
 
     if m > 0
-        H = spzeros(n+m,n+m)
-        H[1:n,1:n] .= Matrix(I,n,n)
+        H[CartesianIndex.((1:n),(1:n))] .= 1.0
         H[1:n,n .+ (1:m)] .= ∇c'
         H[n .+ (1:m),1:n] .= ∇c
-        # H = [Matrix(I,n,n) ∇c';∇c zeros(m,m)]
-        h = zeros(n+m)
+
         h[1:n] = ∇f
-        h[1:n][xL_bool] -= zL
-        h[1:n][xU_bool] += zU
+        h[(1:n)[xL_bool]] -= zL
+        h[(1:n)[xU_bool]] += zU
 
-        d = -H\h
+        d[1:(n+m)] = -H[1:(n+m),1:(n+m)]\h[1:(n+m)]
 
-        λ = d[n .+ (1:m)]
+        λ .= d[n .+ (1:m)]
 
         if norm(λ,Inf) > λ_max || any(isnan.(λ))
             @warn "least-squares λ init failure:\n λ_max = $(norm(λ,Inf))"
-            return zeros(m)
-        else
-            return λ
+            λ .= 0.
         end
     else
-        return zeros(m)
+        λ .= 0.
     end
+    H .= 0.
+    return nothing
 end
 
 θ(x,s::Solver) = norm(s.c_func(x),1)
@@ -415,4 +419,42 @@ end
 
 function small_search_direction(s::Solver)
     return (maximum(abs.(s.dx)./(1.0 .+ abs.(s.x))) < 10.0*s.opts.ϵ_mach)
+end
+
+function relax_bnd(x_bnd,ϵ,bnd_type)
+    if bnd_type == :L
+        return x_bnd - ϵ*max(1.0,abs(x_bnd))
+    elseif bnd_type == :U
+        return x_bnd + ϵ*max(1.0,abs(x_bnd))
+    else
+        error("bound type error")
+    end
+end
+
+function relax_bnds!(s::Solver)
+    for i = (1:s.n)[s.xLs_bool]
+        if s.x[i] - s.xL[i] < s.opts.ϵ_mach*s.μ
+            s.xL[i] -= (s.opts.ϵ_mach^0.75)*max(1.0,s.xL[i])
+            @warn "lower bound needs to be relaxed"
+        end
+    end
+
+    for i = (1:s.n)[s.xUs_bool]
+        if s.xU[i] - s.x[i] < s.opts.ϵ_mach*s.μ
+            s.xU[i] += (s.opts.ϵ_mach^0.75)*max(1.0,s.xU[i])
+            @warn "upper bound needs to be relaxed"
+        end
+    end
+end
+
+struct InteriorPointSolver{T}
+    s::Solver{T}
+    s̄::Solver{T}
+end
+
+function InteriorPointSolver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func; opts=Options{Float64}()) where T
+    s = Solver(x0,n,m,xL,xU,f_func,c_func,∇f_func,∇c_func,opts=opts)
+    s̄ = RestorationSolver(s)
+
+    InteriorPointSolver(s,s̄)
 end
