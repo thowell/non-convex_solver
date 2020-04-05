@@ -161,13 +161,14 @@ function RestorationSolver(s::Solver)
 
     f̄_func(x) = 0
     ∇f̄_func(x) = zeros(n̄)
+    ∇²f̄_func(x) = zeros(n̄,n̄)
 
     c̄_func(x) = zeros(m̄)
     ∇c̄_func(x) = zeros(m̄,n̄)
 
-    ∇²L̄_func(x) = zeros(n̄,n̄)
+    ∇²c̄λ_func(x) = zeros(n̄,n̄)
 
-    s̄ = Solver(x̄,n̄,m̄,x̄L,x̄U,f̄_func,c̄_func,∇f̄_func,∇c̄_func,∇²L̄_func,opts=opts)
+    s̄ = Solver(x̄,n̄,m̄,x̄L,x̄U,f̄_func,∇f̄_func,∇²f̄_func,c̄_func,∇c̄_func,∇²c̄λ_func,opts=opts)
     s̄.DR = spzeros(s.n,s.n)
     return s̄
 end
@@ -217,15 +218,12 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
     end
 
     ∇f_func(x) = ForwardDiff.gradient(f_func,x)
-
-    function ∇²L_func(x,λ)
-        ∇L(x) = ∇f_func(x) + s̄.∇c_func(x)'*s̄.λ
-        return ForwardDiff.jacobian(∇L,x)
-    end
+    ∇²f_func(x) = ForwardDiff.hessian(f_func,x)
 
     s̄.f_func = f_func
     s̄.∇f_func = ∇f_func
-    s̄.∇²L_func = ∇²L_func
+    s̄.∇²f_func = ∇²f_func
+
     return nothing
 end
 
@@ -233,8 +231,15 @@ function update_restoration_constraints!(s̄::Solver,s::Solver)
     c_func(x) = s.c_func(x[s.idx.x]) - x[s.n .+ (1:s.m)] + x[(s.n+s.m) .+ (1:s.m)]
     ∇c_func(x) = [s.∇c_func(x[s.idx.x]) -I I]
 
+    function ∇²cλ_func(x,λ)
+        ∇cλ(x) = s̄.∇c_func(x)'*s̄.λ
+        return ForwardDiff.jacobian(∇cλ,x)
+    end
+
     s̄.c_func = c_func
     s̄.∇c_func = ∇c_func
+    s̄.∇²cλ_func = ∇²cλ_func
+
     return nothing
 end
 
