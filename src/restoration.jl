@@ -31,7 +31,9 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
 
     s.zL .+= s.αz*s.dzL
     s.zU .+= s.αz*s.dzU
-    init_λ!(s.λ,s.H,s.h,s.d,s.zL,s.zU,∇f_func(s.x),∇c_func(s.x),s.n,s.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
+
+    s.∇f_func(s.∇f,s.x)
+    init_λ!(s.λ,s.H,s.h,s.d,s.zL,s.zU,s.∇f,∇c_func(s.x),s.n,s.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
 
     return nothing
 end
