@@ -42,7 +42,7 @@ function kkt_error_reduction(s::Solver)
 end
 
 function eval_Fμ(x,λ,zL,zU,s)
-    s.∇f .= s.∇f_func(x)
+    s.∇f_func(s.∇f,x)
     s.c .= s.c_func(x)
     s.A .= s.∇c_func(x)
     s.∇L .= s.∇f + s.A'*λ

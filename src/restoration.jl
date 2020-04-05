@@ -160,8 +160,12 @@ function RestorationSolver(s::Solver)
     x̄U[s.idx.x] = s.xU
 
     f̄_func(x) = 0
-    ∇f̄_func(x) = zeros(n̄)
-    ∇²f̄_func(x) = zeros(n̄,n̄)
+    function ∇f̄_func(∇f,x)
+        return nothing
+    end
+    function ∇²f̄_func(∇²f,x)
+        return nothing
+    end
 
     c̄_func(x) = zeros(m̄)
     ∇c̄_func(x) = zeros(m̄,n̄)
@@ -212,13 +216,22 @@ end
 function update_restoration_objective!(s̄::Solver,s::Solver)
     ζ = sqrt(s̄.μ)
     DR = s̄.DR
+    idx_pn = s.n .+ (1:2s.m)
 
     function f_func(x)
-        s̄.opts.ρ*sum(x[s.n .+ (1:2s.m)]) + 0.5*ζ*(x[s.idx.x] - s.x)'*DR'*DR*(x[s.idx.x] - s.x)
+        s̄.opts.ρ*sum(x[idx_pn]) + 0.5*ζ*(x[s.idx.x] - s.x)'*DR'*DR*(x[s.idx.x] - s.x)
     end
 
-    ∇f_func(x) = ForwardDiff.gradient(f_func,x)
-    ∇²f_func(x) = ForwardDiff.hessian(f_func,x)
+    function ∇f_func(∇f,x)
+        ∇f[s.idx.x] .= ζ*DR'*DR*(x[s.idx.x] - s.x)
+        ∇f[idx_pn] .= s̄.opts.ρ
+        return nothing
+    end
+
+    function ∇²f_func(∇²f,x)
+        ∇²f[s.idx.x,s.idx.x] .= ζ*DR'*DR
+        return nothing
+    end
 
     s̄.f_func = f_func
     s̄.∇f_func = ∇f_func

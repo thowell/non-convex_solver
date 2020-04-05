@@ -38,11 +38,17 @@ mutable struct Solver{T}
 
     f::T
     ∇f::Vector{T}
+    ∇²f::SparseMatrixCSC{T,Int}
+
     φ::T
     ∇φ::Vector{T}
+
     ∇L::Vector{T}
+
     c::Vector{T}
     c_soc::Vector{T}
+
+    ∇²cλ::SparseMatrixCSC{T,Int}
 
     d::Vector{T}
     d_soc::Vector{T}
@@ -171,11 +177,16 @@ function Solver(x0,n,m,xL,xU,f_func,∇f_func,∇²f_func,c_func,∇c_func,∇²
 
     f = 0.
     ∇f = zeros(n)
+    ∇²f = spzeros(n,n)
+
     φ = 0.
     ∇φ = zeros(n)
+
     ∇L = zeros(n)
+
     c = zeros(m)
     c_soc = zeros(m)
+    ∇²cλ = spzeros(n,n)
 
     d = zeros(n+m+nL+nU)
     d_soc = zeros(n+m+nL+nU)
@@ -211,7 +222,8 @@ function Solver(x0,n,m,xL,xU,f_func,∇f_func,∇²f_func,c_func,∇c_func,∇²
     θ_soc = 0.
 
     λ = zeros(m)
-    opts.λ_init_ls ? init_λ!(λ,H,h,d,zL,zU,∇f_func(x),∇c_func(x),n,m,xL_bool,xU_bool,opts.λ_max) : zeros(m)
+    ∇f_func(∇f,x)
+    opts.λ_init_ls ? init_λ!(λ,H,h,d,zL,zU,∇f,∇c_func(x),n,m,xL_bool,xU_bool,opts.λ_max) : zeros(m)
 
     sd = init_sd(λ,[zL;zU],n,m,opts.s_max)
     sc = init_sc([zL;zU],n,opts.s_max)
@@ -240,7 +252,7 @@ function Solver(x0,n,m,xL,xU,f_func,∇f_func,∇²f_func,c_func,∇c_func,∇²
     idx = indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool)
 
     Solver(x,x⁺,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,x_soc,λ,zL,zU,n,nL,nU,m,
-        f_func,∇f_func,∇²f_func,c_func,∇c_func,∇²cλ_func,H,h,W,ΣL,ΣU,A,f,∇f,φ,∇φ,∇L,c,c_soc,d,
+        f_func,∇f_func,∇²f_func,c_func,∇c_func,∇²cλ_func,H,h,W,ΣL,ΣU,A,f,∇f,∇²f,φ,∇φ,∇L,c,c_soc,∇²cλ,d,
         d_soc,dx,dλ,dzL,dzU,Δ,res,μ,α,αz,α_max,α_min,α_soc,β,τ,δ,δw,δw_last,δc,
         θ,θ_min,θ_max,θ_soc,sd,sc,filter,j,k,l,p,t,small_search_direction_cnt,
         restoration,DR,x_copy,λ_copy,zL_copy,zU_copy,d_copy,Fμ,idx,
@@ -258,14 +270,15 @@ eval_Eμ(μ,s::Solver) = eval_Eμ(s.x,s.λ,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_bo
 
 function eval_objective!(s::Solver)
     s.f = s.f_func(s.x)
-    s.∇f .= s.∇f_func(s.x)
+    s.∇f_func(s.∇f,s.x)
+    s.∇²f_func(s.∇²f,s.x)
     return nothing
 end
 
 function eval_constraints!(s::Solver)
     s.c .= s.c_func(s.x)
     s.A .= s.∇c_func(s.x)
-
+    s.∇²cλ .= s.∇²cλ_func(s.x,s.λ)
     s.θ = norm(s.c,1)
     return nothing
 end
@@ -276,7 +289,7 @@ function eval_lagrangian!(s::Solver)
     s.∇L[s.xL_bool] -= s.zL
     s.∇L[s.xU_bool] += s.zU
 
-    s.W .= s.∇²f_func(s.x) + s.∇²cλ_func(s.x,s.λ)
+    s.W .= s.∇²f + s.∇²cλ
 
     # damping
     κd = s.opts.κd
