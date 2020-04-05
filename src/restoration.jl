@@ -32,7 +32,7 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
     s.zL .+= s.αz*s.dzL
     s.zU .+= s.αz*s.dzU
 
-    s.∇f_func(s.∇f,s.x)
+    s.∇f_func!(s.∇f,s.x)
     init_λ!(s.λ,s.H,s.h,s.d,s.zL,s.zU,s.∇f,∇c_func(s.x),s.n,s.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
 
     return nothing
@@ -224,20 +224,20 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
         s̄.opts.ρ*sum(x[idx_pn]) + 0.5*ζ*(x[s.idx.x] - s.x)'*DR'*DR*(x[s.idx.x] - s.x)
     end
 
-    function ∇f_func(∇f,x)
+    function ∇f_func!(∇f,x)
         ∇f[s.idx.x] .= ζ*DR'*DR*(x[s.idx.x] - s.x)
         ∇f[idx_pn] .= s̄.opts.ρ
         return nothing
     end
 
-    function ∇²f_func(∇²f,x)
+    function ∇²f_func!(∇²f,x)
         ∇²f[s.idx.x,s.idx.x] .= ζ*DR'*DR
         return nothing
     end
 
     s̄.f_func = f_func
-    s̄.∇f_func = ∇f_func
-    s̄.∇²f_func = ∇²f_func
+    s̄.∇f_func! = ∇f_func!
+    s̄.∇²f_func! = ∇²f_func!
 
     return nothing
 end

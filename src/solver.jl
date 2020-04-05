@@ -21,8 +21,8 @@ mutable struct Solver{T}
     m::Int
 
     f_func::Function
-    ∇f_func::Function
-    ∇²f_func::Function
+    ∇f_func!::Function
+    ∇²f_func!::Function
 
     c_func::Function
     ∇c_func::Function
@@ -270,8 +270,8 @@ eval_Eμ(μ,s::Solver) = eval_Eμ(s.x,s.λ,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_bo
 
 function eval_objective!(s::Solver)
     s.f = s.f_func(s.x)
-    s.∇f_func(s.∇f,s.x)
-    s.∇²f_func(s.∇²f,s.x)
+    s.∇f_func!(s.∇f,s.x)
+    s.∇²f_func!(s.∇²f,s.x)
     return nothing
 end
 

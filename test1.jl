@@ -20,6 +20,10 @@ end
 
 c_func(x) = [x[1]^2 - x[2] - 1.0;
              x[1] - x[3] - 0.5]
+function c_func(c,x)
+    c .= c_func(x)
+    return nothing
+end
 ∇c_func(x) = ForwardDiff.jacobian(c_func,x)
 
 function ∇²cλ_func(x,λ)
