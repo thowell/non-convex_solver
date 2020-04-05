@@ -110,7 +110,7 @@ mutable struct Solver{T}
     opts::Options{T}
 end
 
-function Solver(x0,n,m,xL,xU,f_func,∇f_func,∇²f_func,c_func,∇c_func,∇²cλ_func; opts=Options{Float64}())
+function Solver(x0,n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func,∇c_func,∇²cλ_func; opts=Options{Float64}())
 
     # initialize primals
     x = zeros(n)
@@ -215,15 +215,17 @@ function Solver(x0,n,m,xL,xU,f_func,∇f_func,∇²f_func,c_func,∇c_func,∇²
     δw_last = 0.
     δc = 0.
 
-    θ = norm(c_func(x),1)
+    c_func(c,x)
+    θ = norm(c,1)
     θ_min = init_θ_min(θ)
     θ_max = init_θ_max(θ)
 
     θ_soc = 0.
 
     λ = zeros(m)
-    ∇f_func(∇f,x)
-    opts.λ_init_ls ? init_λ!(λ,H,h,d,zL,zU,∇f,∇c_func(x),n,m,xL_bool,xU_bool,opts.λ_max) : zeros(m)
+    ∇f_func!(∇f,x)
+    ∇c_func(A,x)
+    opts.λ_init_ls ? init_λ!(λ,H,h,d,zL,zU,∇f,A,n,m,xL_bool,xU_bool,opts.λ_max) : zeros(m)
 
     sd = init_sd(λ,[zL;zU],n,m,opts.s_max)
     sc = init_sc([zL;zU],n,opts.s_max)
@@ -252,7 +254,7 @@ function Solver(x0,n,m,xL,xU,f_func,∇f_func,∇²f_func,c_func,∇c_func,∇²
     idx = indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool)
 
     Solver(x,x⁺,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,x_soc,λ,zL,zU,n,nL,nU,m,
-        f_func,∇f_func,∇²f_func,c_func,∇c_func,∇²cλ_func,H,h,W,ΣL,ΣU,A,f,∇f,∇²f,φ,∇φ,∇L,c,c_soc,∇²cλ,d,
+        f_func,∇f_func!,∇²f_func!,c_func,∇c_func,∇²cλ_func,H,h,W,ΣL,ΣU,A,f,∇f,∇²f,φ,∇φ,∇L,c,c_soc,∇²cλ,d,
         d_soc,dx,dλ,dzL,dzU,Δ,res,μ,α,αz,α_max,α_min,α_soc,β,τ,δ,δw,δw_last,δc,
         θ,θ_min,θ_max,θ_soc,sd,sc,filter,j,k,l,p,t,small_search_direction_cnt,
         restoration,DR,x_copy,λ_copy,zL_copy,zU_copy,d_copy,Fμ,idx,
@@ -276,9 +278,9 @@ function eval_objective!(s::Solver)
 end
 
 function eval_constraints!(s::Solver)
-    s.c .= s.c_func(s.x)
-    s.A .= s.∇c_func(s.x)
-    s.∇²cλ .= s.∇²cλ_func(s.x,s.λ)
+    s.c_func(s.c,s.x)
+    s.∇c_func(s.A,s.x)
+    s.∇²cλ_func(s.∇²cλ,s.x,s.λ)
     s.θ = norm(s.c,1)
     return nothing
 end
@@ -415,7 +417,11 @@ function init_λ!(λ,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
     return nothing
 end
 
-θ(x,s::Solver) = norm(s.c_func(x),1)
+function θ(x,s::Solver)
+    c_tmp = zeros(s.m)
+    s.c_func(c_tmp,x)
+    return norm(c_tmp,1)
+end
 
 function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func)
     return (f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]))
@@ -465,8 +471,8 @@ struct InteriorPointSolver{T}
     s̄::Solver{T}
 end
 
-function InteriorPointSolver(x0,n,m,xL,xU,f_func,∇f_func,∇²f_func,c_func,∇c_func,∇²cλ_func; opts=Options{Float64}()) where T
-    s = Solver(x0,n,m,xL,xU,f_func,∇f_func,∇²f_func,c_func,∇c_func,∇²cλ_func,opts=opts)
+function InteriorPointSolver(x0,n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func,∇c_func,∇²cλ_func; opts=Options{Float64}()) where T
+    s = Solver(x0,n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func,∇c_func,∇²cλ_func,opts=opts)
     s̄ = RestorationSolver(s)
 
     InteriorPointSolver(s,s̄)

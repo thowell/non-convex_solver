@@ -43,8 +43,8 @@ end
 
 function eval_Fμ(x,λ,zL,zU,s)
     s.∇f_func!(s.∇f,x)
-    s.c .= s.c_func(x)
-    s.A .= s.∇c_func(x)
+    s.c_func(s.c,x)
+    s.∇c_func(s.A,x)
     s.∇L .= s.∇f + s.A'*λ
     s.∇L[s.xL_bool] -= zL
     s.∇L[s.xU_bool] += zU

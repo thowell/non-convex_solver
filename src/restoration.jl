@@ -33,7 +33,8 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
     s.zU .+= s.αz*s.dzU
 
     s.∇f_func!(s.∇f,s.x)
-    init_λ!(s.λ,s.H,s.h,s.d,s.zL,s.zU,s.∇f,∇c_func(s.x),s.n,s.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
+    s.∇c_func(s.A,s.x)
+    init_λ!(s.λ,s.H,s.h,s.d,s.zL,s.zU,s.∇f,s.A,s.n,s.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
 
     return nothing
 end
@@ -129,7 +130,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 end
 
 function restoration_reset!(s̄::Solver,s::Solver)
-    s.c .= s.c_func(s̄.x[s.idx.x])
+    s.c_func(s.c,s̄.x[s.idx.x])
 
     # initialize p,n
     for i = 1:s.m
@@ -170,9 +171,18 @@ function RestorationSolver(s::Solver)
     end
 
     c̄_func(x) = zeros(m̄)
+    function c̄_func(c,x)
+        return nothing
+    end
     ∇c̄_func(x) = zeros(m̄,n̄)
+    function ∇c̄_func(∇c,x)
+        return nothing
+    end
 
-    ∇²c̄λ_func(x) = zeros(n̄,n̄)
+    ∇²c̄λ_func(x,λ) = zeros(n̄,n̄)
+    function ∇²c̄λ_func(∇²c̄λ,x,λ)
+        return nothing
+    end
 
     s̄ = Solver(x̄,n̄,m̄,x̄L,x̄U,f̄_func,∇f̄_func,∇²f̄_func,c̄_func,∇c̄_func,∇²c̄λ_func,opts=opts)
     s̄.DR = spzeros(s.n,s.n)
@@ -243,12 +253,23 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
 end
 
 function update_restoration_constraints!(s̄::Solver,s::Solver)
-    c_func(x) = s.c_func(x[s.idx.x]) - x[s.n .+ (1:s.m)] + x[(s.n+s.m) .+ (1:s.m)]
-    ∇c_func(x) = [s.∇c_func(x[s.idx.x]) -I I]
+    function c_func(c,x)
+        s.c_func(c,x[s.idx.x])
+        c .-= x[s.n .+ (1:s.m)]
+        c .+= x[(s.n+s.m) .+ (1:s.m)]
+        return nothing
+    end
 
-    function ∇²cλ_func(x,λ)
-        ∇cλ(x) = s̄.∇c_func(x)'*s̄.λ
-        return ForwardDiff.jacobian(∇cλ,x)
+    function ∇c_func(∇c,x)
+        s.∇c_func(view(∇c,1:s.m,1:s.n),x[s.idx.x])
+        ∇c[CartesianIndex.(1:s.m,s.n .+ (1:s.m))] .= -1.0
+        ∇c[CartesianIndex.(1:s.m,s.n+s.m .+ (1:s.m))] .= 1.0
+        return nothing
+    end
+
+    function ∇²cλ_func(∇²cλ,x,λ)
+        s.∇²cλ_func(view(∇²cλ,s.idx.x,s.idx.x),x[s.idx.x],λ)
+        return return nothing
     end
 
     s̄.c_func = c_func

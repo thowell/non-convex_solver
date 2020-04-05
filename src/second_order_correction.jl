@@ -3,7 +3,8 @@ function second_order_correction(s::Solver)
 
     s.p = 1
     θ_soc = s.θ
-    s.c_soc .= s.α*s.c + s.c_func(s.x⁺)
+    s.c_func(s.c_soc,s.x⁺)
+    s.c_soc .+= s.α*s.c
 
     search_direction_soc!(s)
 
@@ -43,7 +44,8 @@ function second_order_correction(s::Solver)
         else
             s.p += 1
 
-            s.c_soc .= s.α_soc*s.c_soc + s.c_func(s.x⁺)
+            s.c_func(s.c,s.x⁺)
+            s.c_soc .= s.α_soc*s.c_soc + s.c
             θ_soc = θ(s.x⁺,s)
 
             search_direction_soc!(s)
