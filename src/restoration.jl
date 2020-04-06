@@ -1,5 +1,5 @@
 function restoration!(s̄::Solver,s::Solver)
-    println("~restoration phase~\nj")
+    println("~restoration phase~\n")
     if !kkt_error_reduction(s)
         # phase 2 solver
         initialize_restoration_solver!(s̄,s)
@@ -10,7 +10,7 @@ function restoration!(s̄::Solver,s::Solver)
         # update phase 1 solver
         update_phase1_solver!(s̄,s)
     else
-        println("-KKT error reduction success")
+        println("-KKT error reduction: success")
     end
     return nothing
 end
@@ -25,16 +25,16 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
     s.x .= s̄.x[s.idx.x]
 
     # project phase 2 solution on phase 1 bounds
-    for i = 1:s.n
+    for i = 1:s.model.n
         s.x[i] = init_x0(s̄.x[i],s.xL[i],s.xU[i],s.opts.κ1,s.opts.κ2)
     end
 
     s.zL .+= s.αz*s.dzL
     s.zU .+= s.αz*s.dzU
 
-    s.∇f_func!(s.∇f,s.x)
-    s.∇c_func(s.A,s.x)
-    init_λ!(s.λ,s.H,s.h,s.d,s.zL,s.zU,s.∇f,s.A,s.n,s.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
+    s.model.∇f_func!(s.∇f,s.x)
+    s.model.∇c_func!(s.A,s.x)
+    init_λ!(s.λ,s.H,s.h,s.d,s.zL,s.zU,s.∇f,s.A,s.model.n,s.model.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
 
     return nothing
 end
@@ -47,10 +47,8 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
     push!(s̄.filter,(s̄.θ_max,Inf))
 
     if verbose
-        println("θ_max: $(s̄.θ_max)")
-        println("θ_min: $(s̄.θ_min)")
         println("φ0: $(s̄.φ), θ0: $(s̄.θ)")
-        println("Eμ0: $(eval_Eμ(0.0,s̄))")
+        println("Eμ0: $(eval_Eμ(0.0,s̄))\n")
     end
 
     while eval_Eμ(0.0,s̄) > s̄.opts.ϵ_tol
@@ -83,9 +81,9 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
             if check_filter(θ(s̄.x[s.idx.x],s),barrier(s̄.x[s.idx.x],s),s) && θ(s̄.x[s.idx.x],s) <= s̄.opts.κ_resto*s.θ
                 println("x: $(s̄.x[s.idx.x])")
-                println("p: $(s̄.x[s.n .+ (1:s.m)])")
-                println("n: $(s̄.x[(s.n+s.m) .+ (1:s.m)])")
-                println("-restoration phase success\n")
+                println("p: $(s̄.x[s.model.n .+ (1:s.model.m)])")
+                println("n: $(s̄.x[(s.model.n+s.model.m) .+ (1:s.model.m)])")
+                println("-restoration phase: success\n")
                 return true
             end
 
@@ -130,15 +128,15 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 end
 
 function restoration_reset!(s̄::Solver,s::Solver)
-    s.c_func(s.c,s̄.x[s.idx.x])
+    s.model.c_func!(s.c,s̄.x[s.idx.x])
 
     # initialize p,n
-    for i = 1:s.m
-        s̄.x[s.n + s.m + i] = init_n(s.c[i],s̄.μ,s̄.opts.ρ)
+    for i = 1:s.model.m
+        s̄.x[s.model.n + s.model.m + i] = init_n(s.c[i],s̄.μ,s̄.opts.ρ)
     end
 
-    for i = 1:s.m
-        s̄.x[s.n + i] = init_p(s̄.x[s.n + s.m + i],s.c[i])
+    for i = 1:s.model.m
+        s̄.x[s.model.n + i] = init_p(s̄.x[s.model.n + s.model.m + i],s.c[i])
     end
     s̄.λ .= 0
 
@@ -150,9 +148,10 @@ end
 function RestorationSolver(s::Solver)
     opts = copy(s.opts)
     opts.λ_init_ls = false
+    opts.relax_bnds = false
 
-    n̄ = s.n + 2s.m
-    m̄ = s.m
+    n̄ = s.model.n + 2s.model.m
+    m̄ = s.model.m
 
     x̄ = zeros(n̄)
 
@@ -184,8 +183,10 @@ function RestorationSolver(s::Solver)
         return nothing
     end
 
-    s̄ = Solver(x̄,n̄,m̄,x̄L,x̄U,f̄_func,∇f̄_func,∇²f̄_func,c̄_func,∇c̄_func,∇²c̄λ_func,opts=opts)
-    s̄.DR = spzeros(s.n,s.n)
+    _model = Model(n̄,m̄,x̄L,x̄U,f̄_func,∇f̄_func,∇²f̄_func,c̄_func,∇c̄_func,∇²c̄λ_func)
+
+    s̄ = Solver(x̄,_model,opts=opts)
+    s̄.DR = spzeros(s.model.n,s.model.n)
     return s̄
 end
 
@@ -196,12 +197,12 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     s̄.x[s.idx.x] = copy(s.x)
 
     # initialize p,n
-    for i = 1:s.m
-        s̄.x[s.n + s.m + i] = init_n(s.c[i],s̄.μ,s̄.opts.ρ)
+    for i = 1:s.model.m
+        s̄.x[s.model.n + s.model.m + i] = init_n(s.c[i],s̄.μ,s̄.opts.ρ)
     end
 
-    for i = 1:s.m
-        s̄.x[s.n + i] = init_p(s̄.x[s.n + s.m + i],s.c[i])
+    for i = 1:s.model.m
+        s̄.x[s.model.n + i] = init_p(s̄.x[s.model.n + s.model.m + i],s.c[i])
     end
 
     # initialize zL, zU, zp, zn
@@ -213,9 +214,9 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
         s̄.zU[i] = min(s̄.opts.ρ,s.zU[i])
     end
 
-    s̄.zL[s.nL .+ (1:2s.m)] .= s̄.μ./s̄.x[s.n .+ (1:2s.m)]
+    s̄.zL[s.nL .+ (1:2s.model.m)] .= s̄.μ./s̄.x[s.model.n .+ (1:2s.model.m)]
 
-    init_DR!(s̄.DR,s.x,s.n)
+    init_DR!(s̄.DR,s.x,s.model.n)
 
     s̄.restoration = true
 
@@ -228,7 +229,7 @@ end
 function update_restoration_objective!(s̄::Solver,s::Solver)
     ζ = sqrt(s̄.μ)
     DR = s̄.DR
-    idx_pn = s.n .+ (1:2s.m)
+    idx_pn = s.model.n .+ (1:2s.model.m)
 
     function f_func(x)
         s̄.opts.ρ*sum(x[idx_pn]) + 0.5*ζ*(x[s.idx.x] - s.x)'*DR'*DR*(x[s.idx.x] - s.x)
@@ -245,36 +246,36 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
         return nothing
     end
 
-    s̄.f_func = f_func
-    s̄.∇f_func! = ∇f_func!
-    s̄.∇²f_func! = ∇²f_func!
+    s̄.model.f_func = f_func
+    s̄.model.∇f_func! = ∇f_func!
+    s̄.model.∇²f_func! = ∇²f_func!
 
     return nothing
 end
 
 function update_restoration_constraints!(s̄::Solver,s::Solver)
-    function c_func(c,x)
-        s.c_func(c,x[s.idx.x])
-        c .-= x[s.n .+ (1:s.m)]
-        c .+= x[(s.n+s.m) .+ (1:s.m)]
+    function c_func!(c,x)
+        s.model.c_func!(c,x[s.idx.x])
+        c .-= x[s.model.n .+ (1:s.model.m)]
+        c .+= x[(s.model.n+s.model.m) .+ (1:s.model.m)]
         return nothing
     end
 
-    function ∇c_func(∇c,x)
-        s.∇c_func(view(∇c,1:s.m,1:s.n),x[s.idx.x])
-        ∇c[CartesianIndex.(1:s.m,s.n .+ (1:s.m))] .= -1.0
-        ∇c[CartesianIndex.(1:s.m,s.n+s.m .+ (1:s.m))] .= 1.0
+    function ∇c_func!(∇c,x)
+        s.model.∇c_func!(view(∇c,1:s.model.m,1:s.model.n),x[s.idx.x])
+        ∇c[CartesianIndex.(1:s.model.m,s.model.n .+ (1:s.model.m))] .= -1.0
+        ∇c[CartesianIndex.(1:s.model.m,s.model.n+s.model.m .+ (1:s.model.m))] .= 1.0
         return nothing
     end
 
-    function ∇²cλ_func(∇²cλ,x,λ)
-        s.∇²cλ_func(view(∇²cλ,s.idx.x,s.idx.x),x[s.idx.x],λ)
+    function ∇²cλ_func!(∇²cλ,x,λ)
+        s.model.∇²cλ_func!(view(∇²cλ,s.idx.x,s.idx.x),x[s.idx.x],λ)
         return return nothing
     end
 
-    s̄.c_func = c_func
-    s̄.∇c_func = ∇c_func
-    s̄.∇²cλ_func = ∇²cλ_func
+    s̄.model.c_func! = c_func!
+    s̄.model.∇c_func! = ∇c_func!
+    s̄.model.∇²cλ_func! = ∇²cλ_func!
 
     return nothing
 end

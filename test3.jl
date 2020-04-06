@@ -8,15 +8,14 @@ xL = -Inf*ones(n)
 xU = Inf*ones(n)
 
 f_func(x) = 2.0*(x[1]^2 + x[2]^2 - 1.0) - x[1]
-function ∇f_func!(∇f,x)
-    ∇f .= ForwardDiff.gradient(f_func,x)
-end
-function ∇²f_func!(∇²f,x)
-    ∇²f .= ForwardDiff.hessian(f_func,x)
-end
+f, ∇f!, ∇²f! = objective_functions(f_func)
 
 c_func(x) = [x[1]^2 + x[2]^2 - 1.0]
 c_func_d(x) = x[1]^2 + x[2]^2 - 1.0
+function c_func!(c,x)
+    c .= c_func(x)
+    return nothing
+end
 ∇c_func(x) = Array(ForwardDiff.gradient(c_func_d,x)')
 
 function ∇²cλ_func(x,λ)
@@ -24,5 +23,17 @@ function ∇²cλ_func(x,λ)
     return ForwardDiff.jacobian(∇cλ,x)
 end
 
-s = InteriorPointSolver(x0,n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func,∇c_func,∇²cλ_func; opts=Options{Float64}())
+function ∇c_func!(∇c,x)
+    ∇c .= ∇c_func(x)
+    return nothing
+end
+
+function ∇²cλ_func!(∇²cλ,x,λ)
+    ∇²cλ .= ∇²cλ_func(x,λ)
+    return nothing
+end
+
+model = Model(n,m,xL,xU,f,∇f!,∇²f!,c_func!,∇c_func!,∇²cλ_func!)
+
+s = InteriorPointSolver(x0,model; opts=Options{Float64}())
 @time solve!(s,verbose=true)

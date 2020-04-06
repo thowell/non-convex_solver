@@ -30,12 +30,8 @@ function line_search(s::Solver)
         else
             # second order correction
             if second_order_correction(s)
-                println("--success confirm")
                 status = true
                 break
-            else
-
-                println("--failure confirm")
             end
         end
 
