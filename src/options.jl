@@ -1,5 +1,5 @@
 @with_kw mutable struct Options{T}
-    ϵ_tol::T = 1.0e-8
+    ϵ_tol::T = 1.0e-5
     max_iter::Int = 100
     zL0::T = 1.0
     zU0::T = 1.0
@@ -50,7 +50,7 @@
     max_iterative_refinement::Int = 10
     ϵ_iterative_refinement::T = 1.0e-8
 
-    relax_bnds::Bool = true
+    relax_bnds::Bool = false
 
     ϵ_mach::T = 1.0e-16
 end
