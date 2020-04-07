@@ -1,5 +1,5 @@
 @with_kw mutable struct Options{T}
-    ϵ_tol::T = 1.0e-5
+    ϵ_tol::T = 1.0e-6
     max_iter::Int = 100
     zL0::T = 1.0
     zU0::T = 1.0
@@ -22,7 +22,7 @@
     bnd_tol::T = 1.0e8
     λ_init_ls::Bool = true
     λ_max::T = 1.0e3
-    α_sep::Bool = false
+    z_reset::Bool = true
 
     δw_min::T = 1.0e-20
     δw0::T = 1.0e-4
@@ -79,7 +79,7 @@ function Base.copy(o::Options{T}) where T
                     bnd_tol=copy(o.bnd_tol),
                     λ_init_ls=copy(o.λ_init_ls),
                     λ_max=copy(o.λ_max),
-                    α_sep=copy(o.α_sep),
+                    z_reset=copy(o.z_reset),
                     δw_min=copy(o.δw_min),
                     δw0=copy(o.δw0),
                     δw_max=copy(o.δw_max),

@@ -80,9 +80,9 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
             end
 
             if check_filter(θ(s̄.x[s.idx.x],s),barrier(s̄.x[s.idx.x],s),s) && θ(s̄.x[s.idx.x],s) <= s̄.opts.κ_resto*s.θ
-                println("x: $(s̄.x[s.idx.x])")
-                println("p: $(s̄.x[s.model.n .+ (1:s.model.m)])")
-                println("n: $(s̄.x[(s.model.n+s.model.m) .+ (1:s.model.m)])")
+                # println("x: $(s̄.x[s.idx.x])")
+                # println("p: $(s̄.x[s.model.n .+ (1:s.model.m)])")
+                # println("n: $(s̄.x[(s.model.n+s.model.m) .+ (1:s.model.m)])")
                 println("-restoration phase: success\n")
                 return true
             end
@@ -99,7 +99,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
             if verbose
                 println("restoration iteration (j,k): ($(s̄.j),$(s̄.k))")
-                println("x: $(s̄.x)")
+                # println("x: $(s̄.x)")
                 println("θjk: $(θ(s̄.x,s̄)), φjk: $(barrier(s̄.x,s̄))")
                 println("Eμ: $(eval_Eμ(s̄.μ,s̄))")
                 println("α: $(s̄.α)\n")
@@ -191,6 +191,9 @@ function RestorationSolver(s::Solver)
 end
 
 function initialize_restoration_solver!(s̄::Solver,s::Solver)
+    s̄.k = 0
+    s̄.j = 0
+
     s̄.μ = max(s.μ,norm(s.c,Inf))
     s̄.τ = update_τ(s̄.μ,s̄.opts.τ_min)
 
@@ -222,6 +225,12 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
 
     update_restoration_objective!(s̄,s)
     update_restoration_constraints!(s̄,s)
+    empty!(s̄.filter)
+
+    s̄.model.c_func!(s̄.c,s̄.x)
+    s̄.θ = norm(s̄.c,1)
+    s̄.θ_min = init_θ_min(s̄.θ)
+    s̄.θ_max = init_θ_max(s̄.θ)
 
     return nothing
 end

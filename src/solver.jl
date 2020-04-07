@@ -96,6 +96,8 @@ mutable struct Solver{T}
 
     idx::Indices
 
+    fail_cnt::Int
+
     opts::Options{T}
 end
 
@@ -250,6 +252,8 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
 
     idx = indices(model.n,model.m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool)
 
+    fail_cnt = 0
+
     Solver(model,
            x,x⁺,x_soc,
            xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
@@ -270,6 +274,7 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
            x_copy,λ_copy,zL_copy,zU_copy,d_copy,
            Fμ,
            idx,
+           fail_cnt,
            opts)
 end
 

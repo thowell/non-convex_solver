@@ -81,16 +81,16 @@ xU = Inf*ones(nx)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 
-q0 = ones(nq)
+q0 = zeros(nq)
 u0 = zeros(nu)
-λ0 = 1.0e-3
-β0 = 1.0e-3*ones(nβ)
-ψ0 = 1.0e-3
-η0 = 1.0e-3*ones(nβ)
-s0 = 1.0e-3
+λ0 = 0.
+β0 = zeros(nβ)
+ψ0 = 0.
+η0 = zeros(nβ)
+s0 = 0.
 x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;ones(nβ)]
 unpack(x0)
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(max_iter=500,relax_bnds=false))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(max_iter=500,relax_bnds=true))
 @time solve!(s,verbose=true)
 
 q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(s.s.x)

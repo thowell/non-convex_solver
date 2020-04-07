@@ -52,7 +52,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
 
             if verbose
                 println("iteration (j,k): ($(s.j),$(s.k))")
-                println("x: $(s.x)")
+                # println("x: $(s.x)")
                 println("θjk: $(θ(s.x,s)), φjk: $(barrier(s.x,s))")
                 println("Eμ: $(eval_Eμ(s.μ,s))")
                 println("α: $(s.α)\n")
