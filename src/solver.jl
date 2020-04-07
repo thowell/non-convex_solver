@@ -222,10 +222,10 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     λ = zeros(model.m)
     model.∇f_func!(∇f,x)
     model.∇c_func!(A,x)
-    opts.λ_init_ls ? init_λ!(λ,H,h,d,zL,zU,∇f,A,model.n,model.m,xL_bool,xU_bool,opts.λ_max) : zeros(m)
+    opts.λ_init_ls ? init_λ!(λ,H,h,d,zL,zU,∇f,A,model.n,model.m,xL_bool,xU_bool,opts.λ_max) : zeros(model.m)
 
     sd = init_sd(λ,[zL;zU],model.n,model.m,opts.s_max)
-    sc = init_sc([zL;zU],n,opts.s_max)
+    sc = init_sc([zL;zU],model.n,opts.s_max)
 
     filter = Tuple[]
 

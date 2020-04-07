@@ -1,4 +1,4 @@
-# Interior-point Solver
+# Interior-point solver
 
 This is an infeasible-start, interior-point solver for non-convex optimization problems. The solver re-implements key algorithms from [Ipopt](https://link.springer.com/content/pdf/10.1007/s10107-004-0559-y.pdf).
 
