@@ -27,7 +27,7 @@
     δw_min::T = 1.0e-20
     δw0::T = 1.0e-4
     δw_max::T = 1.0e40
-    δc::T = 1.0e-8
+    δc::T = 1.0
     κw⁺_::T = 100.0
     κw⁺::T = 8.0
     κw⁻::T = 1.0/3.0
@@ -47,6 +47,7 @@
 
     small_search_direction_max::Int = 2
 
+    iterative_refinement::Bool = true
     max_iterative_refinement::Int = 10
     min_iterative_refinement::Int = 1
     ϵ_iterative_refinement::T = 1.0e-8
@@ -55,6 +56,7 @@
 
     g_max::T = 100.
     nlp_scaling::Bool = true
+
     max_fail_cnt::Int = 4
     ϵ_mach::T = 1.0e-16
 end
@@ -101,6 +103,7 @@ function Base.copy(o::Options{T}) where T
                     κd=copy(o.κd),
                     kkt_solve=o.kkt_solve,
                     small_search_direction_max=copy(o.small_search_direction_max),
+                    iterative_refinement=copy(o.iterative_refinement),
                     max_iterative_refinement=copy(o.max_iterative_refinement),
                     min_iterative_refinement=copy(o.min_iterative_refinement),
                     ϵ_iterative_refinement=copy(o.ϵ_iterative_refinement),

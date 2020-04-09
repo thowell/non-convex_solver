@@ -89,7 +89,7 @@ function search_direction_soc_unreduced!(s::Solver)
 
     s.d_soc .= -(s.H + Diagonal(s.δ))\s.h
 
-    iterative_refinement(s.d_soc,s)
+    s.opts.iterative_refinement ? iterative_refinement(s.d_soc,s) : nothing
 
     return nothing
 end
@@ -108,7 +108,8 @@ function search_direction_soc_symmetric!(s::Solver)
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
     s.h[s.idx.λ] = s.c_soc
-    iterative_refinement(s.d_soc,s)
+
+    s.opts.iterative_refinement ? iterative_refinement(s.d_soc,s) : nothing
 
     return nothing
 end
