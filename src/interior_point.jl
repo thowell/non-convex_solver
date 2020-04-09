@@ -1,4 +1,5 @@
 using LinearAlgebra, ForwardDiff, SparseArrays, Parameters
+using HSL
 
 include("options.jl")
 include("indices.jl")

@@ -21,6 +21,9 @@ mutable struct Solver{T}
     H::SparseMatrixCSC{T,Int}
     h::Vector{T}
 
+    H_sym::SparseMatrixCSC{T,Int}
+    h_sym::Vector{T}
+
     W::SparseMatrixCSC{T,Int}
     ΣL::SparseMatrixCSC{T,Int}
     ΣU::SparseMatrixCSC{T,Int}
@@ -37,6 +40,7 @@ mutable struct Solver{T}
 
     c::Vector{T}
     c_soc::Vector{T}
+    c_tmp::Vector{T}
 
     ∇²cλ::SparseMatrixCSC{T,Int}
 
@@ -97,6 +101,10 @@ mutable struct Solver{T}
     idx::Indices
 
     fail_cnt::Int
+
+    Dx
+    df::T
+    Dc
 
     opts::Options{T}
 end
@@ -162,6 +170,8 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
         x[i] = init_x0(x0[i],xL[i],xU[i],opts.κ1,opts.κ2)
     end
 
+    Dx = init_Dx(model.n)
+    opts.nlp_scaling ? x .= Dx*x : nothing
 
     zL = opts.zL0*ones(nL)
     zU = opts.zU0*ones(nU)
@@ -169,13 +179,22 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     H = spzeros(model.n+model.m+nL+nU,model.n+model.m+nL+nU)
     h = zeros(model.n+model.m+nL+nU)
 
+    H_sym = spzeros(model.n+model.m,model.n+model.m)
+    h_sym = zeros(model.n+model.m)
+
     W = spzeros(model.n,model.n)
     ΣL = spzeros(model.n,model.n)
     ΣU = spzeros(model.n,model.n)
     A = spzeros(model.m,model.n)
+    model.∇c_func!(A,x)
+    Dc = init_Dc(opts.g_max,A,model.m)
 
-    f = 0.
+    f = model.f_func(x)
     ∇f = zeros(model.n)
+    model.∇f_func!(∇f,x)
+    df = init_df(opts.g_max,∇f)
+    opts.nlp_scaling ? f *= df : nothing
+
     ∇²f = spzeros(model.n,model.n)
 
     φ = 0.
@@ -184,7 +203,12 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     ∇L = zeros(model.n)
 
     c = zeros(model.m)
+    model.c_func!(c,x)
+    opts.nlp_scaling ? c .= Dc*c : nothing
+
     c_soc = zeros(model.m)
+    c_tmp = zeros(model.m)
+
     ∇²cλ = spzeros(model.n,model.n)
 
     d = zeros(model.n+model.m+nL+nU)
@@ -214,7 +238,6 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     δw_last = 0.
     δc = 0.
 
-    model.c_func!(c,x)
     θ = norm(c,1)
     θ_min = init_θ_min(θ)
     θ_max = init_θ_max(θ)
@@ -222,8 +245,7 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     θ_soc = 0.
 
     λ = zeros(model.m)
-    model.∇f_func!(∇f,x)
-    model.∇c_func!(A,x)
+
     opts.λ_init_ls ? init_λ!(λ,H,h,d,zL,zU,∇f,A,model.n,model.m,xL_bool,xU_bool,opts.λ_max) : zeros(model.m)
 
     sd = init_sd(λ,[zL;zU],model.n,model.m,opts.s_max)
@@ -258,11 +280,11 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
            x,x⁺,x_soc,
            xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
            λ,zL,zU,
-           H,h,W,ΣL,ΣU,A,
+           H,h,H_sym,h_sym,W,ΣL,ΣU,A,
            f,∇f,∇²f,
            φ,∇φ,
            ∇L,
-           c,c_soc,∇²cλ,
+           c,c_soc,c_tmp,∇²cλ,
            d,d_soc,dx,dλ,dzL,dzU,Δ,res,
            μ,α,αz,α_max,α_min,α_soc,β,τ,
            δ,δw,δw_last,δc,
@@ -275,6 +297,7 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
            Fμ,
            idx,
            fail_cnt,
+           Dx,df,Dc,
            opts)
 end
 
@@ -288,7 +311,7 @@ end
 eval_Eμ(μ,s::Solver) = eval_Eμ(s.x,s.λ,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_bool,s.c,s.∇L,μ,s.sd,s.sc)
 
 function eval_objective!(s::Solver)
-    s.f = s.model.f_func(s.x)
+    s.f = s.opts.nlp_scaling ? s.df*s.model.f_func(s.x) : s.model.f_func(s.x)
     s.model.∇f_func!(s.∇f,s.x)
     s.model.∇²f_func!(s.∇²f,s.x)
     return nothing
@@ -296,6 +319,11 @@ end
 
 function eval_constraints!(s::Solver)
     s.model.c_func!(s.c,s.x)
+
+    if s.opts.nlp_scaling
+        s.c .= s.Dc*s.c
+    end
+
     s.model.∇c_func!(s.A,s.x)
     s.model.∇²cλ_func!(s.∇²cλ,s.x,s.λ)
     s.θ = norm(s.c,1)
@@ -435,18 +463,25 @@ function init_λ!(λ,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
 end
 
 function θ(x,s::Solver)
-    c_tmp = zeros(s.model.m)
-    s.model.c_func!(c_tmp,x)
-    return norm(c_tmp,1)
+    s.model.c_func!(s.c_tmp,x)
+    if s.opts.nlp_scaling
+        s.c_tmp .= s.Dc*s.c_tmp
+    end
+    return norm(s.c_tmp,1)
 end
 
-function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func)
-    return (f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]))
+function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func,df)
+    return (df*f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]))
 end
-barrier(x,s::Solver) = barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,s.xUs_bool,s.μ,s.opts.κd,s.model.f_func)
+barrier(x,s::Solver) = barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,s.xUs_bool,s.μ,s.opts.κd,s.model.f_func,s.opts.nlp_scaling ? s.df : 1.0)
 
 function update!(s::Solver)
     s.x .= s.x⁺
+
+    if s.opts.nlp_scaling
+        s.x .= s.Dx*s.x
+    end
+
     s.λ .= s.λ + s.α*s.dλ
     s.zL .= s.zL + s.αz*s.dzL
     s.zU .= s.zU + s.αz*s.dzU
@@ -493,4 +528,32 @@ function InteriorPointSolver(x0,model::AbstractModel; opts=Options{Float64}()) w
     s̄ = RestorationSolver(s)
 
     InteriorPointSolver(s,s̄)
+end
+
+function init_Dx!(Dx,n)
+    for i = 1:n
+        Dx[i,i] = 1.0
+    end
+    return nothing
+end
+
+function init_Dx(n)
+    Dx = spzeros(n,n)
+    init_Dx!(Dx,n)
+    return Dx
+end
+
+
+init_df(g_max,∇f) = min(1.0,g_max/norm(∇f,Inf))
+
+function init_Dc!(Dc,g_max,A,m)
+    for j = 1:m
+        Dc[j,j] = min(1.0,g_max/norm(A[j,:],Inf))
+    end
+end
+
+function init_Dc(g_max,A,m)
+    Dc = spzeros(m,m)
+    init_Dc!(Dc,g_max,A,m)
+    return Dc
 end

@@ -4,6 +4,9 @@ function second_order_correction(s::Solver)
     s.p = 1
     θ_soc = s.θ
     s.model.c_func!(s.c_soc,s.x⁺)
+    if s.opts.nlp_scaling
+        s.c_soc .= s.Dc*s.c_soc
+    end
     s.c_soc .+= s.α*s.c
 
     search_direction_soc!(s)
@@ -45,7 +48,7 @@ function second_order_correction(s::Solver)
             s.p += 1
 
             s.model.c_func!(s.c,s.x⁺)
-            s.c_soc .= s.α_soc*s.c_soc + s.c
+            s.c_soc .= s.α_soc*s.c_soc + s.opts.nlp_scaling ? s.Dc*s.c : s.c
             θ_soc = θ(s.x⁺,s)
 
             search_direction_soc!(s)
@@ -66,7 +69,9 @@ function α_soc_max!(s::Solver)
 end
 
 function search_direction_soc!(s::Solver)
-    if s.opts.kkt_solve == :unreduced
+    if s.opts.kkt_solve == :symmetric
+        search_direction_soc_symmetric!(s)
+    elseif s.opts.kkt_solve == :unreduced
         search_direction_soc_unreduced!(s)
     else
         error("KKT solve (soc) not implemented")
@@ -75,23 +80,35 @@ function search_direction_soc!(s::Solver)
 end
 
 function search_direction_soc_unreduced!(s::Solver)
+    kkt_hessian_symmetric!(s)
+    LBL = inertia_correction(s)
+
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
-
     s.h[s.idx.λ] = s.c_soc
 
-    flag = inertia_correction!(s)
-
-    s.δ[s.idx.x] .= s.δw
-    s.δ[s.idx.λ] .= -s.δc
     s.d_soc .= -(s.H + Diagonal(s.δ))\s.h
 
-    if flag
-        iterative_refinement(s.d_soc,s)
-    end
+    iterative_refinement(s.d_soc,s)
 
-    s.δw = 0.
-    s.δc = 0.
+    return nothing
+end
+
+function search_direction_soc_symmetric!(s::Solver)
+    kkt_hessian_symmetric!(s)
+    kkt_gradient_symmetric!(s)
+    s.h_sym[s.idx.λ] .= s.c_soc
+
+    LBL = inertia_correction(s)
+
+    s.d_soc[1:(s.model.n+s.model.m)] = ma57_solve(LBL, -s.h_sym)
+    s.d_soc[s.idx.zL] = -(Diagonal((s.x - s.xL)[s.xL_bool])\Diagonal(s.zL))*s.d_soc[s.idx.xL] - s.zL + Diagonal((s.x - s.xL)[s.xL_bool])\(s.μ*ones(s.nL))
+    s.d_soc[s.idx.zU] = (Diagonal((s.xU - s.x)[s.xU_bool])\Diagonal(s.zU))*s.d_soc[s.idx.xU] - s.zU + Diagonal((s.xU - s.x)[s.xU_bool])\(s.μ*ones(s.nU))
+
+    kkt_hessian_unreduced!(s)
+    kkt_gradient_unreduced!(s)
+    s.h[s.idx.λ] = s.c_soc
+    iterative_refinement(s.d_soc,s)
 
     return nothing
 end

@@ -1,9 +1,9 @@
 using CUTEst, NLPModels
 include("src/interior_point.jl")
 
-# nlp = CUTEstModel("HS35")
+nlp = CUTEstModel("HS35")
 
-nlp = CUTEstModel("BYRDSPHR")
+# nlp = CUTEstModel("BYRDSPHR")
 
 nlp.meta.lcon
 nlp.meta.ucon

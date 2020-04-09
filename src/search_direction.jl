@@ -1,5 +1,7 @@
 function search_direction!(s::Solver)
-    if s.opts.kkt_solve == :unreduced
+    if s.opts.kkt_solve == :symmetric
+        search_direction_symmetric!(s)
+    elseif s.opts.kkt_solve == :unreduced
         search_direction_unreduced!(s)
     else
         error("KKT solve not implemented")
@@ -29,20 +31,50 @@ function kkt_gradient_unreduced!(s::Solver)
 end
 
 function search_direction_unreduced!(s::Solver)
+    kkt_hessian_symmetric!(s)
+    LBL = inertia_correction(s,restoration=s.restoration)
+
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
-
-    flag = inertia_correction!(s)
-
-    s.δ[s.idx.x] .= s.δw
-    s.δ[s.idx.λ] .= -s.δc
     s.d .= -(s.H + Diagonal(s.δ))\s.h
 
-    if flag
-        iterative_refinement(s.d,s)
-    end
+    iterative_refinement(s.d,s)
 
-    s.δw = 0.
-    s.δc = 0.
+    return nothing
+end
+
+# symmetric KKT system
+function kkt_hessian_symmetric!(s::Solver)
+    s.ΣL[CartesianIndex.(s.idx.xL,s.idx.xL)] .= Diagonal((s.x - s.xL)[s.xL_bool])\s.zL
+    s.ΣU[CartesianIndex.(s.idx.xU,s.idx.xU)] .= Diagonal((s.xU - s.x)[s.xU_bool])\s.zU
+
+    s.H_sym[s.idx.x,s.idx.x] .= s.W + s.ΣL + s.ΣU
+    s.H_sym[s.idx.x,s.idx.λ] .= s.A'
+    s.H_sym[s.idx.λ,s.idx.x] .= s.A
+
+    return nothing
+end
+
+function kkt_gradient_symmetric!(s::Solver)
+    s.h_sym[s.idx.x] = s.∇φ + s.A'*s.λ
+    s.h_sym[s.idx.λ] = s.c
+
+    return nothing
+end
+
+function search_direction_symmetric!(s::Solver)
+    kkt_hessian_symmetric!(s)
+    kkt_gradient_symmetric!(s)
+
+    LBL = inertia_correction(s,restoration=s.restoration)
+
+    s.d[1:(s.model.n+s.model.m)] = ma57_solve(LBL, -s.h_sym)
+    s.d[s.idx.zL] = -(Diagonal((s.x - s.xL)[s.xL_bool])\Diagonal(s.zL))*s.d[s.idx.xL] - s.zL + Diagonal((s.x - s.xL)[s.xL_bool])\(s.μ*ones(s.nL))
+    s.d[s.idx.zU] = (Diagonal((s.xU - s.x)[s.xU_bool])\Diagonal(s.zU))*s.d[s.idx.xU] - s.zU + Diagonal((s.xU - s.x)[s.xU_bool])\(s.μ*ones(s.nU))
+
+    kkt_hessian_unreduced!(s)
+    kkt_gradient_unreduced!(s)
+    iterative_refinement(s.d,s)
+
     return nothing
 end

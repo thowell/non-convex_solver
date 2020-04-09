@@ -89,9 +89,8 @@ u0 = zeros(nu)
 η0 = zeros(nβ)
 s0 = 0.
 x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;ones(nβ)]
-unpack(x0)
+
 s = InteriorPointSolver(x0,model,opts=Options{Float64}(max_iter=500,relax_bnds=true))
 @time solve!(s,verbose=true)
 
-q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(s.s.x)
-s
+# q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(s.s.x)

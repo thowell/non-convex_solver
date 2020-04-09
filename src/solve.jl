@@ -36,6 +36,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
                 if !line_search(s)
                     augment_filter!(s)
                     restoration!(solver.s̄,s)
+                    augment_filter!(s)
                 else
                     augment_filter!(s)
                     update!(s)

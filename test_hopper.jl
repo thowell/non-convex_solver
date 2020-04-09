@@ -78,7 +78,7 @@ end
 
 W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
-Wf = Diagonal([5.0,1e-3,1e-3,1e-3,1e-3])
+Wf = Diagonal(5.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
 qf = [1., r, r, 0., 0.]
 uf = zeros(nu)
@@ -114,10 +114,11 @@ function f_func(z)
     _sum = 0.
     for t = 1:T
         q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
+
         if t != T
-            _sum += 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c + 1.0*s
+            _sum += 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c + 20.0*s
         else
-            _sum += 0.5*q'*Wf*q + wf'*q + 0.5*u'*R*u + rr'*u + obj_cf + 1.0*s
+            _sum += 0.5*q'*Wf*q + wf'*q + 0.5*u'*R*u + rr'*u + obj_cf + 20.0*s
         end
     end
     return _sum
@@ -137,10 +138,20 @@ end
 
 function c_func(z)
     c = zeros(eltype(z),np*T)
-    _qpp = copy(qpp)
-    _qp = copy(qp)
+
     for t = 1:T
         q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
+
+        if t == 1
+            _qpp = qpp
+            _qp = qp
+        elseif t == 2
+            _qpp = qp
+            _qp = z[(t-2)*nx .+ (1:nq)]
+        else
+            _qpp = z[(t-3)*nx .+ (1:nq)]
+            _qp = z[(t-2)*nx .+ (1:nq)]
+        end
 
         c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
                                  sϕ - ϕ(model,q);
@@ -149,8 +160,6 @@ function c_func(z)
                                  sfc - (μ*λ - β'*ones(nβ));
                                  sψfc - (s - ψ*(μ*λ - β'*ones(nβ)));
                                  sβη - (s*ones(nβ) - β.*η)]
-        _qpp = copy(_qp)
-        _qp = copy(q)
      end
      return c
 end
@@ -169,20 +178,19 @@ end
 
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 
-u0 = zeros(nu)
-λ0 = 1.0e-3
-β0 = 1.0e-3*ones(nβ)
-ψ0 = 1.0e-3
-η0 = 1.0e-3*ones(nβ)
-s0 = 1.0e-3
-# x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;ones(nβ)]
+u0 = 1.0e-2*rand(nu)
+λ0 = 1.0e-2*rand(1)[1]
+β0 = 1.0e-2*rand(nβ)
+ψ0 = 1.0e-2*rand(1)[1]
+η0 = 1.0e-2*rand(nβ)
+s0 = 1.0e-2*rand(1)[1]
 
 x0 = zeros(T*nx)
 for t = 1:T
-    x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;ones(nβ)]
+    x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;1.0e-2*rand(nβ)]
 end
-unpack(x0)
-s = InteriorPointSolver(x0,nlp_model,opts=Options{Float64}(max_iter=500,relax_bnds=false,ϵ_tol=1.0e-4))
+
+s = InteriorPointSolver(x0,nlp_model,opts=Options{Float64}(max_iter=500,relax_bnds=true,ϵ_tol=1.0e-3))
 @time solve!(s,verbose=true)
 
 function get_q(z)
@@ -194,5 +202,3 @@ function get_q(z)
     end
     return Q
 end
-
-get_q(s.s.x)

@@ -25,13 +25,19 @@ function line_search(s::Solver)
                 end
             end
         end
+        
         if s.l > 0 || θ(s.x⁺,s) < s.θ || s.restoration == true
+            if s.l == 0
+                s.fail_cnt += 1
+            end
             s.α *= 0.5
         else
             # second order correction
             if second_order_correction(s)
                 status = true
                 break
+            else
+                s.fail_cnt += 1
             end
         end
 

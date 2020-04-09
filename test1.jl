@@ -14,10 +14,10 @@ f_func(x) = x[1]
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
 c_func(x) = [x[1]^2 - x[2] - 1.0;
-          x[1] - x[3] - 0.5]
+             x[1] - x[3] - 0.5]
 c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(max_iter=500))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(relax_bnds=false,max_iter=500))
 @time solve!(s,verbose=true)
