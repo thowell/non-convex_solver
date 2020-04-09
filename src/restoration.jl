@@ -328,9 +328,10 @@ function search_direction_restoration!(s̄::Solver,s::Solver)
 
         kkt_hessian_unreduced!(s̄)
         kkt_gradient_unreduced!(s̄)
-        s̄.d .= -(s̄.H + Diagonal(s̄.δ))\s̄.h
+        s̄.d .= lu(s̄.H + Diagonal(s̄.δ))\(-s̄.h)
 
         s.opts.iterative_refinement ? iterative_refinement(s̄.d,s̄) : nothing
+
     elseif s.opts.kkt_solve == :symmetric
         search_direction_symmetric_restoration!(s̄,s)
     else
@@ -449,5 +450,85 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
     s̄.d[zn_idx] .= μ*Diagonal(n)\ones(s.model.m) - zn - Σn*dn
     dzn = s̄.d[zn_idx]
 
+    s̄.opts.iterative_refinement ? iterative_refinement_restoration(s̄.d,s̄,s) : nothing
+
     return small_search_direction(s̄)
+end
+
+function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
+    s̄.d_copy = copy(d)
+    iter = 0
+    s̄.res = -s̄.h - s̄.H*d
+
+    res_norm = norm(s̄.res,Inf)
+    res_norm_init = copy(res_norm)
+    println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)")
+
+    x = s̄.x[s.idx.x]
+    p = s̄.x[s.model.n .+ (1:s.model.m)]
+    n = s̄.x[s.model.n + s.model.m .+ (1:s.model.m)]
+    λ = s̄.λ
+    zL = s̄.zL[1:s.nL]
+    zp = s̄.zL[s.nL .+ (1:s.model.m)]
+    zn = s̄.zL[s.nL + s.model.m .+ (1:s.model.m)]
+    zU = s̄.zU[1:s.nU]
+
+    xL = (x - s.xL)[s.xL_bool]
+    xU = (s.xU - x)[s.xU_bool]
+
+    idx = [s.idx.x...,s̄.idx.λ...]
+
+    while (iter < s̄.opts.max_iterative_refinement && res_norm > s̄.opts.ϵ_iterative_refinement) || iter < s̄.opts.min_iterative_refinement
+        if s̄.opts.kkt_solve == :unreduced
+            s̄.δ[s.idx.x] .= s.δw
+            s̄.δ[s̄.idx.λ] .= -s.δc
+            s̄.Δ .= (s̄.H+Diagonal(s̄.δ))\s̄.res
+        elseif s̄.opts.kkt_solve == :symmetric
+            # r = copy(res)
+            r1 = r[s.idx.x]
+            r2 = r[s.model.n .+ (1:s.model.m)]
+            r3 = r[s.model.model.n + s.model.m .+ (1:s.model.m)]
+            r4 = r[s̄.model.n .+ (1:s.model.m)]
+            r5 = r[s̄.model.n + s.model.m .+ (1:s.nL)]
+            r6 = r[s̄.model.n + s.model.m + s.nL .+ (1:s.model.m)]
+            r7 = r[s̄.model.n + s.model.m + s.nL + s.model.m .+ (1:s.model.m)]
+            r8 = r[s̄.model.n + s.model.m + s.nL + s.model.m + s.model.m .+ (1:s.nU)]
+
+            r̄1 = copy(r1)
+            r̄1[s.xL_bool] .+= r5./xL
+            r̄1[s.xU_bool] .-= r8./xU
+            r̄4 = copy(r4)
+            r̄4 .+= p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
+
+            LBL = Ma57(s.H_sym + s.δ[1:(s.model.n+s.model.m)])
+            ma57_factorize(LBL)
+            s̄.Δ[idx] = ma57_solve(LBL,[r̄1;r̄4])
+
+            dx = s̄.Δ[s.idx.x]
+            dλ = s̄.Δ[s̄.idx.λ]
+
+            s̄.Δ[s.model.n .+ (1:s.model.m)] = -p.*(-dλ - r2)./zp + r6./zp
+            s̄.Δ[s.model.n + s.model.m .+ (1:s.model.m)] = -n.*(dλ - r3)./zn + r7./zn
+            s̄.Δ[s.model.n + 3s.model.m .+ (1:s.nL)] = -zL./xL.*dx[s.xL_bool] + r5./xL
+            s̄.Δ[s.model.n + 3s.model.m + s.nL .+ (1:s.model.m)] = -dλ - r2
+            s̄.Δ[s.model.n + 4s.model.m + s.nL .+ (1:s.model.m)] = dλ - r3
+            s̄.Δ[s.model.n + 5s.model.m + s.nL .+ (1:s.nU)] = zU./xU.*dx[s.xU_bool] + r8./xU
+        end
+
+        d .+= s̄.Δ
+        s̄.res = -s̄.h - s̄.H*d
+
+        res_norm = norm(s̄.res,Inf)
+
+        iter += 1
+    end
+
+    if res_norm < s̄.opts.ϵ_iterative_refinement || res_norm < res_norm_init
+        verbose ? println("iterative refinement success: $(res_norm), cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+        return true
+    else
+        d .= s̄.d_copy
+        verbose ? println("iterative refinement failure: $(res_norm), cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+        return false
+    end
 end

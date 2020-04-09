@@ -36,7 +36,7 @@ function search_direction_unreduced!(s::Solver)
 
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
-    s.d .= -(s.H + Diagonal(s.δ))\s.h
+    s.d .= lu(s.H + Diagonal(s.δ))\(-s.h)
 
     s.opts.iterative_refinement ? iterative_refinement(s.d,s) : nothing
 

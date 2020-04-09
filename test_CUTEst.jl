@@ -1,9 +1,9 @@
 using CUTEst, NLPModels
 include("src/interior_point.jl")
 
-nlp = CUTEstModel("HS35")
+# nlp = CUTEstModel("HS35")
 
-# nlp = CUTEstModel("BYRDSPHR")
+nlp = CUTEstModel("BYRDSPHR")
 
 nlp.meta.lcon
 nlp.meta.ucon
@@ -40,7 +40,7 @@ end
 
 model = Model(n,m,xL,xU,f,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cλ_func!)
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=false,relax_bnds=true,max_iter=1000))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:unreduced,iterative_refinement=true,relax_bnds=true,max_iter=1000))
 @time solve!(s,verbose=true)
 
 finalize(nlp)

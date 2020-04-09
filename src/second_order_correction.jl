@@ -87,7 +87,7 @@ function search_direction_soc_unreduced!(s::Solver)
     kkt_gradient_unreduced!(s)
     s.h[s.idx.λ] = s.c_soc
 
-    s.d_soc .= -(s.H + Diagonal(s.δ))\s.h
+    s.d_soc .= lu(s.H + Diagonal(s.δ))\(-s.h)
 
     s.opts.iterative_refinement ? iterative_refinement(s.d_soc,s) : nothing
 
