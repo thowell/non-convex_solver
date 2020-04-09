@@ -99,7 +99,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
             if verbose
                 println("restoration iteration (j,k): ($(s̄.j),$(s̄.k))")
-                # println("x: $(s̄.x)")
+                println("x: $(s̄.x)")
                 println("θjk: $(θ(s̄.x,s̄)), φjk: $(barrier(s̄.x,s̄))")
                 println("Eμ: $(eval_Eμ(s̄.μ,s̄))")
                 println("α: $(s̄.α)\n")

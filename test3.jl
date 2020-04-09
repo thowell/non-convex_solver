@@ -35,5 +35,5 @@ end
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c_func!,∇c_func!,∇²cλ_func!)
 
-s = InteriorPointSolver(x0,model; opts=Options{Float64}())
+s = InteriorPointSolver(x0,model,opts=Options{Float64}())
 @time solve!(s,verbose=true)
