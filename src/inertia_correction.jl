@@ -1,5 +1,5 @@
 function inertia_correction(s::Solver; restoration=false)
-    s.δw = 0.
+    s.δw = 0.0
     s.δc = restoration ? 0. : s.μ#s.opts.δc*s.μ^s.opts.κc
 
     LBL,n,m,z = compute_inertia(s)
@@ -16,9 +16,9 @@ function inertia_correction(s::Solver; restoration=false)
     end
 
     if s.δw_last == 0.
-        s.δw = s.opts.δw0
+        s.δw = max(s.δw,s.opts.δw0)
     else
-        s.δw = max(s.opts.δw_min,s.opts.κw⁻*s.δw_last)
+        s.δw = max(s.δw,s.opts.δw_min,s.opts.κw⁻*s.δw_last)
     end
 
     while n != s.model.n || z != 0 || m != s.model.m

@@ -52,7 +52,7 @@
     min_iterative_refinement::Int = 1
     ϵ_iterative_refinement::T = 1.0e-8
 
-    relax_bnds::Bool = false
+    relax_bnds::Bool = true
 
     g_max::T = 100.
     nlp_scaling::Bool = true

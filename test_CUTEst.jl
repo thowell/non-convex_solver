@@ -10,8 +10,8 @@ include("src/interior_point.jl")
 # nlp = CUTEstModel("BYRDSPHR")
 # nlp = CUTEstModel("DIXCHLNG")
 # nlp = CUTEstModel("STRTCHDVNE")
-# nlp = CUTEstModel("HS111")
-nlp = CUTEstModel("GENHS28")
+nlp = CUTEstModel("HS111")
+# nlp = CUTEstModel("GENHS28")
 
 
 
@@ -50,7 +50,7 @@ end
 
 model = Model(n,m,xL,xU,f,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cλ_func!)
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:unreduced,iterative_refinement=true,relax_bnds=true,max_iter=1000,λ_init_ls=true))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,relax_bnds=true,max_iter=1000,λ_init_ls=true))
 @time solve!(s,verbose=true)
 
 finalize(nlp)

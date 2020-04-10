@@ -489,7 +489,7 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
 
     idx = [s.idx.x...,s̄.idx.λ...]
 
-    while (iter < s̄.opts.max_iterative_refinement && res_norm > s̄.opts.ϵ_iterative_refinement) #|| iter < s̄.opts.min_iterative_refinement
+    while (iter < s̄.opts.max_iterative_refinement && res_norm > s̄.opts.ϵ_iterative_refinement) || iter < s̄.opts.min_iterative_refinement
 
         r = copy(s̄.res)
         r1 = r[s.idx.x]
