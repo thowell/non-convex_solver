@@ -11,6 +11,10 @@ function line_search(s::Solver)
     status = false
     while s.α > s.α_min
         if check_filter(θ(s.x⁺,s),barrier(s.x⁺,s),s)
+            if s.l == 0
+                s.fail_cnt = 0
+            end
+
             # case 1
             if (s.θ <= s.θ_min && switching_condition(s))
                 if armijo(s.x⁺,s)
@@ -25,7 +29,7 @@ function line_search(s::Solver)
                 end
             end
         end
-        
+
         if s.l > 0 || θ(s.x⁺,s) < s.θ || s.restoration == true
             if s.l == 0
                 s.fail_cnt += 1
@@ -38,6 +42,22 @@ function line_search(s::Solver)
                 break
             else
                 s.fail_cnt += 1
+            end
+        end
+
+        # accelerating heuristics
+        if s.fail_cnt == s.opts.max_fail_cnt
+            if s.θ_max > 0.1*θ(s.x⁺,s)
+                s.θ_max *= 0.1
+                empty!(s.filter)
+                push!(s.filter,(s.θ_max,Inf))
+            else
+                # backup current iterate
+                s.x_copy .= copy(s.x)
+                s.λ_copy .= copy(s.λ)
+                s.zL_copy .= copy(s.zL)
+                s.zU_copy .= copy(s.zU)
+                error("implement watchdog")
             end
         end
 

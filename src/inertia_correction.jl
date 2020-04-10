@@ -11,8 +11,8 @@ function inertia_correction(s::Solver; restoration=false)
     end
 
     if z != 0
-        println("$z zero eigen values")
-        s.δc = s.opts.δc*s.μ^s.opts.κc
+        @warn "$z zero eigen values"
+        s.δc = max(s.μ,s.opts.δc*s.μ^s.opts.κc)
     end
 
     if s.δw_last == 0.

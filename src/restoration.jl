@@ -34,7 +34,7 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
 
     s.model.∇f_func!(s.∇f,s.x)
     s.model.∇c_func!(s.A,s.x)
-    init_λ!(s.λ,s.H,s.h,s.d,s.zL,s.zU,s.∇f,s.A,s.model.n,s.model.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
+    init_λ!(s.λ,s.H_sym,s.h_sym,s.d,s.zL,s.zU,s.∇f,s.A,s.model.n,s.model.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
 
     return nothing
 end
@@ -102,7 +102,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
             if verbose
                 println("restoration iteration ($(s̄.j),$(s̄.k)):")
-                println("x: $(s̄.x)")
+                s.model.n < 5 ? println("x: $(s̄.x[s.idx.x])") : nothing
                 println("θ: $(θ(s̄.x,s̄)), φ: $(barrier(s̄.x,s̄))")
                 println("Eμ: $(eval_Eμ(s̄.μ,s̄))")
                 println("α: $(s̄.α)\n")
@@ -489,7 +489,7 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
 
     idx = [s.idx.x...,s̄.idx.λ...]
 
-    while (iter < s̄.opts.max_iterative_refinement && res_norm > s̄.opts.ϵ_iterative_refinement) || iter < s̄.opts.min_iterative_refinement
+    while (iter < s̄.opts.max_iterative_refinement && res_norm > s̄.opts.ϵ_iterative_refinement) #|| iter < s̄.opts.min_iterative_refinement
 
         r = copy(s̄.res)
         r1 = r[s.idx.x]

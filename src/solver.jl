@@ -246,7 +246,7 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
 
     λ = zeros(model.m)
 
-    opts.λ_init_ls ? init_λ!(λ,H,h,d,zL,zU,∇f,A,model.n,model.m,xL_bool,xU_bool,opts.λ_max) : zeros(model.m)
+    opts.λ_init_ls ? init_λ!(λ,H_sym,h_sym,d,zL,zU,∇f,A,model.n,model.m,xL_bool,xU_bool,opts.λ_max) : zeros(model.m)
 
     sd = init_sd(λ,[zL;zU],model.n,model.m,opts.s_max)
     sc = init_sc([zL;zU],model.n,opts.s_max)
@@ -447,9 +447,15 @@ function init_λ!(λ,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
         h[(1:n)[xL_bool]] -= zL
         h[(1:n)[xU_bool]] += zU
 
-        d[1:(n+m)] = -H[1:(n+m),1:(n+m)]\h[1:(n+m)]
+        LBL = Ma57(H)
+        ma57_factorize(LBL)
 
+        # m_inertia = LBL.info.num_negative_eigs
+        # n_inertia = LBL.info.rank - m_inertia
+
+        d[1:(n+m)] .= ma57_solve(LBL,-h)
         λ .= d[n .+ (1:m)]
+
 
         if norm(λ,Inf) > λ_max || any(isnan.(λ))
             @warn "least-squares λ init failure:\n λ_max = $(norm(λ,Inf))"

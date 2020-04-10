@@ -45,11 +45,12 @@ function add_to_filter!(p,f)
 end
 
 function augment_filter!(s::Solver)
-    θ⁺ = θ(s.x⁺,s)
-    φ⁺ = barrier(s.x⁺,s)
+    # θ⁺ = θ(s.x⁺,s)
+    # φ⁺ = barrier(s.x⁺,s)
 
     if !switching_condition(s) || !armijo(s.x⁺,s)
-        add_to_filter!((θ⁺,φ⁺),s.filter)
+        # add_to_filter!((θ⁺,φ⁺),s.filter)
+        add_to_filter!(((1.0-s.opts.γθ)*s.θ,s.φ - s.opts.γφ*s.θ),s.filter)
     end
 
     return nothing

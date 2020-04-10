@@ -17,21 +17,26 @@ The following algorithms from Ipopt are implemented:
 - [X] fraction to boundary (eqs. 8, 15)
 - [X] \alpha, \alpha_z update (eq. 14)
 - [X] z reset (eq. 16)
-- [ ] smaller, symmetric linear solve (eq. 13)
+- [X] smaller, symmetric linear solve (eq. 13)
 - [X] line-search filter (Algorithm A)
 - [X] filter update (eq. 22)
 - [X] \alpha min (eq. 23)
 - [X] second-order corrections
-- [ ] inertia correction
+- [X] inertia correction
+  - modified: \delta_c = \mu
 - [ ] acceleration heuristics (sec. 3.2)
+  - [X] Case 1
+  - [ ] Case 2: watchdog
 - [X] feasibility restoration phase
 - [X] KKT error reduction
 - [X] relaxed bounds (eq. 35)
 - [X] primal initialization (sec. 3.6)
 - [X] equality constraint multiplier initialization (eq. 36)
 - [X] single bounds damping
-- [ ] automatic scaling of problem statement
+- [X] automatic scaling of problem statement
 - [X] small search directions
 - [X] iterative refinement on unreduced system
+  - [ ] tolerance
 - [X] round-off error acceptance criteria relaxation
-- [ ] MA27
+- [X] MA57
+  - [ ] default pivot tolerance

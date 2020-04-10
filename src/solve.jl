@@ -56,7 +56,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
 
             if verbose
                 println("iteration ($(s.j),$(s.k)):")
-                println("x: $(s.x)")
+                s.model.n < 5 ? println("x: $(s.x)") : nothing
                 println("θ: $(θ(s.x,s)), φ: $(barrier(s.x,s))")
                 println("Eμ: $(eval_Eμ(s.μ,s))")
                 println("α: $(s.α)\n")

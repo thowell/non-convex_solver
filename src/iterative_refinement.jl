@@ -7,7 +7,7 @@ function iterative_refinement(d,s::Solver; verbose=true)
     res_norm_init = copy(res_norm)
     println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)")
 
-    while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement) || iter < s.opts.min_iterative_refinement
+    while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement)# || iter < s.opts.min_iterative_refinement
         if s.opts.kkt_solve == :unreduced
             s.Δ .= (s.H+Diagonal(s.δ))\s.res
         elseif s.opts.kkt_solve == :symmetric
