@@ -1,3 +1,9 @@
+mutable struct Inertia
+    n::Int
+    m::Int
+    z::Int
+end
+
 mutable struct Solver{T}
     model::AbstractModel
 
@@ -23,6 +29,9 @@ mutable struct Solver{T}
 
     H_sym::SparseMatrixCSC{T,Int}
     h_sym::Vector{T}
+
+    LBL::Ma57{T}
+    inertia::Inertia
 
     W::SparseMatrixCSC{T,Int}
     ΣL::SparseMatrixCSC{T,Int}
@@ -182,6 +191,9 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     H_sym = spzeros(model.n+model.m,model.n+model.m)
     h_sym = zeros(model.n+model.m)
 
+    LBL = Ma57(H_sym)
+    inertia = Inertia(0,0,0)
+
     W = spzeros(model.n,model.n)
     ΣL = spzeros(model.n,model.n)
     ΣU = spzeros(model.n,model.n)
@@ -280,7 +292,9 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
            x,x⁺,x_soc,
            xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
            λ,zL,zU,
-           H,h,H_sym,h_sym,W,ΣL,ΣU,A,
+           H,h,H_sym,h_sym,
+           LBL,inertia,
+           W,ΣL,ΣU,A,
            f,∇f,∇²f,
            φ,∇φ,
            ∇L,

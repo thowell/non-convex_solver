@@ -53,11 +53,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
     while eval_Eμ(0.0,s̄) > s̄.opts.ϵ_tol
         while eval_Eμ(s̄.μ,s̄) > s̄.opts.κϵ*s̄.μ
-            # s̄.opts.relax_bnds ? relax_bnds!(s̄) : nothing
-            # if search_direction_symmetric_restoration!(s̄,s)
-
             if search_direction_restoration!(s̄,s)
-            # if search_direction!(s̄)
                 s̄.small_search_direction_cnt += 1
                 if s̄.small_search_direction_cnt == s̄.opts.small_search_direction_max
                     if s̄.μ < 0.1*s̄.opts.ϵ_tol
@@ -338,7 +334,7 @@ end
 
 function search_direction_unreduced_restoration!(s̄::Solver,s::Solver)
     kkt_hessian_symmetric!(s̄)
-    LBL = inertia_correction(s̄,restoration=s̄.restoration)
+    inertia_correction!(s̄,restoration=s̄.restoration)
 
     kkt_hessian_unreduced!(s̄)
     kkt_gradient_unreduced!(s̄)
@@ -346,6 +342,7 @@ function search_direction_unreduced_restoration!(s̄::Solver,s::Solver)
     s̄.d .= lu(s̄.H + Diagonal(s̄.δ))\(-s̄.h)
 
     s.opts.iterative_refinement ? iterative_refinement(s̄.d,s̄) : nothing
+
     return nothing
 end
 # symmetric KKT system
@@ -403,9 +400,9 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
 
     idx = 1:(s.model.n+s.model.m)
 
-    LBL = inertia_correction(s)
+    inertia_correction!(s)
 
-    s̄.d[[(s.idx.x)...,(s̄.idx.λ)...]] .= ma57_solve(LBL, -s.h_sym)
+    s̄.d[[(s.idx.x)...,(s̄.idx.λ)...]] .= ma57_solve(s.LBL, -s.h_sym)
     dx = s̄.d[s.idx.x]
     dλ = s̄.d[s̄.idx.λ]
 
@@ -507,9 +504,9 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
         r̄4 = copy(r4)
         r̄4 .+= p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
 
-        LBL = Ma57(s.H_sym + Diagonal(s.δ[1:(s.model.n+s.model.m)]))
-        ma57_factorize(LBL)
-        s̄.Δ[idx] .= ma57_solve(LBL,[r̄1;r̄4])
+        # LBL = Ma57(s.H_sym + Diagonal(s.δ[1:(s.model.n+s.model.m)]))
+        # ma57_factorize(LBL)
+        s̄.Δ[idx] .= ma57_solve(s.LBL,[r̄1;r̄4])
 
         dx = s̄.Δ[s.idx.x]
         dλ = s̄.Δ[s̄.idx.λ]

@@ -81,16 +81,37 @@ xU = Inf*ones(nx)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 
-q0 = rand(nq)
-u0 = rand(nu)
-λ0 = rand(1)[1]
-β0 = rand(nβ)
-ψ0 = rand(1)[1]
-η0 = rand(nβ)
-s0 = rand(1)[1]
+q0 = 0.1*ones(nq)
+u0 = 0.1*ones(nu)
+λ0 = 0.1*ones(1)[1]
+β0 = 0.1*ones(nβ)
+ψ0 = 0.1*ones(1)[1]
+η0 = 0.1*ones(nβ)
+s0 = 0.1*ones(1)[1]
 x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;rand(nβ)]
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=false,max_iter=500,relax_bnds=true))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=false,max_iter=500,relax_bnds=false))
 @time solve!(s,verbose=true)
 
-# q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(s.s.x)
+q,u,λ,β,ψ,η,_s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(s.s.x)
+
+println("s: $_s")
+
+# Ma57(spzeros(1,1))
+# LBL = Ma57(s.s.H_sym + Diagonal(s.s.δ[1:(s.s.model.n+s.s.model.m)]))
+# LBL2 = Ma57(s.s.H_sym + Diagonal(s.s.δ[1:(s.s.model.n+s.s.model.m)]))
+# ma57_factorize(LBL)
+#
+# ma57_solve(LBL,-s.s.h_sym)
+# ma57_solve(LBL,-s.s.h_sym,2)
+# LBL .= LBL2
+#
+# mutable struct test2{T}
+#     A::Ma57{T}
+# end
+#
+# t1 = test2(LBL)
+#
+# t1.A = LBL
+#
+# t1.A

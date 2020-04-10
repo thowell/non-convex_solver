@@ -32,7 +32,7 @@ end
 
 function search_direction_unreduced!(s::Solver)
     kkt_hessian_symmetric!(s)
-    LBL = inertia_correction(s,restoration=s.restoration)
+    inertia_correction!(s,restoration=s.restoration)
 
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
@@ -66,9 +66,9 @@ function search_direction_symmetric!(s::Solver)
     kkt_hessian_symmetric!(s)
     kkt_gradient_symmetric!(s)
 
-    LBL = inertia_correction(s,restoration=s.restoration)
+    inertia_correction!(s,restoration=s.restoration)
 
-    s.d[1:(s.model.n+s.model.m)] = ma57_solve(LBL, -s.h_sym)
+    s.d[s.idx.xλ] = ma57_solve(s.LBL, -s.h_sym)
     s.d[s.idx.zL] = -(Diagonal((s.x - s.xL)[s.xL_bool])\Diagonal(s.zL))*s.d[s.idx.xL] - s.zL + Diagonal((s.x - s.xL)[s.xL_bool])\(s.μ*ones(s.nL))
     s.d[s.idx.zU] = (Diagonal((s.xU - s.x)[s.xU_bool])\Diagonal(s.zU))*s.d[s.idx.xU] - s.zU + Diagonal((s.xU - s.x)[s.xU_bool])\(s.μ*ones(s.nU))
 

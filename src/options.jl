@@ -33,7 +33,6 @@
     κw⁻::T = 1.0/3.0
     κc::T = 0.25
 
-    restoration_solver::Symbol = :ℓ1
     ρ::T = 1000.
     κF::T = 0.999
     κ_resto::T = 0.9
@@ -94,7 +93,6 @@ function Base.copy(o::Options{T}) where T
                     κw⁺=copy(o.κw⁺),
                     κw⁻=copy(o.κw⁻),
                     κc=copy(o.κc),
-                    restoration_solver=o.restoration_solver,
                     ρ=copy(o.ρ),
                     κF=copy(o.κF),
                     κ_resto=copy(o.κ_resto),

@@ -1,17 +1,17 @@
-function inertia_correction(s::Solver; restoration=false)
+
+
+function inertia_correction!(s::Solver; restoration=false,verbose=true)
     s.δw = 0.0
-    s.δc = restoration ? 0. : s.μ#s.opts.δc*s.μ^s.opts.κc
+    s.δc = restoration ? 0. : s.μ #s.opts.δc*s.μ^s.opts.κc
 
-    LBL,n,m,z = compute_inertia(s)
+    factorize_kkt!(s)
 
-    println("inertia-> n: $n, m: $m, z: $z")
+    verbose ? println("inertia-> n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)") : nothing
 
-    if n == s.model.n && z == 0 && m == s.model.m
-        return LBL
-    end
+    inertia(s) ? (return s.LBL) : nothing
 
-    if z != 0
-        @warn "$z zero eigen values"
+    if s.inertia.z != 0
+        verbose ? (@warn "$(s.inertia.z) zero eigen values") : nothing
         s.δc = max(s.μ,s.opts.δc*s.μ^s.opts.κc)
     end
 
@@ -21,12 +21,12 @@ function inertia_correction(s::Solver; restoration=false)
         s.δw = max(s.δw,s.opts.δw_min,s.opts.κw⁻*s.δw_last)
     end
 
-    while n != s.model.n || z != 0 || m != s.model.m
+    while !inertia(s)
 
-        LBL,n,m,z = compute_inertia(s)
+        factorize_kkt!(s)
 
-        if n == s.model.n && z == 0 && m == s.model.m
-            println("inertia (corrected)-> n: $n, m: $m, z: $z")
+        if inertia(s)
+            verbose ? println("inertia (corrected)-> n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)") : nothing
             break
         else
             if s.δw_last == 0
@@ -37,7 +37,7 @@ function inertia_correction(s::Solver; restoration=false)
         end
 
         if s.δw > s.opts.δw_max
-            println("n: $n, m: $m, z: $z")
+            println("n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)")
             println("s.δw: $(s.δw)")
             error("inertia correction failure")
         end
@@ -45,21 +45,23 @@ function inertia_correction(s::Solver; restoration=false)
 
     s.δw_last = s.δw
 
-    return LBL
+    return nothing
 end
 
-function compute_inertia(s::Solver)
+function factorize_kkt!(s::Solver)
     s.δ[s.idx.x] .= s.δw
     s.δ[s.idx.λ] .= -s.δc
 
-    idx = [s.idx.x...,s.idx.λ...]
+    s.LBL = Ma57(s.H_sym + Diagonal(s.δ[s.idx.xλ]))
+    ma57_factorize(s.LBL)
 
-    LBL = Ma57(s.H_sym + Diagonal(s.δ[idx]))
-    ma57_factorize(LBL)
+    s.inertia.m = s.LBL.info.num_negative_eigs
+    s.inertia.n = s.LBL.info.rank - s.inertia.m
+    s.inertia.z = s.model.n+s.model.m - s.LBL.info.rank
 
-    m = LBL.info.num_negative_eigs
-    n = LBL.info.rank - m
-    z = s.model.n+s.model.m - LBL.info.rank
-
-    return LBL, n, m, z
+    return nothing
 end
+
+inertia(s::Solver) = (s.inertia.n == s.model.n
+                        && s.inertia.m == s.model.m
+                        && s.inertia.z == 0)

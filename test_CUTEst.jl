@@ -3,14 +3,14 @@ include("src/interior_point.jl")
 
 # nlp = CUTEstModel("HS35")
 # nlp = CUTEstModel("HS111")
-# nlp = CUTEstModel("STRTCHDVNE")
+nlp = CUTEstModel("STRTCHDVNE")
 # nlp = CUTEstModel("TRIGON1NE")
 # nlp = CUTEstModel("WATER")
 # nlp = CUTEstModel("ODFITS")
 # nlp = CUTEstModel("BYRDSPHR")
 # nlp = CUTEstModel("DIXCHLNG")
 # nlp = CUTEstModel("STRTCHDVNE")
-nlp = CUTEstModel("HS111")
+# nlp = CUTEstModel("HS111")
 # nlp = CUTEstModel("GENHS28")
 
 

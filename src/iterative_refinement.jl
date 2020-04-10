@@ -12,17 +12,14 @@ function iterative_refinement(d,s::Solver; verbose=true)
             s.Δ .= (s.H+Diagonal(s.δ))\s.res
         elseif s.opts.kkt_solve == :symmetric
             r̄ = copy(s.res)
-            r̄3 = r̄[s.model.n+s.model.m .+ (1:s.nL)]
-            r̄4 = r̄[s.model.n+s.model.m+s.nL .+ (1:s.nU)]
-            r̄[(1:s.model.n)[s.xL_bool]] += r̄3./((s.x - s.xL)[s.xL_bool])
-            r̄[(1:s.model.n)[s.xU_bool]] -= r̄4./((s.xU - s.x)[s.xU_bool])
+            r̄3 = r̄[s.idx.zL]
+            r̄4 = r̄[s.idx.zU]
+            r̄[s.idx.xL] .+= r̄3./((s.x - s.xL)[s.xL_bool])
+            r̄[s.idx.xU] .-= r̄4./((s.xU - s.x)[s.xU_bool])
 
-            LBL = Ma57(s.H_sym + Diagonal(s.δ[1:(s.model.n+s.model.m)]))
-            ma57_factorize(LBL)
-
-            s.Δ[1:(s.model.n+s.model.m)] .= ma57_solve(LBL,r̄[1:(s.model.n+s.model.m)])
-            s.Δ[(s.model.n+s.model.m) .+ (1:s.nL)] .= -s.zL./((s.x - s.xL)[s.xL_bool]).*s.Δ[1:s.model.n][s.xL_bool] + r̄3./((s.x - s.xL)[s.xL_bool])
-            s.Δ[(s.model.n+s.model.m+s.nL) .+ (1:s.nU)] .= s.zU./((s.xU - s.x)[s.xU_bool]).*s.Δ[1:s.model.n][s.xU_bool] + r̄4./((s.xU - s.x)[s.xU_bool])
+            s.Δ[s.idx.xλ] .= ma57_solve(s.LBL,r̄[s.idx.xλ])
+            s.Δ[s.idx.zL] .= -s.zL./((s.x - s.xL)[s.xL_bool]).*s.Δ[s.idx.xL] + r̄3./((s.x - s.xL)[s.xL_bool])
+            s.Δ[s.idx.zU] .= s.zU./((s.xU - s.x)[s.xU_bool]).*s.Δ[s.idx.xU] + r̄4./((s.xU - s.x)[s.xU_bool])
         end
 
         d .+= s.Δ
