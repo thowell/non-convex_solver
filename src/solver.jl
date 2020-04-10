@@ -404,11 +404,11 @@ reset_z(z,x,μ,κΣ) = max(min(z,κΣ*μ/x),μ/(κΣ*x))
 
 function reset_z!(s::Solver)
     for i = 1:s.nL
-        s.zL[i] = reset_z(s.zL[i],(s.x - s.xL)[s.xL_bool][i],s.μ,s.opts.κΣ)
+        s.zL[i] = reset_z(s.zL[i],((s.x - s.xL)[s.xL_bool])[i],s.μ,s.opts.κΣ)
     end
 
     for i = 1:s.nU
-        s.zU[i] = reset_z(s.zU[i],(s.xU - s.x)[s.xU_bool][i],s.μ,s.opts.κΣ)
+        s.zU[i] = reset_z(s.zU[i],((s.xU - s.x)[s.xU_bool])[i],s.μ,s.opts.κΣ)
     end
     return nothing
 end

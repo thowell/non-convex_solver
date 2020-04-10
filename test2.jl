@@ -23,5 +23,5 @@ end
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c_func!,∇c_func!,∇²cλ_func!)
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=false,kkt_solve=:unreduced,max_iter=500))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=false,kkt_solve=:symmetric,max_iter=500))
 @time solve!(s,verbose=true)

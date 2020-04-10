@@ -1,6 +1,6 @@
 function inertia_correction(s::Solver; restoration=false)
     s.δw = 0.
-    s.δc = s.opts.δc*s.μ^s.opts.κc
+    s.δc = restoration ? 0. : s.μ#s.opts.δc*s.μ^s.opts.κc
 
     LBL,n,m,z = compute_inertia(s)
 
@@ -10,10 +10,10 @@ function inertia_correction(s::Solver; restoration=false)
         return LBL
     end
 
-    # if z != 0
-    #     println("$z zero eigen values")
-    #     s.δc = s.opts.δc*s.μ^s.opts.κc
-    # end
+    if z != 0
+        println("$z zero eigen values")
+        s.δc = s.opts.δc*s.μ^s.opts.κc
+    end
 
     if s.δw_last == 0.
         s.δw = s.opts.δw0

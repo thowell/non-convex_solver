@@ -25,9 +25,9 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
     s.x .= s̄.x[s.idx.x]
 
     # project phase 2 solution on phase 1 bounds
-    for i = 1:s.model.n
-        s.x[i] = init_x0(s̄.x[i],s.xL[i],s.xU[i],s.opts.κ1,s.opts.κ2)
-    end
+    # for i = 1:s.model.n
+    #     s.x[i] = init_x0(s̄.x[i],s.xL[i],s.xU[i],s.opts.κ1,s.opts.κ2)
+    # end
 
     s.zL .+= s.αz*s.dzL
     s.zU .+= s.αz*s.dzU
@@ -53,10 +53,10 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
     while eval_Eμ(0.0,s̄) > s̄.opts.ϵ_tol
         while eval_Eμ(s̄.μ,s̄) > s̄.opts.κϵ*s̄.μ
-            s̄.opts.relax_bnds ? relax_bnds!(s̄) : nothing
-            if search_direction_symmetric_restoration!(s̄,s)
+            # s̄.opts.relax_bnds ? relax_bnds!(s̄) : nothing
+            # if search_direction_symmetric_restoration!(s̄,s)
 
-            # if search_direction_restoration!(s̄,s)
+            if search_direction_restoration!(s̄,s)
             # if search_direction!(s̄)
                 s̄.small_search_direction_cnt += 1
                 if s̄.small_search_direction_cnt == s̄.opts.small_search_direction_max
@@ -75,7 +75,11 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                 s̄.small_search_direction_cnt = 0
 
                 if !line_search(s̄)
-                    restoration_reset!(s̄,s)
+                    if s̄.θ < s̄.opts.ϵ_tol
+                        @warn "infeasibility (restoration phase)"
+                    else
+                        restoration_reset!(s̄,s)
+                    end
                 else
                     augment_filter!(s̄)
                     update!(s̄)
@@ -93,8 +97,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
             s̄.k += 1
             if s̄.k > s̄.opts.max_iter
-                @warn "max iterations (restoration)"
-                return
+                error("max iterations (restoration)")
             end
 
             if verbose
@@ -124,7 +127,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
         update_restoration_objective!(s̄,s)
     end
-    verbose ? println("<phase 2 complete>") : nothing
+    error("<phase 2 complete>: locally infeasible")
 end
 
 function restoration_reset!(s̄::Solver,s::Solver)
@@ -148,7 +151,7 @@ end
 function RestorationSolver(s::Solver)
     opts = copy(s.opts)
     opts.λ_init_ls = false
-    # opts.relax_bnds = false
+    opts.relax_bnds = false
 
     n̄ = s.model.n + 2s.model.m
     m̄ = s.model.m
@@ -207,10 +210,10 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
         s̄.x[s.model.n + i] = init_p(s̄.x[s.model.n + s.model.m + i],s.c[i])
     end
 
-    # project
-    for i = 1:s̄.model.n
-        s̄.x[i] = init_x0(s̄.x[i],s̄.xL[i],s̄.xU[i],s̄.opts.κ1,s̄.opts.κ2)
-    end
+    # # project
+    # for i = 1:s̄.model.n
+    #     s̄.x[i] = init_x0(s̄.x[i],s̄.xL[i],s̄.xU[i],s̄.opts.κ1,s̄.opts.κ2)
+    # end
 
     # initialize zL, zU, zp, zn
     for i = 1:s.nL
@@ -323,15 +326,7 @@ end
 
 function search_direction_restoration!(s̄::Solver,s::Solver)
     if s.opts.kkt_solve == :unreduced
-        kkt_hessian_symmetric!(s̄)
-        LBL = inertia_correction(s̄,restoration=s̄.restoration)
-
-        kkt_hessian_unreduced!(s̄)
-        kkt_gradient_unreduced!(s̄)
-        s̄.d .= lu(s̄.H + Diagonal(s̄.δ))\(-s̄.h)
-
-        s.opts.iterative_refinement ? iterative_refinement(s̄.d,s̄) : nothing
-
+        search_direction_symmetric_restoration!(s̄,s)
     elseif s.opts.kkt_solve == :symmetric
         search_direction_symmetric_restoration!(s̄,s)
     else
@@ -341,6 +336,18 @@ function search_direction_restoration!(s̄::Solver,s::Solver)
     return small_search_direction(s̄)
 end
 
+function search_direction_unreduced_restoration!(s̄::Solver,s::Solver)
+    kkt_hessian_symmetric!(s̄)
+    LBL = inertia_correction(s̄,restoration=s̄.restoration)
+
+    kkt_hessian_unreduced!(s̄)
+    kkt_gradient_unreduced!(s̄)
+
+    s̄.d .= lu(s̄.H + Diagonal(s̄.δ))\(-s̄.h)
+
+    s.opts.iterative_refinement ? iterative_refinement(s̄.d,s̄) : nothing
+    return nothing
+end
 # symmetric KKT system
 function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     s.model.∇²cλ_func!(s.W,s̄.x[s.idx.x],s̄.λ)
@@ -458,6 +465,10 @@ end
 function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
     s̄.d_copy = copy(d)
     iter = 0
+
+    kkt_hessian_unreduced!(s̄)
+    kkt_gradient_unreduced!(s̄)
+
     s̄.res = -s̄.h - s̄.H*d
 
     res_norm = norm(s̄.res,Inf)
@@ -479,41 +490,36 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
     idx = [s.idx.x...,s̄.idx.λ...]
 
     while (iter < s̄.opts.max_iterative_refinement && res_norm > s̄.opts.ϵ_iterative_refinement) || iter < s̄.opts.min_iterative_refinement
-        if s̄.opts.kkt_solve == :unreduced
-            s̄.δ[s.idx.x] .= s.δw
-            s̄.δ[s̄.idx.λ] .= -s.δc
-            s̄.Δ .= (s̄.H+Diagonal(s̄.δ))\s̄.res
-        elseif s̄.opts.kkt_solve == :symmetric
-            # r = copy(res)
-            r1 = r[s.idx.x]
-            r2 = r[s.model.n .+ (1:s.model.m)]
-            r3 = r[s.model.model.n + s.model.m .+ (1:s.model.m)]
-            r4 = r[s̄.model.n .+ (1:s.model.m)]
-            r5 = r[s̄.model.n + s.model.m .+ (1:s.nL)]
-            r6 = r[s̄.model.n + s.model.m + s.nL .+ (1:s.model.m)]
-            r7 = r[s̄.model.n + s.model.m + s.nL + s.model.m .+ (1:s.model.m)]
-            r8 = r[s̄.model.n + s.model.m + s.nL + s.model.m + s.model.m .+ (1:s.nU)]
 
-            r̄1 = copy(r1)
-            r̄1[s.xL_bool] .+= r5./xL
-            r̄1[s.xU_bool] .-= r8./xU
-            r̄4 = copy(r4)
-            r̄4 .+= p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
+        r = copy(s̄.res)
+        r1 = r[s.idx.x]
+        r2 = r[s.model.n .+ (1:s.model.m)]
+        r3 = r[s.model.n + s.model.m .+ (1:s.model.m)]
+        r4 = r[s̄.model.n .+ (1:s.model.m)]
+        r5 = r[s̄.model.n + s.model.m .+ (1:s.nL)]
+        r6 = r[s̄.model.n + s.model.m + s.nL .+ (1:s.model.m)]
+        r7 = r[s̄.model.n + s.model.m + s.nL + s.model.m .+ (1:s.model.m)]
+        r8 = r[s̄.model.n + s.model.m + s.nL + s.model.m + s.model.m .+ (1:s.nU)]
 
-            LBL = Ma57(s.H_sym + s.δ[1:(s.model.n+s.model.m)])
-            ma57_factorize(LBL)
-            s̄.Δ[idx] = ma57_solve(LBL,[r̄1;r̄4])
+        r̄1 = copy(r1)
+        r̄1[s.xL_bool] .+= r5./xL
+        r̄1[s.xU_bool] .-= r8./xU
+        r̄4 = copy(r4)
+        r̄4 .+= p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
 
-            dx = s̄.Δ[s.idx.x]
-            dλ = s̄.Δ[s̄.idx.λ]
+        LBL = Ma57(s.H_sym + Diagonal(s.δ[1:(s.model.n+s.model.m)]))
+        ma57_factorize(LBL)
+        s̄.Δ[idx] .= ma57_solve(LBL,[r̄1;r̄4])
 
-            s̄.Δ[s.model.n .+ (1:s.model.m)] = -p.*(-dλ - r2)./zp + r6./zp
-            s̄.Δ[s.model.n + s.model.m .+ (1:s.model.m)] = -n.*(dλ - r3)./zn + r7./zn
-            s̄.Δ[s.model.n + 3s.model.m .+ (1:s.nL)] = -zL./xL.*dx[s.xL_bool] + r5./xL
-            s̄.Δ[s.model.n + 3s.model.m + s.nL .+ (1:s.model.m)] = -dλ - r2
-            s̄.Δ[s.model.n + 4s.model.m + s.nL .+ (1:s.model.m)] = dλ - r3
-            s̄.Δ[s.model.n + 5s.model.m + s.nL .+ (1:s.nU)] = zU./xU.*dx[s.xU_bool] + r8./xU
-        end
+        dx = s̄.Δ[s.idx.x]
+        dλ = s̄.Δ[s̄.idx.λ]
+
+        s̄.Δ[s.model.n .+ (1:s.model.m)] .= -p.*(-dλ - r2)./zp + r6./zp
+        s̄.Δ[s.model.n + s.model.m .+ (1:s.model.m)] .= -n.*(dλ - r3)./zn + r7./zn
+        s̄.Δ[s.model.n + 3s.model.m .+ (1:s.nL)] .= -zL./xL.*dx[s.xL_bool] + r5./xL
+        s̄.Δ[s.model.n + 3s.model.m + s.nL .+ (1:s.model.m)] .= -dλ - r2
+        s̄.Δ[s.model.n + 4s.model.m + s.nL .+ (1:s.model.m)] .= dλ - r3
+        s̄.Δ[s.model.n + 5s.model.m + s.nL .+ (1:s.nU)] .= zU./xU.*dx[s.xU_bool] + r8./xU
 
         d .+= s̄.Δ
         s̄.res = -s̄.h - s̄.H*d

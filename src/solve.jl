@@ -34,9 +34,12 @@ function solve!(solver::InteriorPointSolver; verbose=false)
                 s.small_search_direction_cnt = 0
 
                 if !line_search(s)
-                    augment_filter!(s)
-                    restoration!(solver.s̄,s)
-                    augment_filter!(s)
+                    if s.θ < s.opts.ϵ_tol
+                        @warn "infeasibility detected"
+                    else
+                        augment_filter!(s)
+                        restoration!(solver.s̄,s)
+                    end
                 else
                     augment_filter!(s)
                     update!(s)

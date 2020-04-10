@@ -21,6 +21,7 @@ function second_order_correction(s::Solver)
             if (s.θ <= s.θ_min && switching_condition(s))
                 if armijo(s.x⁺,s)
                     s.α = s.α_soc
+                    # s.dλ .= s.d_soc[s.idx.λ]
                     status = true
                     println("second-order correction: success")
                     break
@@ -29,6 +30,7 @@ function second_order_correction(s::Solver)
             else#(s.θ > s.θ_min || !switching_condition(s))
                 if sufficient_progress(s.x⁺,s)
                     s.α = s.α_soc
+                    # s.dλ .= s.d_soc[s.idx.λ]
                     status = true
                     println("second-order correction: success")
                     break

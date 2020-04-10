@@ -19,5 +19,5 @@ c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,relax_bnds=true,iterative_refinement=false,max_iter=500))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,relax_bnds=true,iterative_refinement=true,max_iter=50))
 @time solve!(s,verbose=true)
