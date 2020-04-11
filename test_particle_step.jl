@@ -88,30 +88,11 @@ u0 = 0.1*ones(nu)
 ψ0 = 0.1*ones(1)[1]
 η0 = 0.1*ones(nβ)
 s0 = 0.1*ones(1)[1]
-x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;rand(nβ)]
+x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;0.1*ones(nβ)]
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=false,max_iter=500,relax_bnds=false))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,max_iter=500,relax_bnds=false))
 @time solve!(s,verbose=true)
 
 q,u,λ,β,ψ,η,_s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(s.s.x)
 
 println("s: $_s")
-
-# Ma57(spzeros(1,1))
-# LBL = Ma57(s.s.H_sym + Diagonal(s.s.δ[1:(s.s.model.n+s.s.model.m)]))
-# LBL2 = Ma57(s.s.H_sym + Diagonal(s.s.δ[1:(s.s.model.n+s.s.model.m)]))
-# ma57_factorize(LBL)
-#
-# ma57_solve(LBL,-s.s.h_sym)
-# ma57_solve(LBL,-s.s.h_sym,2)
-# LBL .= LBL2
-#
-# mutable struct test2{T}
-#     A::Ma57{T}
-# end
-#
-# t1 = test2(LBL)
-#
-# t1.A = LBL
-#
-# t1.A

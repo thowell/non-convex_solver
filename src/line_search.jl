@@ -57,7 +57,7 @@ function line_search(s::Solver)
                 s.λ_copy .= copy(s.λ)
                 s.zL_copy .= copy(s.zL)
                 s.zU_copy .= copy(s.zU)
-                error("implement watchdog")
+                @warn "implement watchdog"
             end
         end
 

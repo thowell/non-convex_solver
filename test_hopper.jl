@@ -155,10 +155,10 @@ function c_func(z)
 
         c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
                                  sϕ - ϕ(model,q);
-                                 sλϕ - (s - λ*ϕ(model,q));
+                                 sλϕ - (s - λ*sϕ);
                                  P(model,q)*(q-_qp)/Δt + ψ*ones(nβ) - η;
                                  sfc - (μ*λ - β'*ones(nβ));
-                                 sψfc - (s - ψ*(μ*λ - β'*ones(nβ)));
+                                 sψfc - (s - ψ*sfc);
                                  sβη - (s*ones(nβ) - β.*η)]
      end
      return c
@@ -190,7 +190,12 @@ for t = 1:T
     x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;1.0e-2*rand(nβ)]
 end
 
-s = InteriorPointSolver(x0,nlp_model,opts=Options{Float64}(max_iter=500,relax_bnds=true,ϵ_tol=1.0e-3))
+s = InteriorPointSolver(x0,nlp_model,opts=Options{Float64}(kkt_solve=:symmetric,
+                                                           max_iter=500,
+                                                           iterative_refinement=true,
+                                                           relax_bnds=true,
+                                                           ϵ_tol=1.0e-4,
+                                                           max_iterative_refinement=10))
 @time solve!(s,verbose=true)
 
 function get_q(z)

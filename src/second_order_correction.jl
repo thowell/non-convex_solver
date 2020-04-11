@@ -87,7 +87,7 @@ function search_direction_soc_unreduced!(s::Solver)
 
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
-    s.h[s.idx.λ] = s.c_soc
+    s.h[s.idx.λ] .= s.c_soc
 
     s.d_soc .= lu(s.H + Diagonal(s.δ))\(-s.h)
 
@@ -103,13 +103,13 @@ function search_direction_soc_symmetric!(s::Solver)
 
     inertia_correction!(s)
 
-    s.d_soc[s.idx.xλ] = ma57_solve(s.LBL, -s.h_sym)
-    s.d_soc[s.idx.zL] = -(Diagonal((s.x - s.xL)[s.xL_bool])\Diagonal(s.zL))*s.d_soc[s.idx.xL] - s.zL + Diagonal((s.x - s.xL)[s.xL_bool])\(s.μ*ones(s.nL))
-    s.d_soc[s.idx.zU] = (Diagonal((s.xU - s.x)[s.xU_bool])\Diagonal(s.zU))*s.d_soc[s.idx.xU] - s.zU + Diagonal((s.xU - s.x)[s.xU_bool])\(s.μ*ones(s.nU))
+    s.d_soc[s.idx.xλ] .= ma57_solve(s.LBL, -s.h_sym)
+    s.d_soc[s.idx.zL] .= -(Diagonal((s.x - s.xL)[s.xL_bool])\Diagonal(s.zL))*s.d_soc[s.idx.xL] - s.zL + Diagonal((s.x - s.xL)[s.xL_bool])\(s.μ*ones(s.nL))
+    s.d_soc[s.idx.zU] .= (Diagonal((s.xU - s.x)[s.xU_bool])\Diagonal(s.zU))*s.d_soc[s.idx.xU] - s.zU + Diagonal((s.xU - s.x)[s.xU_bool])\(s.μ*ones(s.nU))
 
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
-    s.h[s.idx.λ] = s.c_soc
+    s.h[s.idx.λ] .= s.c_soc
 
     s.opts.iterative_refinement ? iterative_refinement(s.d_soc,s) : nothing
 

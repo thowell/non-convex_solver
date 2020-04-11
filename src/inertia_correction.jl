@@ -11,7 +11,7 @@ function inertia_correction!(s::Solver; restoration=false,verbose=true)
     inertia(s) ? (return s.LBL) : nothing
 
     if s.inertia.z != 0
-        verbose ? (@warn "$(s.inertia.z) zero eigen values") : nothing
+        verbose ? (println("$(s.inertia.z) zero eigen values")) : nothing
         s.δc = max(s.μ,s.opts.δc*s.μ^s.opts.κc)
     end
 

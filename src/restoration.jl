@@ -470,7 +470,8 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
 
     res_norm = norm(s̄.res,Inf)
     res_norm_init = copy(res_norm)
-    println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)")
+
+    verbose ? println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)") : nothing
 
     x = s̄.x[s.idx.x]
     p = s̄.x[s.model.n .+ (1:s.model.m)]
@@ -504,8 +505,6 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
         r̄4 = copy(r4)
         r̄4 .+= p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
 
-        # LBL = Ma57(s.H_sym + Diagonal(s.δ[1:(s.model.n+s.model.m)]))
-        # ma57_factorize(LBL)
         s̄.Δ[idx] .= ma57_solve(s.LBL,[r̄1;r̄4])
 
         dx = s̄.Δ[s.idx.x]

@@ -1,29 +1,26 @@
 function iterative_refinement(d,s::Solver; verbose=true)
-    s.d_copy = copy(d)
+    s.d_copy .= copy(d)
     iter = 0
-    s.res = -s.h - s.H*d
+    s.res .= -s.h - s.H*d
 
     res_norm = norm(s.res,Inf)
     res_norm_init = copy(res_norm)
-    println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)")
+    verbose ? println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)") : nothing
 
     while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement) || iter < s.opts.min_iterative_refinement
         if s.opts.kkt_solve == :unreduced
             s.Δ .= (s.H+Diagonal(s.δ))\s.res
         elseif s.opts.kkt_solve == :symmetric
-            r̄ = copy(s.res)
-            r̄3 = r̄[s.idx.zL]
-            r̄4 = r̄[s.idx.zU]
-            r̄[s.idx.xL] .+= r̄3./((s.x - s.xL)[s.xL_bool])
-            r̄[s.idx.xU] .-= r̄4./((s.xU - s.x)[s.xU_bool])
+            s.res[s.idx.xL] .+= s.res[s.idx.zL]./((s.x - s.xL)[s.xL_bool])
+            s.res[s.idx.xU] .-= s.res[s.idx.zU]./((s.xU - s.x)[s.xU_bool])
 
-            s.Δ[s.idx.xλ] .= ma57_solve(s.LBL,r̄[s.idx.xλ])
-            s.Δ[s.idx.zL] .= -s.zL./((s.x - s.xL)[s.xL_bool]).*s.Δ[s.idx.xL] + r̄3./((s.x - s.xL)[s.xL_bool])
-            s.Δ[s.idx.zU] .= s.zU./((s.xU - s.x)[s.xU_bool]).*s.Δ[s.idx.xU] + r̄4./((s.xU - s.x)[s.xU_bool])
+            s.Δ[s.idx.xλ] .= ma57_solve(s.LBL,s.res[s.idx.xλ])
+            s.Δ[s.idx.zL] .= -s.zL./((s.x - s.xL)[s.xL_bool]).*s.Δ[s.idx.xL] + s.res[s.idx.zL]./((s.x - s.xL)[s.xL_bool])
+            s.Δ[s.idx.zU] .= s.zU./((s.xU - s.x)[s.xU_bool]).*s.Δ[s.idx.xU] + s.res[s.idx.zU]./((s.xU - s.x)[s.xU_bool])
         end
 
         d .+= s.Δ
-        s.res = -s.h - s.H*d
+        s.res .= -s.h - s.H*d
 
         res_norm = norm(s.res,Inf)
 
