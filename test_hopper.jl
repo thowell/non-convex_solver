@@ -78,9 +78,9 @@ end
 
 W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
-Wf = Diagonal(5.0*ones(nq))
+Wf = Diagonal(10.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
-qf = [2., r, r, 0., 0.]
+qf = [3., r, r, 0., 0.]
 uf = zeros(nu)
 w = -W*qf
 wf = -Wf*qf
