@@ -466,7 +466,7 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
     kkt_hessian_unreduced!(s̄)
     kkt_gradient_unreduced!(s̄)
 
-    s̄.res = -s̄.h - s̄.H*d
+    s̄.res = -s̄.h - (s̄.H+s̄.δ0)*d
 
     res_norm = norm(s̄.res,Inf)
     res_norm_init = copy(res_norm)
@@ -518,19 +518,19 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
         s̄.Δ[s.model.n + 5s.model.m + s.nL .+ (1:s.nU)] .= zU./xU.*dx[s.xU_bool] + r8./xU
 
         d .+= s̄.Δ
-        s̄.res = -s̄.h - s̄.H*d
+        s̄.res = -s̄.h - (s̄.H+s̄.δ0)*d
 
         res_norm = norm(s̄.res,Inf)
 
         iter += 1
     end
 
-    if res_norm < s̄.opts.ϵ_iterative_refinement || res_norm < res_norm_init
-        verbose ? println("iterative refinement success: $(res_norm), cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+    if res_norm < s̄.opts.ϵ_iterative_refinement# || res_norm < res_norm_init
+        verbose ? println("iterative refinement success: $(res_norm), iter: $iter, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
         return true
     else
         d .= s̄.d_copy
-        verbose ? println("iterative refinement failure: $(res_norm), cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+        verbose ? println("iterative refinement failure: $(res_norm), iter: $iter, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
         return false
     end
 end

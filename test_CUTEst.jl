@@ -60,7 +60,7 @@ include("src/interior_point.jl")
 # nlp = CUTEstModel("HS79")
 # nlp = CUTEstModel("HS1001NP")
 # nlp = CUTEstModel("HS1111NP")
-nlp = CUTEstModel("LCH")
+# nlp = CUTEstModel("LCH")
 # nlp = CUTEstModel("LUKVLE1")
 # nlp = CUTEstModel("LUKVLE3")
 # nlp = CUTEstModel("LUKVLE6")
@@ -83,7 +83,7 @@ nlp = CUTEstModel("LCH")
 # nlp = CUTEstModel("ORTHREGD")
 # nlp = CUTEstModel("ORTHREGM")
 # nlp = CUTEstModel("ORTHREGS")
-# nlp = CUTEstModel("S316-322")
+nlp = CUTEstModel("S316-322")
 # nlp = CUTEstModel("WOODSNE")
 
 
@@ -120,9 +120,9 @@ function ∇²cλ_func!(∇²cλ,x,λ)
     return nothing
 end
 
-model = Model(n,m,xL,xU,f,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cλ_func!)
+model = Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cλ_func!)
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,relax_bnds=true,max_iter=1000,λ_init_ls=true))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:unreduced,iterative_refinement=true,relax_bnds=true,max_iter=1000,λ_init_ls=true,max_iterative_refinement=1000))
 @time solve!(s,verbose=true)
 
 finalize(nlp)

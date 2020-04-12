@@ -40,6 +40,7 @@
     κ1::T = 1.0e-2
     κ2::T = 1.0e-2
 
+    single_bnds_damping::Bool = true
     κd::T = 1.0e-4
 
     kkt_solve::Symbol = :symmetric # :symmetric, :unreduced, custom
@@ -98,6 +99,7 @@ function Base.copy(o::Options{T}) where T
                     κ_resto=copy(o.κ_resto),
                     κ1=copy(o.κ1),
                     κ2=copy(o.κ2),
+                    single_bnds_damping=copy(o.single_bnds_damping),
                     κd=copy(o.κd),
                     kkt_solve=o.kkt_solve,
                     small_search_direction_max=copy(o.small_search_direction_max),

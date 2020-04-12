@@ -10,6 +10,7 @@ nx = nq+nu+nc+nβ+nc+nβ+5nc+nβ
 np = nq+2nc+nβ+nc+nβ+nc
 
 dt = 0.1
+
 M = 1.0*Matrix(I,nq,nq)
 B = [1. 0.;0. 1.;0. 0.]
 G = [0; 0; 9.8]
@@ -22,7 +23,7 @@ P = [1. 0. 0.;
 N = [0; 0; 1]
 
 qpp = [0., 0., .15]
-v0 = [1., 0., 0.]
+v0 = [5., 0., 0.]
 v1 = v0 - G*dt
 qp = qpp + 0.5*dt*(v0 + v1)
 
@@ -90,7 +91,7 @@ u0 = 0.1*ones(nu)
 s0 = 0.1*ones(1)[1]
 x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;0.1*ones(nβ)]
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,max_iter=500,relax_bnds=false))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,max_iter=500,relax_bnds=true))
 @time solve!(s,verbose=true)
 
 q,u,λ,β,ψ,η,_s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(s.s.x)
