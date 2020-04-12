@@ -13,10 +13,10 @@ f_func(x) = (x[1] - 5)^2 + (2*x[2] + 1)^2 + 10.0*x[12]
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
 c_func(x) = [2*(x[2] - 1) - 1.5*x[2] + x[3] - 0.5*x[4] + x[5];
-             3*x[1] - x[2] - 3.0 - x[5];
+             3*x[1] - x[2] - 3.0 - x[6];
              -x[1] + 0.5*x[2] + 4.0 - x[7];
              -x[1] - x[2] + 7.0 - x[8];
-             x[12] - x[3]*x[5] - x[9];
+             x[12] - x[3]*x[6] - x[9];
              x[12] - x[4]*x[7] - x[10];
              x[12] - x[5]*x[8] - x[11]]
 c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
@@ -28,7 +28,7 @@ s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,rela
 x = s.s.x
 
 x[3]
-x[5]
+x[6]
 
 x[4]
 x[7]
