@@ -1,6 +1,6 @@
 function inertia_correction!(s::Solver; restoration=false,verbose=true)
     s.δw = 0.0
-    s.δc = restoration ? 0. : s.μ #s.opts.δc*s.μ^s.opts.κc
+    s.δc = 0.0#restoration ? 0. : s.μ #s.opts.δc*s.μ^s.opts.κc
 
     factorize_kkt!(s)
 
@@ -10,7 +10,7 @@ function inertia_correction!(s::Solver; restoration=false,verbose=true)
 
     if s.inertia.z != 0
         verbose ? (println("$(s.inertia.z) zero eigen values")) : nothing
-        s.δc = max(s.μ,s.opts.δc*s.μ^s.opts.κc)
+        s.δc = s.opts.δc*s.μ^s.opts.κc
     end
 
     if s.δw_last == 0.
@@ -50,7 +50,7 @@ function factorize_kkt!(s::Solver)
     s.δ[s.idx.x] .= s.δw
     s.δ[s.idx.λ] .= -s.δc
 
-    s.LBL = Ma57(s.H_sym + Diagonal(s.δ[s.idx.xλ] + s.δ0[s.idx.xλ]))
+    s.LBL = Ma57(s.H_sym + Diagonal(s.δ[s.idx.xλ]))
     ma57_factorize(s.LBL)
 
 

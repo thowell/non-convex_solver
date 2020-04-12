@@ -1,5 +1,5 @@
 @with_kw mutable struct Options{T}
-    ϵ_tol::T = 1.0e-6
+    ϵ_tol::T = 1.0e-8
     max_iter::Int = 100
     zL0::T = 1.0
     zU0::T = 1.0

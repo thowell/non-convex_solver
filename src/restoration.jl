@@ -87,7 +87,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                 return true
             end
 
-            reset_z!(s̄)
+            s̄.opts.z_reset ? reset_z!(s̄) : nothing
 
             eval_iterate!(s̄)
 

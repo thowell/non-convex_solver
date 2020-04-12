@@ -31,7 +31,7 @@ function iterative_refinement(d,s::Solver; verbose=true)
         iter += 1
     end
 
-    if res_norm < s.opts.ϵ_iterative_refinement ##|| res_norm < res_norm_init
+    if res_norm < s.opts.ϵ_iterative_refinement
         verbose ? println("iterative refinement success: $(res_norm), iter: $iter, cond: $(cond(Array(s.H+Diagonal(s.δ)))), rank: $(rank(Array(s.H+Diagonal(s.δ))))") : nothing
         return true
     else

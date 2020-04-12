@@ -41,7 +41,7 @@ include("src/interior_point.jl")
 # nlp = CUTEstModel("HS8")
 # nlp = CUTEstModel("HS9")
 # nlp = CUTEstModel("HS26")
-# nlp = CUTEstModel("HS27")
+nlp = CUTEstModel("HS27")
 # nlp = CUTEstModel("HS28")
 # nlp = CUTEstModel("HS39")
 # nlp = CUTEstModel("HS40")
@@ -83,7 +83,7 @@ include("src/interior_point.jl")
 # nlp = CUTEstModel("ORTHREGD")
 # nlp = CUTEstModel("ORTHREGM")
 # nlp = CUTEstModel("ORTHREGS")
-nlp = CUTEstModel("S316-322")
+# nlp = CUTEstModel("S316-322")
 # nlp = CUTEstModel("WOODSNE")
 
 
@@ -122,7 +122,7 @@ end
 
 model = Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cλ_func!)
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:unreduced,iterative_refinement=true,relax_bnds=true,max_iter=1000,λ_init_ls=true,max_iterative_refinement=1000))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,relax_bnds=true,max_iter=1000,λ_init_ls=true,max_iterative_refinement=100))
 @time solve!(s,verbose=true)
 
 finalize(nlp)

@@ -46,7 +46,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
                 end
             end
 
-            reset_z!(s)
+            s.opts.z_reset ? reset_z!(s) : nothing
             eval_iterate!(s)
 
             s.k += 1

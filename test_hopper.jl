@@ -21,7 +21,7 @@ nβ = nc*nf
 
 nx = nq+nu+nc+nβ+nc+nβ+5nc+nβ
 np = nq+2nc+nβ+nc+nβ+nc
-T = 10 # number of time steps to optimize
+T = 20 # number of time steps to optimize
 
 # Parameters
 g = 9.81 # gravity
@@ -76,11 +76,11 @@ function unpack(x)
     return q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη
 end
 
-W = Diagonal([1e-1,1e-1,1e-1,1e-1,1e-1])
+W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
-Wf = Diagonal(1.0*ones(nq))
+Wf = Diagonal(5.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
-qf = [1., r, r, 0., 0.]
+qf = [2., r, r, 0., 0.]
 uf = zeros(nu)
 w = -W*qf
 wf = -Wf*qf
@@ -135,6 +135,7 @@ function c_func(x)
      sψfc - (s - ψ*(μ*λ - β'*ones(nβ)));
      sβη - (s*ones(nβ) - β.*η)]
 end
+
 
 function c_func(z)
     c = zeros(eltype(z),np*T)
@@ -193,7 +194,8 @@ end
 s = InteriorPointSolver(x0,nlp_model,opts=Options{Float64}(kkt_solve=:symmetric,
                                                            max_iter=500,
                                                            iterative_refinement=true,
-                                                           relax_bnds=true))
+                                                           relax_bnds=true,
+                                                           max_iterative_refinement=1000))
 @time solve!(s,verbose=true)
 
 function get_q(z)
@@ -207,3 +209,5 @@ function get_q(z)
 end
 
 q = get_q(s.s.x)
+
+q
