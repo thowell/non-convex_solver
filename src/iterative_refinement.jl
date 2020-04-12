@@ -1,7 +1,7 @@
 function iterative_refinement(d,s::Solver; verbose=true)
     s.d_copy .= copy(d)
     iter = 0
-    s.res .= -s.h - (s.H + Diagonal(s.δ0))*d
+    s.res .= -s.h - s.H*d
 
     res_norm = norm(s.res,Inf)
     res_norm_init = copy(res_norm)
@@ -13,7 +13,7 @@ function iterative_refinement(d,s::Solver; verbose=true)
     # println("s.δ: $(s.δ)")
     while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement) || iter < s.opts.min_iterative_refinement
         if s.opts.kkt_solve == :unreduced
-            s.Δ .= (s.H+Diagonal(s.δ+s.δ0))\s.res
+            s.Δ .= (s.H+Diagonal(s.δ))\s.res
         elseif s.opts.kkt_solve == :symmetric
             s.res[s.idx.xL] .+= s.res[s.idx.zL]./((s.x - s.xL)[s.xL_bool])
             s.res[s.idx.xU] .-= s.res[s.idx.zU]./((s.xU - s.x)[s.xU_bool])
@@ -24,7 +24,7 @@ function iterative_refinement(d,s::Solver; verbose=true)
         end
 
         d .+= s.Δ
-        s.res .= -s.h - (s.H+ Diagonal(s.δ0))*d
+        s.res .= -s.h - s.H*d
 
         res_norm = norm(s.res,Inf)
 

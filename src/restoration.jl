@@ -466,7 +466,7 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
     kkt_hessian_unreduced!(s̄)
     kkt_gradient_unreduced!(s̄)
 
-    s̄.res = -s̄.h - (s̄.H+s̄.δ0)*d
+    s̄.res = -s̄.h - s̄.H*d
 
     res_norm = norm(s̄.res,Inf)
     res_norm_init = copy(res_norm)
@@ -518,7 +518,7 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
         s̄.Δ[s.model.n + 5s.model.m + s.nL .+ (1:s.nU)] .= zU./xU.*dx[s.xU_bool] + r8./xU
 
         d .+= s̄.Δ
-        s̄.res = -s̄.h - (s̄.H+s̄.δ0)*d
+        s̄.res = -s̄.h - s̄.H*d
 
         res_norm = norm(s̄.res,Inf)
 

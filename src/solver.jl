@@ -75,7 +75,6 @@ mutable struct Solver{T}
     τ::T
 
     δ::Vector{T}
-    δ0::Vector{T}
     δw::T
     δw_last::T
     δc::T
@@ -247,9 +246,6 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     τ = update_τ(μ,opts.τ_min)
 
     δ = zero(d)
-    δ0 = zero(d)
-    # δ0[1:model.n] .= opts.δw0
-    # δ0[model.n .+ (1:model.m)] .= -opts.δc
     δw = 0.
     δw_last = 0.
     δc = 0.
@@ -305,7 +301,7 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
            c,c_soc,c_tmp,∇²cλ,
            d,d_soc,dx,dλ,dzL,dzU,Δ,res,
            μ,α,αz,α_max,α_min,α_soc,β,τ,
-           δ,δ0,δw,δw_last,δc,
+           δ,δw,δw_last,δc,
            θ,θ_min,θ_max,θ_soc,
            sd,sc,
            filter,
