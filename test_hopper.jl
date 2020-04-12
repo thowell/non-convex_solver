@@ -21,7 +21,7 @@ nβ = nc*nf
 
 nx = nq+nu+nc+nβ+nc+nβ+2nc
 np = nq+2nc+nβ+nc+nβ+nc
-T = 1 # number of time steps to optimize
+T = 20 # number of time steps to optimize
 
 # Parameters
 g = 9.81 # gravity
@@ -74,7 +74,7 @@ end
 
 W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
-Wf = Diagonal(10.0*ones(nq))
+Wf = Diagonal(15.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
 qf = [3., r, r, 0., 0.]
 uf = zeros(nu)
@@ -101,70 +101,72 @@ Q0 = linear_interp(q0,qf,T+2)
 qpp = Q0[1]
 qp = Q0[2]
 
-function f_func(x)
-    q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
-    return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c
-end
-
-# function f_func(z)
-#     _sum = 0.
-#     for t = 1:T
-#         q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
-#
-#         if t != T
-#             _sum += 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c + 20.0*s
-#         else
-#             _sum += 0.5*q'*Wf*q + wf'*q + 0.5*u'*R*u + rr'*u + obj_cf + 20.0*s
-#         end
-#     end
-#     return _sum
+# function f_func(x)
+#     q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
+#     return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c
 # end
+
+function f_func(z)
+    _sum = 0.
+    for t = 1:T
+        q,u,λ,β,ψ,η,sϕ,sfc = unpack(z[(t-1)*nx .+ (1:nx)])
+
+        if t != T
+            _sum += 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c
+        else
+            _sum += 0.5*q'*Wf*q + wf'*q + 0.5*u'*R*u + rr'*u + obj_cf
+        end
+    end
+    return _sum
+end
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
-function c_func(x,ρ)
-    q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
-    [1/model.Δt*(M(model,qpp)*(qp - qpp) - M(model,qp)*(q - qp)) - model.Δt*∇V(model,qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
-     sϕ - ϕ(model,q);
-     λ*ϕ(model,q) - ρ;
-     P(model,q)*(q-qp)/Δt + ψ*ones(nβ) - η;
-     sfc - (μ*λ - β'*ones(nβ));
-     ψ*(μ*λ - β'*ones(nβ)) - ρ;
-     β.*η .- ρ]
-end
-
-# function c_func(z)
-#     c = zeros(eltype(z),np*T)
-#
-#     for t = 1:T
-#         q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
-#
-#         if t == 1
-#             _qpp = qpp
-#             _qp = qp
-#         elseif t == 2
-#             _qpp = qp
-#             _qp = z[(t-2)*nx .+ (1:nq)]
-#         else
-#             _qpp = z[(t-3)*nx .+ (1:nq)]
-#             _qp = z[(t-2)*nx .+ (1:nq)]
-#         end
-#
-#         c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
-#                                  sϕ - ϕ(model,q);
-#                                  sλϕ - (s - λ*sϕ);
-#                                  P(model,q)*(q-_qp)/Δt + ψ*ones(nβ) - η;
-#                                  sfc - (μ*λ - β'*ones(nβ));
-#                                  sψfc - (s - ψ*sfc);
-#                                  sβη - (s*ones(nβ) - β.*η)]
-#      end
-#      return c
+# function c_func(x,ρ)
+#     q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
+#     [1/model.Δt*(M(model,qpp)*(qp - qpp) - M(model,qp)*(q - qp)) - model.Δt*∇V(model,qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
+#      sϕ - ϕ(model,q);
+#      λ*sϕ - ρ;
+#      P(model,q)*(q-qp)/Δt + ψ*ones(nβ) - η;
+#      sfc - (μ*λ - β'*ones(nβ));
+#      ψ*sfc - ρ;
+#      β.*η .- ρ]
 # end
+
+function c_func(z,ρ)
+    c = zeros(eltype(z),np*T)
+
+    for t = 1:T
+        q,u,λ,β,ψ,η,sϕ,sfc = unpack(z[(t-1)*nx .+ (1:nx)])
+
+        if t == 1
+            _qpp = qpp
+            _qp = qp
+        elseif t == 2
+            _qpp = qp
+            _qp = z[(t-2)*nx .+ (1:nq)]
+        else
+            _qpp = z[(t-3)*nx .+ (1:nq)]
+            _qp = z[(t-2)*nx .+ (1:nq)]
+        end
+
+        c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
+                                 sϕ - ϕ(model,q);
+                                 λ*sϕ - ρ;
+                                 P(model,q)*(q-_qp)/Δt + ψ*ones(nβ) - η;
+                                 sfc - (μ*λ - β'*ones(nβ));
+                                 ψ*sfc - ρ;
+                                 β.*η .- ρ]
+     end
+     return c
+end
 c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
+
 
 n = T*nx
 m = T*np
 xL = zeros(T*nx)
 xU = Inf*ones(T*nx)
+
 
 for t = 1:T
     xL[(t-1)*nx .+ (1:nq+nu)] .= -Inf
@@ -192,6 +194,7 @@ s = InteriorPointSolver(x0,nlp_model,opts=Options{Float64}(kkt_solve=:symmetric,
                                                            relax_bnds=true,
                                                            max_iterative_refinement=100))
 @time solve!(s,verbose=true)
+
 
 function get_q(z)
     Q = [qpp,qp]
