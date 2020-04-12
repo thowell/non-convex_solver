@@ -127,7 +127,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 end
 
 function restoration_reset!(s̄::Solver,s::Solver)
-    s.model.c_func!(s.c,s̄.x[s.idx.x])
+    s.model.c_func!(s.c,s̄.x[s.idx.x],s̄.μ)
 
     # initialize p,n
     for i = 1:s.model.m
@@ -169,7 +169,7 @@ function RestorationSolver(s::Solver)
         return nothing
     end
 
-    function c̄_func!(c,x)
+    function c̄_func!(c,x,ρ)
         return nothing
     end
 
@@ -232,7 +232,7 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     empty!(s̄.filter)
 
     s̄.model.∇f_func!(s̄.∇f,s̄.x)
-    s̄.model.c_func!(s̄.c,s̄.x)
+    s̄.model.c_func!(s̄.c,s̄.x,s̄.μ)
     s̄.model.∇c_func!(s̄.A,s̄.x)
 
     init_Dx!(s̄.Dx,s̄.model.n)
@@ -278,8 +278,8 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
 end
 
 function update_restoration_constraints!(s̄::Solver,s::Solver)
-    function c_func!(c,x)
-        s.model.c_func!(c,x[s.idx.x])
+    function c_func!(c,x,ρ)
+        s.model.c_func!(c,x[s.idx.x],ρ)
         c .-= x[s̄.idx_r.p]
         c .+= x[s̄.idx_r.n]
         return nothing
@@ -372,7 +372,7 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
 end
 
 function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
-    s.model.c_func!(s.c,s̄.x[s.idx.x])
+    s.model.c_func!(s.c,s̄.x[s.idx.x],s̄.μ)
     s.model.∇c_func!(s.A,s̄.x[s.idx.x])
 
     p = s̄.x[s̄.idx_r.p]

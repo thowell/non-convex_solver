@@ -212,13 +212,15 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
 
     ∇²f = spzeros(model.n,model.n)
 
+    μ = copy(opts.μ0)
+
     φ = 0.
     ∇φ = zeros(model.n)
 
     ∇L = zeros(model.n)
 
     c = zeros(model.m)
-    model.c_func!(c,x)
+    model.c_func!(c,x,μ)
     opts.nlp_scaling ? c .= Dc*c : nothing
 
     c_soc = zeros(model.m)
@@ -237,7 +239,6 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     Δ = zero(d)
     res = zero(d)
 
-    μ = copy(opts.μ0)
 
     α = 1.0
     αz = 1.0
@@ -341,7 +342,7 @@ function eval_objective!(s::Solver)
 end
 
 function eval_constraints!(s::Solver)
-    s.model.c_func!(s.c,s.x)
+    s.model.c_func!(s.c,s.x,s.μ)
 
     if s.opts.nlp_scaling
         s.c .= s.Dc*s.c
@@ -493,7 +494,7 @@ function init_λ!(λ,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
 end
 
 function θ(x,s::Solver)
-    s.model.c_func!(s.c_tmp,x)
+    s.model.c_func!(s.c_tmp,x,s.μ)
     if s.opts.nlp_scaling
         s.c_tmp .= s.Dc*s.c_tmp
     end

@@ -47,7 +47,7 @@ end
 
 function eval_Fμ(x,λ,zL,zU,s)
     s.model.∇f_func!(s.∇f,x)
-    s.model.c_func!(s.c,x)
+    s.model.c_func!(s.c,x,s.μ)
     if s.opts.nlp_scaling
         s.c .= s.Dc*s.c
     end

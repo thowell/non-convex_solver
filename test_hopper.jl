@@ -19,9 +19,9 @@ nc = 1 # number of contact points
 nf = 2 # number of faces for friction cone pyramid
 nβ = nc*nf
 
-nx = nq+nu+nc+nβ+nc+nβ+5nc+nβ
+nx = nq+nu+nc+nβ+nc+nβ+2nc
 np = nq+2nc+nβ+nc+nβ+nc
-T = 20 # number of time steps to optimize
+T = 1 # number of time steps to optimize
 
 # Parameters
 g = 9.81 # gravity
@@ -66,14 +66,10 @@ function unpack(x)
     β = x[nq+nu+nc .+ (1:nβ)]
     ψ = nc == 1 ? x[nq+nu+nc+nβ+1] : x[nq+nu+nc+nβ .+ (1:nc)]
     η = x[nq+nu+nc+nβ+nc .+ (1:nβ)]
-    s = x[nq+nu+nc+nβ+nc+nβ+nc]
-    sϕ = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+2nc] : x[nq+nu+nc+nβ+nc+nβ+nc .+ (1:nc)]
-    sλϕ = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+3nc] : x[nq+nu+nc+nβ+nc+nβ+2nc .+ (1:nc)]
-    sfc = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+4nc] : x[nq+nu+nc+nβ+nc+nβ+3nc .+ (1:nc)]
-    sψfc = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+5nc] : x[nq+nu+nc+nβ+nc+nβ+4nc .+ (1:nc)]
-    sβη = x[nq+nu+nc+nβ+nc+nβ+5nc .+ (1:nβ)]
+    sϕ = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+nc] : x[nq+nu+nc+nβ+nc+nβ .+ (1:nc)]
+    sfc = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+2nc] : x[nq+nu+nc+nβ+nc+nβ+1nc .+ (1:nc)]
 
-    return q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη
+    return q,u,λ,β,ψ,η,sϕ,sfc
 end
 
 W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
@@ -106,64 +102,63 @@ qpp = Q0[1]
 qp = Q0[2]
 
 function f_func(x)
-    q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(x)
-    return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c + 10.0*s
+    q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
+    return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c
 end
 
-function f_func(z)
-    _sum = 0.
-    for t = 1:T
-        q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
-
-        if t != T
-            _sum += 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c + 20.0*s
-        else
-            _sum += 0.5*q'*Wf*q + wf'*q + 0.5*u'*R*u + rr'*u + obj_cf + 20.0*s
-        end
-    end
-    return _sum
-end
+# function f_func(z)
+#     _sum = 0.
+#     for t = 1:T
+#         q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
+#
+#         if t != T
+#             _sum += 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c + 20.0*s
+#         else
+#             _sum += 0.5*q'*Wf*q + wf'*q + 0.5*u'*R*u + rr'*u + obj_cf + 20.0*s
+#         end
+#     end
+#     return _sum
+# end
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
-function c_func(x)
-    q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(x)
+function c_func(x,ρ)
+    q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
     [1/model.Δt*(M(model,qpp)*(qp - qpp) - M(model,qp)*(q - qp)) - model.Δt*∇V(model,qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
      sϕ - ϕ(model,q);
-     sλϕ - (s - λ*ϕ(model,q));
+     λ*ϕ(model,q) - ρ;
      P(model,q)*(q-qp)/Δt + ψ*ones(nβ) - η;
      sfc - (μ*λ - β'*ones(nβ));
-     sψfc - (s - ψ*(μ*λ - β'*ones(nβ)));
-     sβη - (s*ones(nβ) - β.*η)]
+     ψ*(μ*λ - β'*ones(nβ)) - ρ;
+     β.*η .- ρ]
 end
 
-
-function c_func(z)
-    c = zeros(eltype(z),np*T)
-
-    for t = 1:T
-        q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
-
-        if t == 1
-            _qpp = qpp
-            _qp = qp
-        elseif t == 2
-            _qpp = qp
-            _qp = z[(t-2)*nx .+ (1:nq)]
-        else
-            _qpp = z[(t-3)*nx .+ (1:nq)]
-            _qp = z[(t-2)*nx .+ (1:nq)]
-        end
-
-        c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
-                                 sϕ - ϕ(model,q);
-                                 sλϕ - (s - λ*sϕ);
-                                 P(model,q)*(q-_qp)/Δt + ψ*ones(nβ) - η;
-                                 sfc - (μ*λ - β'*ones(nβ));
-                                 sψfc - (s - ψ*sfc);
-                                 sβη - (s*ones(nβ) - β.*η)]
-     end
-     return c
-end
+# function c_func(z)
+#     c = zeros(eltype(z),np*T)
+#
+#     for t = 1:T
+#         q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
+#
+#         if t == 1
+#             _qpp = qpp
+#             _qp = qp
+#         elseif t == 2
+#             _qpp = qp
+#             _qp = z[(t-2)*nx .+ (1:nq)]
+#         else
+#             _qpp = z[(t-3)*nx .+ (1:nq)]
+#             _qp = z[(t-2)*nx .+ (1:nq)]
+#         end
+#
+#         c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
+#                                  sϕ - ϕ(model,q);
+#                                  sλϕ - (s - λ*sϕ);
+#                                  P(model,q)*(q-_qp)/Δt + ψ*ones(nβ) - η;
+#                                  sfc - (μ*λ - β'*ones(nβ));
+#                                  sψfc - (s - ψ*sfc);
+#                                  sβη - (s*ones(nβ) - β.*η)]
+#      end
+#      return c
+# end
 c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
 
 n = T*nx
@@ -188,7 +183,7 @@ s0 = 1.0e-2*rand(1)[1]
 
 x0 = zeros(T*nx)
 for t = 1:T
-    x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;1.0e-2*rand(nβ)]
+    x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;λ0;β0;ψ0;η0;s0;s0]
 end
 
 s = InteriorPointSolver(x0,nlp_model,opts=Options{Float64}(kkt_solve=:symmetric,
@@ -201,9 +196,8 @@ s = InteriorPointSolver(x0,nlp_model,opts=Options{Float64}(kkt_solve=:symmetric,
 function get_q(z)
     Q = [qpp,qp]
     for t = 1:T
-        q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
+        q,u,λ,β,ψ,η,sϕ,sfc = unpack(z[(t-1)*nx .+ (1:nx)])
         push!(Q,q)
-        println("s: $s")
     end
     return Q
 end

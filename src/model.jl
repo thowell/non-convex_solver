@@ -26,19 +26,22 @@ function objective_functions(f::Function)
     return f, ∇f_func!, ∇²f_func!
 end
 
-function constraint_functions(c::Function)
-    function c_func!(c,x)
-        c .= c_func(x)
+function constraint_functions(c_func::Function)
+    function c_func!(c,x,ρ)
+        _c_func(x) = c_func(x,ρ)
+        c .= _c_func(x)
         return nothing
     end
 
     function ∇c_func!(∇c,x)
-        ∇c .= ForwardDiff.jacobian(c_func,x)
+        _c_func(x) = c_func(x,0.)
+        ∇c .= ForwardDiff.jacobian(_c_func,x)
         return nothing
     end
 
     function ∇²cλ_func!(∇²cλ,x,λ)
-        ∇c_func(x) = ForwardDiff.jacobian(c_func,x)
+        _c_func(x) = c_func(x,0.)
+        ∇c_func(x) = ForwardDiff.jacobian(_c_func,x)
         ∇cλ(x) = ∇c_func(x)'*λ
         ∇²cλ .= ForwardDiff.jacobian(∇cλ,x)
         return return nothing
