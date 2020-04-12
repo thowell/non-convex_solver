@@ -25,6 +25,8 @@ mutable struct Solver{T}
     zU::Vector{T}
 
     H::SparseMatrixCSC{T,Int}
+    Hv::H_views
+
     h::Vector{T}
 
     H_sym::SparseMatrixCSC{T,Int}
@@ -56,10 +58,10 @@ mutable struct Solver{T}
     d::Vector{T}
     d_soc::Vector{T}
 
-    dx
-    dλ
-    dzL
-    dzU
+    dx::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    dλ::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    dzL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    dzU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
 
     Δ::Vector{T}
     res::Vector{T}
@@ -108,12 +110,13 @@ mutable struct Solver{T}
     Fμ::Vector{T}
 
     idx::Indices
+    idx_r::RestorationIndices
 
     fail_cnt::Int
 
-    Dx
+    Dx::SparseMatrixCSC{T,Int}
     df::T
-    Dc
+    Dc::SparseMatrixCSC{T,Int}
 
     opts::Options{T}
 end
@@ -285,14 +288,20 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     Fμ = zeros(model.n+model.m+nL+nU)
 
     idx = indices(model.n,model.m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool)
+    idx_r = restoration_indices()
 
     fail_cnt = 0
+
+    Hv = H_views(H,idx)
 
     Solver(model,
            x,x⁺,x_soc,
            xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
            λ,zL,zU,
-           H,h,H_sym,h_sym,
+           H,Hv,
+           h,
+           H_sym,
+           h_sym,
            LBL,inertia,
            W,ΣL,ΣU,A,
            f,∇f,∇²f,
@@ -309,7 +318,7 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
            restoration,DR,
            x_copy,λ_copy,zL_copy,zU_copy,d_copy,
            Fμ,
-           idx,
+           idx,idx_r,
            fail_cnt,
            Dx,df,Dc,
            opts)
@@ -467,9 +476,6 @@ function init_λ!(λ,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
 
         LBL = Ma57(H)
         ma57_factorize(LBL)
-
-        # m_inertia = LBL.info.num_negative_eigs
-        # n_inertia = LBL.info.rank - m_inertia
 
         d[1:(n+m)] .= ma57_solve(LBL,-h)
         λ .= d[n .+ (1:m)]

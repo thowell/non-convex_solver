@@ -1,6 +1,6 @@
 function inertia_correction!(s::Solver; restoration=false,verbose=true)
     s.δw = 0.0
-    s.δc = 0.0#restoration ? 0. : s.μ #s.opts.δc*s.μ^s.opts.κc
+    s.δc = 0.0 #restoration ? 0. : s.μ #s.opts.δc*s.μ^s.opts.κc
 
     factorize_kkt!(s)
 
@@ -52,7 +52,6 @@ function factorize_kkt!(s::Solver)
 
     s.LBL = Ma57(s.H_sym + Diagonal(s.δ[s.idx.xλ]))
     ma57_factorize(s.LBL)
-
 
     s.inertia.m = s.LBL.info.num_negative_eigs
     s.inertia.n = s.LBL.info.rank - s.inertia.m

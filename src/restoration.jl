@@ -185,6 +185,7 @@ function RestorationSolver(s::Solver)
 
     s̄ = Solver(x̄,_model,opts=opts)
     s̄.DR = spzeros(s.model.n,s.model.n)
+    s̄.idx_r = restoration_indices(s)
     return s̄
 end
 
@@ -279,15 +280,15 @@ end
 function update_restoration_constraints!(s̄::Solver,s::Solver)
     function c_func!(c,x)
         s.model.c_func!(c,x[s.idx.x])
-        c .-= x[s.model.n .+ (1:s.model.m)]
-        c .+= x[(s.model.n+s.model.m) .+ (1:s.model.m)]
+        c .-= x[s̄.idx_r.p]
+        c .+= x[s̄.idx_r.n]
         return nothing
     end
 
     function ∇c_func!(∇c,x)
-        s.model.∇c_func!(view(∇c,1:s.model.m,1:s.model.n),x[s.idx.x])
-        ∇c[CartesianIndex.(1:s.model.m,s.model.n .+ (1:s.model.m))] .= -1.0
-        ∇c[CartesianIndex.(1:s.model.m,s.model.n+s.model.m .+ (1:s.model.m))] .= 1.0
+        s.model.∇c_func!(view(∇c,1:s.model.m,s.idx.x),x[s.idx.x])
+        ∇c[CartesianIndex.(1:s.model.m,s̄.idx_r.p)] .= -1.0
+        ∇c[CartesianIndex.(1:s.model.m,s̄.idx_r.n)] .= 1.0
         return nothing
     end
 
@@ -355,12 +356,12 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
 
     s.model.∇c_func!(s.A,s̄.x[s.idx.x])
 
-    p = s̄.x[s.model.n .+ (1:s.model.m)]
-    n = s̄.x[(s.model.n + s.model.m) .+ (1:s.model.m)]
+    p = s̄.x[s̄.idx_r.p]
+    n = s̄.x[s̄.idx_r.n]
 
     zL = s̄.zL[1:s.nL]
     zp = s̄.zL[s.nL .+ (1:s.model.m)]
-    zn = s̄.zL[(s.nL+s.model.m) .+ (1:s.model.m)]
+    zn = s̄.zL[s.nL + s.model.m .+ (1:s.model.m)]
 
     s.H_sym[s.idx.x,s.idx.x] .= s.∇²cλ + sqrt(s̄.μ)*s̄.DR'*s̄.DR + s.ΣL + s.ΣU
     s.H_sym[s.idx.x,s.idx.λ] .= s.A'
@@ -374,8 +375,8 @@ function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
     s.model.c_func!(s.c,s̄.x[s.idx.x])
     s.model.∇c_func!(s.A,s̄.x[s.idx.x])
 
-    p = s̄.x[s.model.n .+ (1:s.model.m)]
-    n = s̄.x[(s.model.n + s.model.m) .+ (1:s.model.m)]
+    p = s̄.x[s̄.idx_r.p]
+    n = s̄.x[s̄.idx_r.n]
 
     λ = s̄.λ
 
@@ -384,7 +385,7 @@ function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
 
     zL = s̄.zL[1:s.nL]
     zp = s̄.zL[s.nL .+ (1:s.model.m)]
-    zn = s̄.zL[(s.nL+s.model.m) .+ (1:s.model.m)]
+    zn = s̄.zL[s.nL + s.model.m .+ (1:s.model.m)]
 
     s.h_sym[s.idx.x] .= sqrt(μ)*s̄.DR'*s̄.DR*(s̄.x[s.idx.x] - s.x) + s.A'*s̄.λ
     s.h_sym[s.idx.xL] .-= μ./(s̄.x[s.idx.x] - s.xL)[s.xL_bool]
@@ -398,25 +399,23 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
     kkt_hessian_symmetric_restoration!(s̄,s)
     kkt_gradient_symmetric_restoration!(s̄,s)
 
-    idx = 1:(s.model.n+s.model.m)
-
     inertia_correction!(s)
 
-    s̄.d[[(s.idx.x)...,(s̄.idx.λ)...]] .= ma57_solve(s.LBL, -s.h_sym)
+    s̄.d[s̄.idx_r.xλ] .= ma57_solve(s.LBL, -s.h_sym)
     dx = s̄.d[s.idx.x]
     dλ = s̄.d[s̄.idx.λ]
 
     x = s̄.x[s.idx.x]
-    p = s̄.x[s.model.n .+ (1:s.model.m)]
-    n = s̄.x[(s.model.n + s.model.m) .+ (1:s.model.m)]
+    p = s̄.x[s̄.idx_r.p]
+    n = s̄.x[s̄.idx_r.n]
 
     λ = s̄.λ
 
     zL = s̄.zL[1:s.nL]
     zp = s̄.zL[s.nL .+ (1:s.model.m)]
-    zn = s̄.zL[(s.nL+s.model.m) .+ (1:s.model.m)]
+    zn = s̄.zL[s.nL + s.model.m .+ (1:s.model.m)]
 
-    zU = s̄.zU[1:s.nU]
+    zU = s̄.zU[s̄.idx_r.zU]
 
     μ = s̄.μ
     ρ = s̄.opts.ρ
@@ -425,14 +424,12 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
     Σn = Diagonal(zn./n)
 
     # dp
-    p_idx = s.model.n .+ (1:s.model.m)
-    s̄.d[p_idx] .= Diagonal(zp)\(μ*ones(s.model.m) + Diagonal(p)*(λ + dλ) - ρ*p)
-    dp = s̄.d[p_idx]
+    s̄.d[s̄.idx_r.p] .= Diagonal(zp)\(μ*ones(s.model.m) + Diagonal(p)*(λ + dλ) - ρ*p)
+    dp = s̄.d[s̄.idx_r.p]
 
     # dn
-    n_idx = (s.model.n+s.model.m) .+ (1:s.model.m)
-    s̄.d[n_idx] .= Diagonal(zn)\(μ*ones(s.model.m) - Diagonal(n)*(λ + dλ) - ρ*n)
-    dn = s̄.d[n_idx]
+    s̄.d[s̄.idx_r.n] .= Diagonal(zn)\(μ*ones(s.model.m) - Diagonal(n)*(λ + dλ) - ρ*n)
+    dn = s̄.d[s̄.idx_r.n]
 
     # dzL
     zL_idx = (s̄.model.n + s.model.m) .+ (1:s.nL)
@@ -474,8 +471,8 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
     verbose ? println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)") : nothing
 
     x = s̄.x[s.idx.x]
-    p = s̄.x[s.model.n .+ (1:s.model.m)]
-    n = s̄.x[s.model.n + s.model.m .+ (1:s.model.m)]
+    p = s̄.x[s̄.idx_r.p]
+    n = s̄.x[s̄.idx_r.n]
     λ = s̄.λ
     zL = s̄.zL[1:s.nL]
     zp = s̄.zL[s.nL .+ (1:s.model.m)]
@@ -485,33 +482,28 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
     xL = (x - s.xL)[s.xL_bool]
     xU = (s.xU - x)[s.xU_bool]
 
-    idx = [s.idx.x...,s̄.idx.λ...]
-
     while (iter < s̄.opts.max_iterative_refinement && res_norm > s̄.opts.ϵ_iterative_refinement) || iter < s̄.opts.min_iterative_refinement
 
-        r = copy(s̄.res)
-        r1 = r[s.idx.x]
-        r2 = r[s.model.n .+ (1:s.model.m)]
-        r3 = r[s.model.n + s.model.m .+ (1:s.model.m)]
-        r4 = r[s̄.model.n .+ (1:s.model.m)]
-        r5 = r[s̄.model.n + s.model.m .+ (1:s.nL)]
-        r6 = r[s̄.model.n + s.model.m + s.nL .+ (1:s.model.m)]
-        r7 = r[s̄.model.n + s.model.m + s.nL + s.model.m .+ (1:s.model.m)]
-        r8 = r[s̄.model.n + s.model.m + s.nL + s.model.m + s.model.m .+ (1:s.nU)]
+        r1 = s̄.res[s.idx.x]
+        r2 = s̄.res[s̄.idx_r.p]
+        r3 = s̄.res[s̄.idx_r.n]
+        r4 = s̄.res[s̄.idx.λ]
+        r5 = s̄.res[s̄.model.n + s.model.m .+ (1:s.nL)]
+        r6 = s̄.res[s̄.model.n + s.model.m + s.nL .+ (1:s.model.m)]
+        r7 = s̄.res[s̄.model.n + s.model.m + s.nL + s.model.m .+ (1:s.model.m)]
+        r8 = s̄.res[s̄.model.n + s.model.m + s.nL + s.model.m + s.model.m .+ (1:s.nU)]
 
-        r̄1 = copy(r1)
-        r̄1[s.xL_bool] .+= r5./xL
-        r̄1[s.xU_bool] .-= r8./xU
-        r̄4 = copy(r4)
-        r̄4 .+= p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
+        s̄.res[s.idx.xL] .+= r5./xL
+        s̄.res[s.idx.xU] .-= r8./xU
+        s̄.res[s̄.model.n .+ (1:s.model.m)] .+= p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
 
-        s̄.Δ[idx] .= ma57_solve(s.LBL,[r̄1;r̄4])
+        s̄.Δ[s̄.idx_r.xλ] .= ma57_solve(s.LBL,s̄.res[s̄.idx_r.xλ])
 
         dx = s̄.Δ[s.idx.x]
         dλ = s̄.Δ[s̄.idx.λ]
 
-        s̄.Δ[s.model.n .+ (1:s.model.m)] .= -p.*(-dλ - r2)./zp + r6./zp
-        s̄.Δ[s.model.n + s.model.m .+ (1:s.model.m)] .= -n.*(dλ - r3)./zn + r7./zn
+        s̄.Δ[s̄.idx_r.p] .= -p.*(-dλ - r2)./zp + r6./zp
+        s̄.Δ[s̄.idx_r.n] .= -n.*(dλ - r3)./zn + r7./zn
         s̄.Δ[s.model.n + 3s.model.m .+ (1:s.nL)] .= -zL./xL.*dx[s.xL_bool] + r5./xL
         s̄.Δ[s.model.n + 3s.model.m + s.nL .+ (1:s.model.m)] .= -dλ - r2
         s̄.Δ[s.model.n + 4s.model.m + s.nL .+ (1:s.model.m)] .= dλ - r3
@@ -533,4 +525,16 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
         verbose ? println("iterative refinement failure: $(res_norm), iter: $iter, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
         return false
     end
+end
+
+function restoration_indices(s::Solver)
+    p = s.model.n .+ (1:s.model.m)
+    n = s.model.n + s.model.m .+ (1:s.model.m)
+    zL = 1:s.nL
+    zp = s.nL .+ (1:s.model.m)
+    zn = s.nL + s.model.m .+ (1:s.model.m)
+    zU = 1:s.nU
+    xλ = [s.idx.x...,(s.model.n + s.model.m + s.model.m .+ (1:s.model.m))...]
+
+    RestorationIndices(p,n,zL,zp,zn,zU,xλ)
 end

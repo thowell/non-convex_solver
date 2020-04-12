@@ -195,7 +195,7 @@ s = InteriorPointSolver(x0,nlp_model,opts=Options{Float64}(kkt_solve=:symmetric,
                                                            max_iter=500,
                                                            iterative_refinement=true,
                                                            relax_bnds=true,
-                                                           max_iterative_refinement=1000))
+                                                           max_iterative_refinement=100))
 @time solve!(s,verbose=true)
 
 function get_q(z)
@@ -209,5 +209,3 @@ function get_q(z)
 end
 
 q = get_q(s.s.x)
-
-q

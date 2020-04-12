@@ -3,6 +3,7 @@ using HSL
 
 include("options.jl")
 include("indices.jl")
+include("views.jl")
 include("model.jl")
 include("solver.jl")
 include("filter.jl")

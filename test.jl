@@ -1,7 +1,7 @@
 include("src/interior_point.jl")
 
-n = 20
-m = 10
+n = 100
+m = 50
 
 x0 = ones(n)
 

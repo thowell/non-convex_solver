@@ -22,6 +22,19 @@ function kkt_hessian_unreduced!(s::Solver)
     return nothing
 end
 
+function kkt_hessian_unreduced_views!(s::Solver)
+    s.Hv.xx .= s.W
+    s.Hv.xλ .= s.A'
+    s.Hv.λx .= s.A
+    s.Hv.xLzL .= -1.0
+    s.Hv.xUzU .= 1.0
+    s.Hv.zLxL .= s.zL
+    s.Hv.zUxU .= -1.0*s.zU
+    s.Hv.zLzL .= (s.x - s.xL)[s.xL_bool]
+    s.Hv.zUzU .= (s.xU - s.x)[s.xU_bool]
+    return nothing
+end
+
 function kkt_gradient_unreduced!(s::Solver)
     s.h[s.idx.x] = s.∇L
     s.h[s.idx.λ] = s.c

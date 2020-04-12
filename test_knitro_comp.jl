@@ -3,7 +3,7 @@ include("src/interior_point.jl")
 n = 12
 m = 7
 
-x0 = zeros(n)
+x0 = rand(n)
 
 xL = zeros(n)
 xU = Inf*ones(n)

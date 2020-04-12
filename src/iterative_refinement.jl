@@ -7,10 +7,6 @@ function iterative_refinement(d,s::Solver; verbose=true)
     res_norm_init = copy(res_norm)
     verbose ? println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)") : nothing
 
-    # println("s.res: $(s.res)")
-    # println("s.h: $(s.h)")
-    # println("s.H: $(Array(s.H))")
-    # println("s.δ: $(s.δ)")
     while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement) || iter < s.opts.min_iterative_refinement
         if s.opts.kkt_solve == :unreduced
             s.Δ .= (s.H+Diagonal(s.δ))\s.res
