@@ -33,8 +33,8 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
     s.zU .+= s.αz*s.dzU
 
     s.model.∇f_func!(s.∇f,s.x)
-    s.model.∇c_func!(s.A,s.x)
-    init_λ!(s.λ,s.H_sym,s.h_sym,s.d,s.zL,s.zU,s.∇f,s.A,s.model.n,s.model.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
+    s.model.∇c_func!(s.∇c,s.x)
+    init_λ!(s.λ,s.H_sym,s.h_sym,s.d,s.zL,s.zU,s.∇f,s.∇c,s.model.n,s.model.m,s.xL_bool,s.xU_bool,s.opts.λ_max)
 
     return nothing
 end
@@ -233,11 +233,11 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
 
     s̄.model.∇f_func!(s̄.∇f,s̄.x)
     s̄.model.c_func!(s̄.c,s̄.x)
-    s̄.model.∇c_func!(s̄.A,s̄.x)
+    s̄.model.∇c_func!(s̄.∇c,s̄.x)
 
     init_Dx!(s̄.Dx,s̄.model.n)
     s̄.df = init_df(s̄.opts.g_max,s̄.∇f)
-    init_Dc!(s̄.Dc,s̄.opts.g_max,s̄.A,s̄.model.m)
+    init_Dc!(s̄.Dc,s̄.opts.g_max,s̄.∇c,s̄.model.m)
 
     if s̄.opts.nlp_scaling
         s̄.c .= s̄.Dc*s̄.c
@@ -348,13 +348,13 @@ function search_direction_unreduced_restoration!(s̄::Solver,s::Solver)
 end
 # symmetric KKT system
 function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
-    s.model.∇²cλ_func!(s.W,s̄.x[s.idx.x],s̄.λ)
+    s.model.∇²cλ_func!(s.∇²cλ,s̄.x[s.idx.x],s̄.λ)
     s̄.ΣL[CartesianIndex.(s̄.idx.xL,s̄.idx.xL)] .= s̄.zL./((s̄.x - s̄.xL)[s̄.xL_bool])
     s̄.ΣU[CartesianIndex.(s̄.idx.xU,s̄.idx.xU)] .= s̄.zU./((s̄.xU - s̄.x)[s̄.xU_bool])
     s.ΣL .= s̄.ΣL[s.idx.x,s.idx.x]
     s.ΣU .= s̄.ΣU[s.idx.x,s.idx.x]
 
-    s.model.∇c_func!(s.A,s̄.x[s.idx.x])
+    s.model.∇c_func!(s.∇c,s̄.x[s.idx.x])
 
     p = s̄.x[s̄.idx_r.p]
     n = s̄.x[s̄.idx_r.n]
@@ -364,8 +364,8 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     zn = s̄.zL[s.nL + s.model.m .+ (1:s.model.m)]
 
     s.H_sym[s.idx.x,s.idx.x] .= s.∇²cλ + sqrt(s̄.μ)*s̄.DR'*s̄.DR + s.ΣL + s.ΣU
-    s.H_sym[s.idx.x,s.idx.λ] .= s.A'
-    s.H_sym[s.idx.λ,s.idx.x] .= s.A
+    s.H_sym[s.idx.x,s.idx.λ] .= s.∇c'
+    s.H_sym[s.idx.λ,s.idx.x] .= s.∇c
     s.H_sym[s.idx.λ,s.idx.λ] .= -1.0*Diagonal(p./zp) - Diagonal(n./zn)
 
     return nothing
@@ -373,7 +373,7 @@ end
 
 function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
     s.model.c_func!(s.c,s̄.x[s.idx.x])
-    s.model.∇c_func!(s.A,s̄.x[s.idx.x])
+    s.model.∇c_func!(s.∇c,s̄.x[s.idx.x])
 
     p = s̄.x[s̄.idx_r.p]
     n = s̄.x[s̄.idx_r.n]
@@ -387,7 +387,7 @@ function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
     zp = s̄.zL[s.nL .+ (1:s.model.m)]
     zn = s̄.zL[s.nL + s.model.m .+ (1:s.model.m)]
 
-    s.h_sym[s.idx.x] .= sqrt(μ)*s̄.DR'*s̄.DR*(s̄.x[s.idx.x] - s.x) + s.A'*s̄.λ
+    s.h_sym[s.idx.x] .= sqrt(μ)*s̄.DR'*s̄.DR*(s̄.x[s.idx.x] - s.x) + s.∇c'*s̄.λ
     s.h_sym[s.idx.xL] .-= μ./(s̄.x[s.idx.x] - s.xL)[s.xL_bool]
     s.h_sym[s.idx.xU] .+= μ./(s.xU - s̄.x[s.idx.x])[s.xU_bool]
     s.h_sym[s.idx.λ] .= s.c - p + n + ρ*Diagonal(zp)\(μ*ones(s.model.m) - p) + ρ*Diagonal(zn)\(μ*ones(s.model.m) - n)

@@ -35,10 +35,10 @@ mutable struct Solver{T}
     LBL::Ma57{T}
     inertia::Inertia
 
-    W::SparseMatrixCSC{T,Int}
+    ∇²L::SparseMatrixCSC{T,Int}
     ΣL::SparseMatrixCSC{T,Int}
     ΣU::SparseMatrixCSC{T,Int}
-    A::SparseMatrixCSC{T,Int}
+    ∇c::SparseMatrixCSC{T,Int}
 
     f::T
     ∇f::Vector{T}
@@ -197,12 +197,12 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     LBL = Ma57(H_sym)
     inertia = Inertia(0,0,0)
 
-    W = spzeros(model.n,model.n)
+    ∇²L = spzeros(model.n,model.n)
     ΣL = spzeros(model.n,model.n)
     ΣU = spzeros(model.n,model.n)
-    A = spzeros(model.m,model.n)
-    model.∇c_func!(A,x)
-    Dc = init_Dc(opts.g_max,A,model.m)
+    ∇c = spzeros(model.m,model.n)
+    model.∇c_func!(∇c,x)
+    Dc = init_Dc(opts.g_max,∇c,model.m)
 
     f = model.f_func(x)
     ∇f = zeros(model.n)
@@ -261,7 +261,7 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
 
     λ = zeros(model.m)
 
-    opts.λ_init_ls ? init_λ!(λ,H_sym,h_sym,d,zL,zU,∇f,A,model.n,model.m,xL_bool,xU_bool,opts.λ_max) : zeros(model.m)
+    opts.λ_init_ls ? init_λ!(λ,H_sym,h_sym,d,zL,zU,∇f,∇c,model.n,model.m,xL_bool,xU_bool,opts.λ_max) : zeros(model.m)
 
     sd = init_sd(λ,[zL;zU],model.n,model.m,opts.s_max)
     sc = init_sc([zL;zU],model.n,opts.s_max)
@@ -303,7 +303,7 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
            H_sym,
            h_sym,
            LBL,inertia,
-           W,ΣL,ΣU,A,
+           ∇²L,ΣL,ΣU,∇c,
            f,∇f,∇²f,
            φ,∇φ,
            ∇L,
@@ -347,7 +347,7 @@ function eval_constraints!(s::Solver)
         s.c .= s.Dc*s.c
     end
 
-    s.model.∇c_func!(s.A,s.x)
+    s.model.∇c_func!(s.∇c,s.x)
     s.model.∇²cλ_func!(s.∇²cλ,s.x,s.λ)
     s.θ = norm(s.c,1)
     return nothing
@@ -355,11 +355,11 @@ end
 
 function eval_lagrangian!(s::Solver)
     s.∇L .= s.∇f
-    s.∇L .+= s.A'*s.λ
+    s.∇L .+= s.∇c'*s.λ
     s.∇L[s.xL_bool] -= s.zL
     s.∇L[s.xU_bool] += s.zU
 
-    s.W .= s.∇²f + s.∇²cλ
+    s.∇²L .= s.∇²f + s.∇²cλ
 
     # damping
     if s.opts.single_bnds_damping
@@ -576,14 +576,14 @@ end
 
 init_df(g_max,∇f) = min(1.0,g_max/norm(∇f,Inf))
 
-function init_Dc!(Dc,g_max,A,m)
+function init_Dc!(Dc,g_max,∇c,m)
     for j = 1:m
-        Dc[j,j] = min(1.0,g_max/norm(A[j,:],Inf))
+        Dc[j,j] = min(1.0,g_max/norm(∇c[j,:],Inf))
     end
 end
 
-function init_Dc(g_max,A,m)
+function init_Dc(g_max,∇c,m)
     Dc = spzeros(m,m)
-    init_Dc!(Dc,g_max,A,m)
+    init_Dc!(Dc,g_max,∇c,m)
     return Dc
 end

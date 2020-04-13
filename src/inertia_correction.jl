@@ -1,6 +1,6 @@
 function inertia_correction!(s::Solver; restoration=false,verbose=true)
     s.δw = 0.0
-    s.δc = 0.0 #restoration ? 0. : s.μ #s.opts.δc*s.μ^s.opts.κc
+    s.δc = restoration ? 0. : s.μ #s.opts.δc*s.μ^s.opts.κc
 
     factorize_kkt!(s)
 

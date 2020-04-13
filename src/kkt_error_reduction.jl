@@ -51,8 +51,8 @@ function eval_Fμ(x,λ,zL,zU,s)
     if s.opts.nlp_scaling
         s.c .= s.Dc*s.c
     end
-    s.model.∇c_func!(s.A,x)
-    s.∇L .= s.∇f + s.A'*λ
+    s.model.∇c_func!(s.∇c,x)
+    s.∇L .= s.∇f + s.∇c'*λ
     s.∇L[s.xL_bool] -= zL
     s.∇L[s.xU_bool] += zU
 
