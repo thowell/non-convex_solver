@@ -19,25 +19,26 @@ function kkt_hessian_unreduced!(s::Solver)
     s.H[CartesianIndex.(s.idx.zU,s.idx.xU)] .= -1.0*s.zU
     s.H[CartesianIndex.(s.idx.zL,s.idx.zL)] .= (s.x - s.xL)[s.xL_bool]
     s.H[CartesianIndex.(s.idx.zU,s.idx.zU)] .= (s.xU - s.x)[s.xU_bool]
+    s.H[CartesianIndex.(s.idx.λ,s.idx.λ)] .= -1.0/s.ρ
     return nothing
 end
 
-function kkt_hessian_unreduced_views!(s::Solver)
-    s.Hv.xx .= s.s.∇²L
-    s.Hv.xλ .= s.∇c'
-    s.Hv.λx .= s.∇c
-    s.Hv.xLzL .= -1.0
-    s.Hv.xUzU .= 1.0
-    s.Hv.zLxL .= s.zL
-    s.Hv.zUxU .= -1.0*s.zU
-    s.Hv.zLzL .= (s.x - s.xL)[s.xL_bool]
-    s.Hv.zUzU .= (s.xU - s.x)[s.xU_bool]
-    return nothing
-end
+# function kkt_hessian_unreduced_views!(s::Solver)
+#     s.Hv.xx .= s.s.∇²L
+#     s.Hv.xλ .= s.∇c'
+#     s.Hv.λx .= s.∇c
+#     s.Hv.xLzL .= -1.0
+#     s.Hv.xUzU .= 1.0
+#     s.Hv.zLxL .= s.zL
+#     s.Hv.zUxU .= -1.0*s.zU
+#     s.Hv.zLzL .= (s.x - s.xL)[s.xL_bool]
+#     s.Hv.zUzU .= (s.xU - s.x)[s.xU_bool]
+#     return nothing
+# end
 
 function kkt_gradient_unreduced!(s::Solver)
     s.h[s.idx.x] = s.∇L
-    s.h[s.idx.λ] = s.c
+    s.h[s.idx.λ] = s.c + 1.0/s.ρ*(s.λ_al - s.λ)
     s.h[s.idx.zL] = s.zL.*((s.x - s.xL)[s.xL_bool]) .- s.μ
     s.h[s.idx.zU] = s.zU.*((s.xU - s.x)[s.xU_bool]) .- s.μ
     return nothing
@@ -64,13 +65,14 @@ function kkt_hessian_symmetric!(s::Solver)
     s.H_sym[s.idx.x,s.idx.x] .= s.∇²L + s.ΣL + s.ΣU
     s.H_sym[s.idx.x,s.idx.λ] .= s.∇c'
     s.H_sym[s.idx.λ,s.idx.x] .= s.∇c
+    s.H_sym[CartesianIndex.(s.idx.λ,s.idx.λ)] .= -1.0/s.ρ
 
     return nothing
 end
 
 function kkt_gradient_symmetric!(s::Solver)
     s.h_sym[s.idx.x] .= s.∇φ + s.∇c'*s.λ
-    s.h_sym[s.idx.λ] .= s.c
+    s.h_sym[s.idx.λ] .= s.c + 1.0/s.ρ*(s.λ_al - s.λ)
 
     return nothing
 end

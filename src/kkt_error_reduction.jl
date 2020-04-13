@@ -65,7 +65,7 @@ function eval_Fμ(x,λ,zL,zU,s)
     end
 
     s.Fμ[s.idx.x] = s.∇L
-    s.Fμ[s.idx.λ] = s.c
+    s.Fμ[s.idx.λ] = s.c + 1.0/s.ρ*(s.λ_al - s.λ)
     s.Fμ[s.idx.zL] = zL.*((x-s.xL)[s.xL_bool]) .- s.μ
     s.Fμ[s.idx.zU] = zU.*((s.xU-x)[s.xU_bool]) .- s.μ
     return s.Fμ

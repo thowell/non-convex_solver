@@ -89,6 +89,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
             s̄.opts.z_reset ? reset_z!(s̄) : nothing
 
+            s̄.c_tmp .= copy(s̄.c)
             eval_iterate!(s̄)
 
             s̄.k += 1
@@ -107,6 +108,8 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
         update_μ!(s̄)
         update_τ!(s̄)
+        s̄.λ_al .+= s̄.ρ*s̄.c_tmp
+        s̄.ρ = 1/s̄.μ
         eval_barrier!(s̄)
         s̄.j += 1
         empty!(s̄.filter)
@@ -115,6 +118,8 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
         if s̄.k == 0
             update_μ!(s̄)
             update_τ!(s̄)
+            s̄.λ_al .+= s̄.ρ*s̄.c_tmp
+            s̄.ρ = 1/s̄.μ
             eval_barrier!(s̄)
             s̄.j += 1
             empty!(s̄.filter)
@@ -366,7 +371,7 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     s.H_sym[s.idx.x,s.idx.x] .= s.∇²cλ + sqrt(s̄.μ)*s̄.DR'*s̄.DR + s.ΣL + s.ΣU
     s.H_sym[s.idx.x,s.idx.λ] .= s.∇c'
     s.H_sym[s.idx.λ,s.idx.x] .= s.∇c
-    s.H_sym[s.idx.λ,s.idx.λ] .= -1.0*Diagonal(p./zp) - Diagonal(n./zn)
+    s.H_sym[s.idx.λ,s.idx.λ] .= -1.0*Diagonal(p./zp) - Diagonal(n./zn)  -1.0/s̄.ρ*Diagonal(ones(s.model.m))
 
     return nothing
 end
@@ -390,7 +395,7 @@ function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
     s.h_sym[s.idx.x] .= sqrt(μ)*s̄.DR'*s̄.DR*(s̄.x[s.idx.x] - s.x) + s.∇c'*s̄.λ
     s.h_sym[s.idx.xL] .-= μ./(s̄.x[s.idx.x] - s.xL)[s.xL_bool]
     s.h_sym[s.idx.xU] .+= μ./(s.xU - s̄.x[s.idx.x])[s.xU_bool]
-    s.h_sym[s.idx.λ] .= s.c - p + n + ρ*Diagonal(zp)\(μ*ones(s.model.m) - p) + ρ*Diagonal(zn)\(μ*ones(s.model.m) - n)
+    s.h_sym[s.idx.λ] .= (s.c + 1.0/s̄.ρ*(s̄.λ_al - s̄.λ)) - p + n + ρ*Diagonal(zp)\(μ*ones(s.model.m) - p) + ρ*Diagonal(zn)\(μ*ones(s.model.m) - n)
 
     return nothing
 end

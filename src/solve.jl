@@ -46,6 +46,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
                 end
             end
 
+            s.c_tmp .= copy(s.c)
             s.opts.z_reset ? reset_z!(s) : nothing
             eval_iterate!(s)
 
@@ -65,6 +66,9 @@ function solve!(solver::InteriorPointSolver; verbose=false)
 
         update_μ!(s)
         update_τ!(s)
+        s.λ_al .+= s.ρ*s.c_tmp
+        s.ρ = 1/s.μ
+
         eval_barrier!(s)
         s.j += 1
         empty!(s.filter)
@@ -73,6 +77,9 @@ function solve!(solver::InteriorPointSolver; verbose=false)
         if s.k == 0
             update_μ!(s)
             update_τ!(s)
+            s.λ_al .+= s.ρ*s.c_tmp
+            s.ρ = 1/s.μ
+
             eval_barrier!(s)
             s.j += 1
             empty!(s.filter)
