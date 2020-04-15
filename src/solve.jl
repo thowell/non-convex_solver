@@ -78,7 +78,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
         # end
         update_μ!(s)
         update_τ!(s)
-        s.λ_al .+= s.ρ*s.c_tmp
+        # s.λ_al .+= s.ρ*s.c_tmp
         s.ρ = 1.0/s.μ
 
         eval_iterate!(s)
@@ -91,7 +91,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
         if s.k == 0
             update_μ!(s)
             update_τ!(s)
-            s.λ_al .+= s.ρ*s.c_tmp
+            # s.λ_al .+= s.ρ*s.c_tmp
             s.ρ = 1/s.μ
 
             eval_barrier!(s)

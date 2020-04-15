@@ -50,7 +50,7 @@ function second_order_correction(s::Solver)
             s.p += 1
 
             s.model.c_func!(s.c,s.x⁺)
-            s.c_soc .= s.α_soc*s.c_soc + s.opts.nlp_scaling ? s.Dc*s.c : s.c
+            s.c_soc .= s.α_soc*s.c_soc + (s.opts.nlp_scaling ? s.Dc*s.c : s.c)
             θ_soc = θ(s.x⁺,s)
 
             search_direction_soc!(s)

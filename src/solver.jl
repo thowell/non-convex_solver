@@ -297,7 +297,7 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
 
     Hv = H_views(H,idx)
 
-    ρ = 1.0
+    ρ = 1.0/μ
     λ_al = zero(λ)
 
     Solver(model,

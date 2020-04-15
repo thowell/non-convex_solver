@@ -108,7 +108,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
         update_μ!(s̄)
         update_τ!(s̄)
-        s̄.λ_al .+= s̄.ρ*s̄.c_tmp
+        # s̄.λ_al .+= s̄.ρ*s̄.c_tmp
         s̄.ρ = 1/s̄.μ
         eval_barrier!(s̄)
         s̄.j += 1
@@ -118,7 +118,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
         if s̄.k == 0
             update_μ!(s̄)
             update_τ!(s̄)
-            s̄.λ_al .+= s̄.ρ*s̄.c_tmp
+            # s̄.λ_al .+= s̄.ρ*s̄.c_tmp
             s̄.ρ = 1/s̄.μ
             eval_barrier!(s̄)
             s̄.j += 1

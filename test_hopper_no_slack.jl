@@ -21,7 +21,7 @@ nβ = nc*nf
 
 nx = nq+nu+nc+nβ+nc+nβ+2nc
 np = nq+2nc+nβ+nc+nβ+nc
-T = 10 # number of time steps to optimize
+T = 20 # number of time steps to optimize
 
 # Parameters
 g = 9.81 # gravity
@@ -76,7 +76,7 @@ W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
 Wf = Diagonal(10.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
-qf = [1., r, r, 0., 0.]
+qf = [3., r, r, 0., 0.]
 uf = zeros(nu)
 w = -W*qf
 wf = -Wf*qf
