@@ -6,7 +6,7 @@ nq = 3
 nu = 2
 nβ = nc*nf
 
-nx = nq+nu+nc+nβ+nc+nβ+5nc+nβ
+nx = nq+nu+nc+nβ+nc+nβ+2nc
 np = nq+2nc+nβ+nc+nβ+nc
 
 dt = 0.1
@@ -46,31 +46,27 @@ function unpack(x)
     β = x[nq+nu+nc .+ (1:nβ)]
     ψ = x[nq+nu+nc+nβ+nc]
     η = x[nq+nu+nc+nβ+nc .+ (1:nβ)]
-    s = x[nq+nu+nc+nβ+nc+nβ+nc]
-    sϕ = x[nq+nu+nc+nβ+nc+nβ+2nc]
-    sλϕ = x[nq+nu+nc+nβ+nc+nβ+3nc]
-    sfc = x[nq+nu+nc+nβ+nc+nβ+4nc]
-    sψfc = x[nq+nu+nc+nβ+nc+nβ+5nc]
-    sβη = x[nq+nu+nc+nβ+nc+nβ+5nc .+ (1:nβ)]
+    sϕ = x[nq+nu+nc+nβ+nc+nβ+nc]
+    sfc = x[nq+nu+nc+nβ+nc+nβ+2nc]
 
-    return q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη
+    return q,u,λ,β,ψ,η,sϕ,sfc
 end
 
 function f_func(x)
-    q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(x)
-    return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + r'*u + obj_c + 10.0*s
+    q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
+    return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + r'*u + obj_c
 end
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
 function c_func(x)
-    q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(x)
+    q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
     [M*(2*qp - qpp - q)/dt - G*dt + B*u + P'*β + N*λ;
      sϕ - N'*q;
-     sλϕ - (s - λ*(N'*q));
+     λ*(N'*q);
      P*(q-qp)/dt + ψ*ones(nβ) - η;
      sfc - (0.5*λ - β'*ones(nβ));
-     sψfc - (s - ψ*(0.5*λ - β'*ones(nβ)));
-     sβη - (s*ones(nβ) - β.*η)]
+     ψ*(0.5*λ - β'*ones(nβ));
+     β.*η]
 end
 c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
 
@@ -82,18 +78,16 @@ xU = Inf*ones(nx)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 
-q0 = 0.1*rand(nq)
-u0 = 0.1*rand(nu)
-λ0 = 0.1*rand(1)[1]
-β0 = 0.1*rand(nβ)
-ψ0 = 0.1*rand(1)[1]
-η0 = 0.1*rand(nβ)
-s0 = 0.1*rand(1)[1]
-x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;0.1*rand(nβ)]
+q0 = q1
+u0 = 1.0e-2*rand(nu)
+λ0 = 1.0e-2*rand(1)[1]
+β0 = 1.0e-2*rand(nβ)
+ψ0 = 1.0e-2*rand(1)[1]
+η0 = 1.0e-2*rand(nβ)
+s0 = 1.0e-2*rand(1)[1]
+x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0]
 
 s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,max_iter=500,relax_bnds=false))
 @time solve!(s,verbose=true)
 
-q,u,λ,β,ψ,η,_s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(s.s.x)
-
-println("s: $_s")
+q,u,λ,β,ψ,η,sϕ,sfc = unpack(s.s.x)

@@ -248,6 +248,8 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
         s̄.c .= s̄.Dc*s̄.c
     end
 
+    s̄.ρ = 1.0/s̄.μ
+
     s̄.θ = norm(s̄.c,1)
     s̄.θ_min = init_θ_min(s̄.θ)
     s̄.θ_max = init_θ_max(s̄.θ)

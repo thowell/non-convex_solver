@@ -13,6 +13,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
         println("Eμ0: $(eval_Eμ(0.0,s))")
     end
 
+    # for i = 1:5
     while eval_Eμ(0.0,s) > s.opts.ϵ_tol
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
             s.opts.relax_bnds ? relax_bnds!(s) : nothing
@@ -64,10 +65,23 @@ function solve!(solver::InteriorPointSolver; verbose=false)
             end
         end
 
+
+        # if verbose
+        #     println("augmented Lagrangian iterate ($(s.opts.κϵ*s.μ)):")
+        #     println("iteration ($(s.j),$(s.k)):")
+        #     s.model.n < 5 ? println("x: $(s.x)") : nothing
+        #     println("θ: $(θ(s.x,s)), c̄: $(norm(s.c + 1.0/s.ρ*(s.λ_al - s.λ)))")
+        #     println("f: $(s.f), φ: $(barrier(s.x,s))")
+        #
+        #     println("Eμ: $(eval_Eμ(s.μ,s))")
+        #     println("α: $(s.α)\n")
+        # end
         update_μ!(s)
         update_τ!(s)
         s.λ_al .+= s.ρ*s.c_tmp
-        s.ρ = 1/s.μ
+        s.ρ = 1.0/s.μ
+
+        eval_iterate!(s)
 
         eval_barrier!(s)
         s.j += 1
