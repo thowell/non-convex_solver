@@ -28,11 +28,11 @@ function iterative_refinement(d,s::Solver; verbose=true)
     end
 
     if res_norm < s.opts.ϵ_iterative_refinement
-        verbose ? println("iterative refinement success: $(res_norm), iter: $iter")#, cond: $(cond(Array(s.H+Diagonal(s.δ)))), rank: $(rank(Array(s.H+Diagonal(s.δ))))") : nothing
+        verbose ? println("iterative refinement success: $(res_norm), iter: $iter") : nothing #, cond: $(cond(Array(s.H+Diagonal(s.δ)))), rank: $(rank(Array(s.H+Diagonal(s.δ))))") : nothing
         return true
     else
         d .= s.d_copy
-        verbose ? println("iterative refinement failure: $(res_norm), iter: $iter")#, cond: $(cond(Array(s.H+Diagonal(s.δ)))), rank: $(rank(Array(s.H+Diagonal(s.δ))))") : nothing
+        verbose ? println("iterative refinement failure: $(res_norm), iter: $iter") : nothing #, cond: $(cond(Array(s.H+Diagonal(s.δ)))), rank: $(rank(Array(s.H+Diagonal(s.δ))))") : nothing
         return false
     end
 end

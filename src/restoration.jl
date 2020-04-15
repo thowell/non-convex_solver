@@ -108,8 +108,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
         update_μ!(s̄)
         update_τ!(s̄)
-        # s̄.λ_al .+= s̄.ρ*s̄.c_tmp
-        s̄.ρ = 1/s̄.μ
+
         eval_barrier!(s̄)
         s̄.j += 1
         empty!(s̄.filter)
@@ -118,8 +117,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
         if s̄.k == 0
             update_μ!(s̄)
             update_τ!(s̄)
-            # s̄.λ_al .+= s̄.ρ*s̄.c_tmp
-            s̄.ρ = 1/s̄.μ
+
             eval_barrier!(s̄)
             s̄.j += 1
             empty!(s̄.filter)
@@ -248,7 +246,8 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
         s̄.c .= s̄.Dc*s̄.c
     end
 
-    s̄.ρ = 1.0/s̄.μ
+    s̄.ρ = s.ρ
+    s̄.λ_al = s.λ_al
 
     s̄.θ = norm(s̄.c,1)
     s̄.θ_min = init_θ_min(s̄.θ)
@@ -525,11 +524,11 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
     end
 
     if res_norm < s̄.opts.ϵ_iterative_refinement# || res_norm < res_norm_init
-        verbose ? println("iterative refinement success: $(res_norm), iter: $iter, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+        verbose ? println("iterative refinement success: $(res_norm), iter: $iter") : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
         return true
     else
         d .= s̄.d_copy
-        verbose ? println("iterative refinement failure: $(res_norm), iter: $iter, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+        verbose ? println("iterative refinement failure: $(res_norm), iter: $iter") : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
         return false
     end
 end

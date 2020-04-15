@@ -21,7 +21,7 @@ nβ = nc*nf
 
 nx = nq+nu+nc+nβ+nc+nβ+2nc
 np = nq+2nc+nβ+nc+nβ+nc
-T = 20 # number of time steps to optimize
+T = 10 # number of time steps to optimize
 
 # Parameters
 g = 9.81 # gravity
@@ -76,7 +76,7 @@ W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
 Wf = Diagonal(10.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
-qf = [3., r, r, 0., 0.]
+qf = [1., r, r, 0., 0.]
 uf = zeros(nu)
 w = -W*qf
 wf = -Wf*qf
@@ -186,12 +186,24 @@ for t = 1:T
     x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;λ0;β0;ψ0;η0;s0;s0]
 end
 
-s = InteriorPointSolver(x0,nlp_model,opts=Options{Float64}(kkt_solve=:symmetric,
-                                                           max_iter=500,
-                                                           iterative_refinement=true,
-                                                           relax_bnds=false,
-                                                           max_iterative_refinement=100))
+opts = Options{Float64}(kkt_solve=:symmetric,
+                       max_iter=500,
+                       iterative_refinement=true,
+                       relax_bnds=false,
+                       max_iterative_refinement=100,
+                       ϵ_tol=1.0e-5)
+
+s = InteriorPointSolver(x0,nlp_model,opts=opts)
+
+s.s.ρ = 1.
 @time solve!(s,verbose=true)
+
+# s_new = InteriorPointSolver(s.s.x,nlp_model,opts=opts)
+# s_new.s.λ .= s.s.λ
+# s_new.s.λ_al .+= s.s.ρ*s.s.c_tmp
+# s_new.s.ρ = s.s.ρ*10.0
+# solve!(s_new,verbose=true)
+# s = s_new
 
 function get_q(z)
     Q = [qpp,qp]

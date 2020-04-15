@@ -24,6 +24,12 @@ model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,relax_bnds=true,single_bnds_damping=true,iterative_refinement=true,max_iterative_refinement=100,max_iter=100))
 @time solve!(s,verbose=true)
 
+s_new = InteriorPointSolver(s.s.x,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true))
+s_new.s.λ .= s.s.λ
+s_new.s.λ_al .+= s.s.ρ*s.s.c_tmp
+s_new.s.ρ = s.s.ρ*10.0
+solve!(s_new,verbose=true)
+s = s_new
 
 # ######
 # using Ipopt, MathOptInterface
