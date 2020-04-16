@@ -36,6 +36,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
                 if !line_search(s)
                     if s.θ < s.opts.ϵ_tol
                         @warn "infeasibility detected"
+                        return
                     else
                         augment_filter!(s)
                         restoration!(solver.s̄,s)

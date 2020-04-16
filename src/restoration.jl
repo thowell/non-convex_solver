@@ -73,6 +73,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                 if !line_search(s̄)
                     if s̄.θ < s̄.opts.ϵ_tol
                         @warn "infeasibility (restoration phase)"
+                        return
                     else
                         restoration_reset!(s̄,s)
                     end
@@ -126,7 +127,8 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
         update_restoration_objective!(s̄,s)
     end
-    error("<phase 2 complete>: locally infeasible")
+    @warn "<phase 2 complete>: locally infeasible"
+    return
 end
 
 function restoration_reset!(s̄::Solver,s::Solver)
@@ -249,7 +251,9 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     s̄.ρ = s.ρ
     s̄.λ_al = s.λ_al
 
-    s̄.θ = norm(s̄.c,1)
+    s̄.c_tmp .= copy(s̄.c)
+    s̄.c_tmp .+= 1.0/s̄.ρ*(s̄.λ_al - s̄.λ)
+    s̄.θ = norm(s̄.c_tmp,1)
     s̄.θ_min = init_θ_min(s̄.θ)
     s̄.θ_max = init_θ_max(s̄.θ)
 

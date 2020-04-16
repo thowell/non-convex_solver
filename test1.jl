@@ -20,16 +20,24 @@ c_func(x) = [x[1]^2 - x[2] - 1.0;
 c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
+opts = Options{Float64}(kkt_solve=:symmetric,
+                        relax_bnds=true,
+                        single_bnds_damping=true,
+                        iterative_refinement=true,
+                        max_iterative_refinement=100,
+                        max_iter=100)
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,relax_bnds=true,single_bnds_damping=true,iterative_refinement=true,max_iterative_refinement=100,max_iter=100))
+s = InteriorPointSolver(x0,model,opts=opts)
 @time solve!(s,verbose=true)
+norm(c_func(s.s.x),1)
 
-s_new = InteriorPointSolver(s.s.x,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true))
+s_new = InteriorPointSolver(s.s.x,model,opts=opts)
 s_new.s.λ .= s.s.λ
-s_new.s.λ_al .+= s.s.ρ*s.s.c_tmp
+s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c
 s_new.s.ρ = s.s.ρ*10.0
 solve!(s_new,verbose=true)
 s = s_new
+norm(c_func(s.s.x),1)
 
 # ######
 # using Ipopt, MathOptInterface

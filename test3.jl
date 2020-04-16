@@ -39,12 +39,14 @@ s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=true
                         kkt_solve=:symmetric,
                         nlp_scaling=false,
                         relax_bnds=false))
-s.s.ρ = 1.01
+s.s.ρ = 1.0
 @time solve!(s,verbose=true)
+norm(c_func(s.s.x),1)
 
-# s_new = InteriorPointSolver(s.s.x,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true))
-# s_new.s.λ .= s.s.λ
-# s_new.s.λ_al .+= s.s.ρ*s.s.c_tmp
-# s_new.s.ρ = s.s.ρ*10.0
-# solve!(s_new,verbose=true)
-# s = s_new
+s_new = InteriorPointSolver(s.s.x,model,opts=opts)
+s_new.s.λ .= s.s.λ
+s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c
+s_new.s.ρ = s.s.ρ*10.0
+solve!(s_new,verbose=true)
+s = s_new
+norm(c_func(s.s.x),1)

@@ -356,7 +356,10 @@ function eval_constraints!(s::Solver)
 
     s.model.∇c_func!(s.∇c,s.x)
     s.model.∇²cλ_func!(s.∇²cλ,s.x,s.λ)
-    s.θ = norm(s.c,1)
+
+    s.c_tmp .= copy(s.c)
+    s.c_tmp .+= 1.0/s.ρ*(s.λ_al - s.λ)
+    s.θ = norm(s.c_tmp,1)
     return nothing
 end
 
@@ -484,6 +487,7 @@ function init_λ!(λ,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
         h[1:n] = ∇f
         h[(1:n)[xL_bool]] -= zL
         h[(1:n)[xU_bool]] += zU
+        h[n+1:end] .= 0.
 
         LBL = Ma57(H)
         ma57_factorize(LBL)
@@ -508,6 +512,7 @@ function θ(x,s::Solver)
     if s.opts.nlp_scaling
         s.c_tmp .= s.Dc*s.c_tmp
     end
+    s.c_tmp .+= 1.0/s.ρ*(s.λ_al - s.λ)
     return norm(s.c_tmp,1)
 end
 
