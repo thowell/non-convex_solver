@@ -134,13 +134,14 @@ end
 function restoration_reset!(s̄::Solver,s::Solver)
     s.model.c_func!(s.c,s̄.x[s.idx.x])
 
+    s.c .+= 1.0/s.ρ*(s.λ_al - s̄.λ[s̄.c_relax])
     # initialize p,n
     for i = 1:s.model.m
-        s̄.x[s.model.n + s.model.m + i] = init_n((s.c + 1.0/s.ρ*(s.λ_al - s̄.λ))[i],s̄.μ,s̄.opts.ρ)
+        s̄.x[s.model.n + s.model.m + i] = init_n(s.c[i],s̄.μ,s̄.opts.ρ)
     end
 
     for i = 1:s.model.m
-        s̄.x[s.model.n + i] = init_p(s̄.x[s.model.n + s.model.m + i],(s.c + 1.0/s.ρ*(s.λ_al - s̄.λ))[i])
+        s̄.x[s.model.n + i] = init_p(s̄.x[s.model.n + s.model.m + i],s.c[i])
     end
     s̄.λ .= 0
 
@@ -188,7 +189,7 @@ function RestorationSolver(s::Solver)
 
     _model = Model(n̄,m̄,x̄L,x̄U,f̄_func,∇f̄_func!,∇²f̄_func!,c̄_func!,∇c̄_func!,∇²c̄λ_func!)
 
-    s̄ = Solver(x̄,_model,opts=opts)
+    s̄ = Solver(x̄,_model,c_relax=s.c_relax,opts=opts)
     s̄.DR = spzeros(s.model.n,s.model.n)
     s̄.idx_r = restoration_indices(s)
     return s̄
@@ -206,14 +207,15 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
 
     s̄.x[s.idx.x] = copy(s.x)
 
+    s.c .+= 1.0/s.ρ*(s.λ_al - s̄.λ[s̄.c_relax])
 
     # initialize p,n
     for i = 1:s.model.m
-        s̄.x[s.model.n + s.model.m + i] = init_n((s.c + 1.0/s.ρ*(s.λ_al - s.λ))[i],s̄.μ,s̄.opts.ρ)
+        s̄.x[s.model.n + s.model.m + i] = init_n(s.c[i],s̄.μ,s̄.opts.ρ)
     end
 
     for i = 1:s.model.m
-        s̄.x[s.model.n + i] = init_p(s̄.x[s.model.n + s.model.m + i],(s.c + 1.0/s.ρ*(s.λ_al - s.λ))[i])
+        s̄.x[s.model.n + i] = init_p(s̄.x[s.model.n + s.model.m + i],s.c[i])
     end
 
     # # project
@@ -377,7 +379,7 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     s.H_sym[s.idx.x,s.idx.x] .= s.∇²cλ + sqrt(s̄.μ)*s̄.DR'*s̄.DR + s.ΣL + s.ΣU
     s.H_sym[s.idx.x,s.idx.λ] .= s.∇c'
     s.H_sym[s.idx.λ,s.idx.x] .= s.∇c
-    s.H_sym[s.idx.λ,s.idx.λ] .= -1.0*Diagonal(p./zp) - Diagonal(n./zn)  -1.0/s̄.ρ*Diagonal(ones(s.model.m))
+    s.H_sym[s.idx.λ,s.idx.λ] .= -1.0*Diagonal(p./zp) - Diagonal(n./zn) - Diagonal(1.0/s̄.ρ*s.c_relax)
 
     return nothing
 end
@@ -401,8 +403,8 @@ function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
     s.h_sym[s.idx.x] .= sqrt(μ)*s̄.DR'*s̄.DR*(s̄.x[s.idx.x] - s.x) + s.∇c'*s̄.λ
     s.h_sym[s.idx.xL] .-= μ./(s̄.x[s.idx.x] - s.xL)[s.xL_bool]
     s.h_sym[s.idx.xU] .+= μ./(s.xU - s̄.x[s.idx.x])[s.xU_bool]
-    s.h_sym[s.idx.λ] .= (s.c + 1.0/s.ρ*(s.λ_al - s̄.λ)) - p + n + ρ*Diagonal(zp)\(μ*ones(s.model.m) - p) + ρ*Diagonal(zn)\(μ*ones(s.model.m) - n)
-
+    s.h_sym[s.idx.λ] .= s.c - p + n + ρ*Diagonal(zp)\(μ*ones(s.model.m) - p) + ρ*Diagonal(zn)\(μ*ones(s.model.m) - n)
+    s.h_sym[s.idx.λ[s.c_relax]] .+= 1.0/s.ρ*(s.λ_al - s̄.λ)
     return nothing
 end
 

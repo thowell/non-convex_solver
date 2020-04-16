@@ -61,9 +61,9 @@ f, ∇f!, ∇²f! = objective_functions(f_func)
 function c_func(x)
     q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
     [M*(2*qp - qpp - q)/dt - G*dt + B*u + P'*β + N*λ;
+     P*(q-qp)/dt + ψ*ones(nβ) - η;
      sϕ - N'*q;
      λ*(N'*q);
-     P*(q-qp)/dt + ψ*ones(nβ) - η;
      sfc - (0.5*λ - β'*ones(nβ));
      ψ*(0.5*λ - β'*ones(nβ));
      β.*η]
@@ -78,6 +78,8 @@ xU = Inf*ones(nx)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 
+c_relax = ones(Bool,model.m)
+c_relax[1:nq+nβ] .= 0
 q0 = q1
 u0 = 1.0e-2*rand(nu)
 λ0 = 1.0e-2*rand(1)[1]
@@ -87,15 +89,15 @@ u0 = 1.0e-2*rand(nu)
 s0 = 1.0e-2*rand(1)[1]
 x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0]
 
-opts = Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,max_iter=500,relax_bnds=true)
-s = InteriorPointSolver(x0,model,opts=opts)
+opts = Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,max_iter=500,relax_bnds=true,λ_init_ls=false)
+s = InteriorPointSolver(x0,model,c_relax=c_relax,opts=opts)
 @time solve!(s,verbose=true)
 norm(c_func(s.s.x),1)
 
-s_new = InteriorPointSolver(s.s.x,model,opts=opts)
+s_new = InteriorPointSolver(s.s.x,model,c_relax=c_relax,opts=opts)
 s_new.s.λ .= s.s.λ
-s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c
-s_new.s.ρ = s.s.ρ*2.0
+s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
+s_new.s.ρ = s.s.ρ*10.0
 solve!(s_new,verbose=true)
 s = s_new
 norm(c_func(s.s.x),1)

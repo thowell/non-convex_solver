@@ -120,11 +120,12 @@ mutable struct Solver{T}
 
     ρ::T
     λ_al::Vector{T}
+    c_relax::Vector{Bool}
 
     opts::Options{T}
 end
 
-function Solver(x0,model::AbstractModel; opts=Options{Float64}())
+function Solver(x0,model::AbstractModel;c_relax=ones(Bool,model.m), opts=Options{Float64}())
 
     # initialize primals
     x = zeros(model.n)
@@ -293,7 +294,7 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     Hv = H_views(H,idx)
 
     ρ = 1.0
-    λ_al = zero(λ)
+    λ_al = zeros(sum(c_relax))
 
     θ = norm(c,1)
     θ_min = init_θ_min(θ)
@@ -328,18 +329,19 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
            idx,idx_r,
            fail_cnt,
            Dx,df,Dc,
-           ρ,λ_al,
+           ρ,λ_al,c_relax,
            opts)
 end
 
-function eval_Eμ(x,λ,zL,zU,xL,xU,xL_bool,xU_bool,c,∇L,μ,sd,sc,ρ,λ_al)
+function eval_Eμ(x,λ,zL,zU,xL,xU,xL_bool,xU_bool,c,∇L,μ,sd,sc,ρ,λ_al,c_relax)
     return max(norm(∇L,Inf)/sd,
-               norm(c + 1.0/ρ*(λ_al - λ),Inf),
+               norm(c[c_relax .== 0],Inf),
+               norm(c[c_relax] + 1.0/ρ*(λ_al - λ[c_relax]),Inf),
                norm((x-xL)[xL_bool].*zL .- μ,Inf)/sc,
                norm((xU-x)[xU_bool].*zU .- μ,Inf)/sc)
 end
 
-eval_Eμ(μ,s::Solver) = eval_Eμ(s.x,s.λ,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_bool,s.c,s.∇L,μ,s.sd,s.sc,s.ρ,s.λ_al)
+eval_Eμ(μ,s::Solver) = eval_Eμ(s.x,s.λ,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_bool,s.c,s.∇L,μ,s.sd,s.sc,s.ρ,s.λ_al,s.c_relax)
 
 function eval_objective!(s::Solver)
     s.f = s.opts.nlp_scaling ? s.df*s.model.f_func(s.x) : s.model.f_func(s.x)
@@ -386,13 +388,13 @@ function eval_barrier!(s::Solver)
     s.φ -= s.μ*sum(log.((s.x - s.xL)[s.xL_bool]))
     s.φ -= s.μ*sum(log.((s.xU - s.x)[s.xU_bool]))
 
-    s.φ += s.λ_al'*s.c + 0.5*s.ρ*s.c'*s.c
+    s.φ += s.λ_al'*s.c[s.c_relax] + 0.5*s.ρ*s.c[s.c_relax]'*s.c[s.c_relax]
 
     s.∇φ .= s.∇f
     s.∇φ[s.xL_bool] -= s.μ./(s.x - s.xL)[s.xL_bool]
     s.∇φ[s.xU_bool] += s.μ./(s.xU - s.x)[s.xU_bool]
 
-    s.∇φ .+= s.∇c'*(s.λ_al + s.ρ*s.c)
+    s.∇φ .+= s.∇c[s.c_relax,:]'*(s.λ_al + s.ρ*s.c[s.c_relax])
 
     # damping
     if s.opts.single_bnds_damping
@@ -515,14 +517,14 @@ function θ(x,s::Solver)
     return norm(s.c_tmp,1)
 end
 
-function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func,df,ρ,λ_al,c)
-    return (df*f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]) + λ_al'*c + 0.5*ρ*c'*c)
+function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func,df,ρ,λ_al,c,c_relax)
+    return (df*f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]) + λ_al'*c[c_relax] + 0.5*ρ*c[c_relax]'*c[c_relax])
 end
 
 barrier(x,s::Solver) = barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,
     s.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,s.model.f_func,
     s.opts.nlp_scaling ? s.df : 1.0,
-    s.ρ,s.λ_al,s.c)
+    s.ρ,s.λ_al,s.c,s.c_relax)
 
 function update!(s::Solver)
     s.x .= s.x⁺
@@ -572,8 +574,8 @@ struct InteriorPointSolver{T}
     s̄::Solver{T}
 end
 
-function InteriorPointSolver(x0,model::AbstractModel; opts=Options{Float64}()) where T
-    s = Solver(x0,model,opts=opts)
+function InteriorPointSolver(x0,model::AbstractModel; c_relax=ones(Bool,model.m),opts=Options{Float64}()) where T
+    s = Solver(x0,model,c_relax=c_relax,opts=opts)
     s̄ = RestorationSolver(s)
 
     InteriorPointSolver(s,s̄)

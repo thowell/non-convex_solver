@@ -21,7 +21,7 @@ nβ = nc*nf
 
 nx = nq+nu+nc+nβ+nc+nβ+2nc
 np = nq+2nc+nβ+nc+nβ+nc
-T = 10 # number of time steps to optimize
+T = 5 # number of time steps to optimize
 
 # Parameters
 g = 9.81 # gravity
@@ -76,7 +76,7 @@ W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
 Wf = Diagonal(1.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
-qf = [2., r, r, 0., 0.]
+qf = [1., r, r, 0., 0.]
 uf = zeros(nu)
 w = -W*qf
 wf = -Wf*qf
@@ -124,9 +124,9 @@ f, ∇f!, ∇²f! = objective_functions(f_func)
 function c_func(x)
     q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
     [1/model.Δt*(M(model,qpp)*(qp - qpp) - M(model,qp)*(q - qp)) - model.Δt*∇V(model,qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
+     P(model,q)*(q-qp)/Δt + ψ*ones(nβ) - η;
      sϕ - ϕ(model,q);
      λ*sϕ;
-     P(model,q)*(q-qp)/Δt + ψ*ones(nβ) - η;
      sfc - (μ*λ - β'*ones(nβ));
      ψ*sfc;
      β.*η]
@@ -150,12 +150,12 @@ function c_func(z)
         end
 
         c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
-                                 sϕ - ϕ(model,q);
-                                 λ*sϕ;
-                                 P(model,q)*(q-_qp)/Δt + ψ*ones(nβ) - η;
-                                 sfc - (μ*λ - β'*ones(nβ));
-                                 ψ*sfc;
-                                 β.*η]
+                                  P(model,q)*(q-_qp)/Δt + ψ*ones(nβ) - η;
+                                  sϕ - ϕ(model,q);
+                                  λ*sϕ;
+                                  sfc - (μ*λ - β'*ones(nβ));
+                                  ψ*sfc;
+                                  β.*η]
      end
      return c
 end
@@ -172,7 +172,16 @@ for t = 1:T
     xU[(t-1)*nx + 3] = model.r
 end
 
+
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
+
+c_relax_t = ones(Bool,np)
+c_relax_t[1:nq+nβ] .= 0
+c_relax = ones(Bool,nlp_model.m)
+
+for t = 1:T
+    c_relax[(t-1)*np .+ (1:np)] .= c_relax_t
+end
 
 u0 = 1.0e-2*rand(nu)
 λ0 = 1.0e-2*rand(1)[1]
@@ -193,15 +202,15 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        max_iterative_refinement=100,
                        ϵ_tol=1.0e-6)
 
-s = InteriorPointSolver(x0,nlp_model,opts=opts)
+s = InteriorPointSolver(x0,nlp_model,c_relax=c_relax,opts=opts)
 
 s.s.ρ = 10.
 @time solve!(s,verbose=true)
 
-s_new = InteriorPointSolver(s.s.x,nlp_model,opts=opts)
+s_new = InteriorPointSolver(s.s.x,nlp_model,c_relax=c_relax,opts=opts)
 s_new.s.λ .= s.s.λ
-s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c
-s_new.s.ρ = s.s.ρ*5.0
+s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
+s_new.s.ρ = s.s.ρ*10.0
 solve!(s_new,verbose=true)
 s = s_new
 norm(c_func(s.s.x),1)

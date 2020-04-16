@@ -31,6 +31,9 @@ function kkt_error_reduction(s::Solver)
             β_max!(s)
         end
 
+        if s.t > 10
+            break
+        end
         s.t += 1
         Fμ_norm = norm(s.Fμ,1)
     end
