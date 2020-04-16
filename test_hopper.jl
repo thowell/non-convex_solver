@@ -206,3 +206,62 @@ function get_q(z)
 end
 
 q = get_q(s.s.x)
+
+norm(c_func(s.s.x,0.),1)
+
+vis = Visualizer()
+open(vis)
+visualize!(vis,model,q)
+
+using Colors # Handle RGB colors
+using CoordinateTransformations # Translations and rotations
+using FileIO # Save and load files
+using GeometryTypes:Vec,HyperRectangle,HyperSphere,Point3f0,Cylinder # Define geometric shape
+using LinearAlgebra
+using MeshCat # Visualize 3D animations
+using MeshIO # Load meshes in MeshCat
+
+# Visualization
+function visualize!(vis,h::Hopper,q;verbose=false)
+    setobject!(vis["body"], HyperSphere(Point3f0(0),
+        convert(Float32,0.1)),
+        MeshPhongMaterial(color=RGBA(0, 1, 0, 1.0)))
+    setobject!(vis["foot"], HyperSphere(Point3f0(0),
+        convert(Float32,0.05)),
+        MeshPhongMaterial(color=RGBA(1, 0, 0, 1.0)))
+
+    n_leg = 100
+    for i = 1:n_leg
+        setobject!(vis["leg$i"], HyperSphere(Point3f0(0),
+            convert(Float32,0.025)),
+            MeshPhongMaterial(color=RGBA(0, 0, 0, 1.0)))
+    end
+    p_leg = [zeros(3) for i = 1:n_leg]
+    anim = MeshCat.Animation(convert(Int,floor(1/h.Δt)))
+
+    for t = 1:length(q)
+        p_body = [q[t][1],0.,q[t][2]]
+        p_foot = [h.k(q[t])[1], 0., h.k(q[t])[2]]
+
+        if verbose
+            println("foot height: $(p_foot[3])")
+        end
+
+        q_tmp = Array(copy(q[t]))
+        r_range = range(0,stop=q[t][3],length=n_leg)
+        for i = 1:n_leg
+            q_tmp[3] = r_range[i]
+            p_leg[i] = [h.k(q_tmp)[1], 0., h.k(q_tmp)[2]]
+        end
+
+        MeshCat.atframe(anim,t) do
+            settransform!(vis["body"], Translation(p_body))
+            settransform!(vis["foot"], Translation(p_foot))
+
+            for i = 1:n_leg
+                settransform!(vis["leg$i"], Translation(p_leg[i]))
+            end
+        end
+    end
+    MeshCat.setanimation!(vis,anim)
+end

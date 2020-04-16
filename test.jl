@@ -14,7 +14,7 @@ xU[5] = 20.
 f_func(x) = x'*x
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
-c_func(x) = x[1:m].^2 .- 1.2
+c_func(x,ρ) = x[1:m].^2 .- 1.2
 c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
