@@ -71,7 +71,7 @@ function kkt_hessian_symmetric!(s::Solver)
 end
 
 function kkt_gradient_symmetric!(s::Solver)
-    s.h_sym[s.idx.x] .= s.∇φ + s.∇c'*s.λ
+    s.h_sym[s.idx.x] .= s.∇φ + s.∇c'*s.λ - s.∇c'*(s.λ_al + s.ρ*s.c)
     s.h_sym[s.idx.λ] .= s.c + 1.0/s.ρ*(s.λ_al - s.λ)
 
     return nothing

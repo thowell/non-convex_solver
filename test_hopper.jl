@@ -21,7 +21,7 @@ nβ = nc*nf
 
 nx = nq+nu+nc+nβ+nc+nβ+5nc+nβ
 np = nq+2nc+nβ+nc+nβ+nc
-T = 10 # number of time steps to optimize
+T = 3 # number of time steps to optimize
 
 # Parameters
 g = 9.81 # gravity
@@ -190,12 +190,23 @@ for t = 1:T
     x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;1.0e-2*rand(nβ)]
 end
 
-s = InteriorPointSolver(x0,nlp_model,opts=Options{Float64}(kkt_solve=:symmetric,
-                                                           max_iter=500,
-                                                           iterative_refinement=true,
-                                                           relax_bnds=false,
-                                                           max_iterative_refinement=100))
+opts= Options{Float64}(kkt_solve=:symmetric,
+                       max_iter=500,
+                       iterative_refinement=true,
+                       relax_bnds=true,
+                       max_iterative_refinement=100)
+
+s = InteriorPointSolver(x0,nlp_model,opts=opts)
 @time solve!(s,verbose=true)
+norm(c_func(s.s.x),1)
+
+s_new = InteriorPointSolver(s.s.x,nlp_model,opts=opts)
+s_new.s.λ .= s.s.λ
+s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c
+s_new.s.ρ = s.s.ρ*5.0
+solve!(s_new,verbose=true)
+s = s_new
+norm(c_func(s.s.x),1)
 
 function get_q(z)
     Q = [qpp,qp]

@@ -74,9 +74,9 @@ end
 
 W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
-Wf = Diagonal(10.0*ones(nq))
+Wf = Diagonal(1.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
-qf = [1., r, r, 0., 0.]
+qf = [2., r, r, 0., 0.]
 uf = zeros(nu)
 w = -W*qf
 wf = -Wf*qf
@@ -191,19 +191,20 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        iterative_refinement=true,
                        relax_bnds=false,
                        max_iterative_refinement=100,
-                       ϵ_tol=1.0e-5)
+                       ϵ_tol=1.0e-6)
 
 s = InteriorPointSolver(x0,nlp_model,opts=opts)
 
-s.s.ρ = 1.
+s.s.ρ = 10.
 @time solve!(s,verbose=true)
 
-# s_new = InteriorPointSolver(s.s.x,nlp_model,opts=opts)
-# s_new.s.λ .= s.s.λ
-# s_new.s.λ_al .+= s.s.ρ*s.s.c_tmp
-# s_new.s.ρ = s.s.ρ*10.0
-# solve!(s_new,verbose=true)
-# s = s_new
+s_new = InteriorPointSolver(s.s.x,nlp_model,opts=opts)
+s_new.s.λ .= s.s.λ
+s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c
+s_new.s.ρ = s.s.ρ*5.0
+solve!(s_new,verbose=true)
+s = s_new
+norm(c_func(s.s.x),1)
 
 function get_q(z)
     Q = [qpp,qp]

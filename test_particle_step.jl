@@ -91,8 +91,27 @@ u0 = 0.1*rand(nu)
 s0 = 0.1*rand(1)[1]
 x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;0.1*rand(nβ)]
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,max_iter=500,relax_bnds=false))
+opts = Options{Float64}(kkt_solve=:symmetric,
+                        iterative_refinement=true,
+                        max_iter=500,
+                        relax_bnds=false)
+
+s = InteriorPointSolver(x0,model,opts=opts)
 @time solve!(s,verbose=true)
+norm(c_func(s.s.x),1)
+
+s_new = InteriorPointSolver(s.s.x,model,opts=opts)
+s_new.s.λ .= s.s.λ
+s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c
+s_new.s.ρ = s.s.ρ*2.0
+solve!(s_new,verbose=true)
+s = s_new
+norm(c_func(s.s.x),1)
+
+
+
+
+
 
 q,u,λ,β,ψ,η,_s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(s.s.x)
 

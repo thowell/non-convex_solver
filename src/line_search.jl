@@ -9,7 +9,7 @@ function line_search(s::Solver)
 
     s.l = 0
     status = false
-    while s.α > s.α_min
+    while s.α > s.opts.ϵ_mach#s_.α_min
         if check_filter(θ(s.x⁺,s),barrier(s.x⁺,s),s)
             if s.l == 0
                 s.fail_cnt = 0

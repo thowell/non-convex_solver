@@ -256,11 +256,6 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
     δw_last = 0.
     δc = 0.
 
-    θ = norm(c,1)
-    θ_min = init_θ_min(θ)
-    θ_max = init_θ_max(θ)
-
-    θ_soc = 0.
 
     λ = zeros(model.m)
 
@@ -299,6 +294,12 @@ function Solver(x0,model::AbstractModel; opts=Options{Float64}())
 
     ρ = 1.0
     λ_al = zero(λ)
+
+    θ = norm(c,1)
+    θ_min = init_θ_min(θ)
+    θ_max = init_θ_max(θ)
+
+    θ_soc = 0.
 
     Solver(model,
            x,x⁺,x_soc,
@@ -358,7 +359,6 @@ function eval_constraints!(s::Solver)
     s.model.∇²cλ_func!(s.∇²cλ,s.x,s.λ)
 
     s.c_tmp .= copy(s.c)
-    s.c_tmp .+= 1.0/s.ρ*(s.λ_al - s.λ)
     s.θ = norm(s.c_tmp,1)
     return nothing
 end
@@ -512,13 +512,13 @@ function θ(x,s::Solver)
     if s.opts.nlp_scaling
         s.c_tmp .= s.Dc*s.c_tmp
     end
-    s.c_tmp .+= 1.0/s.ρ*(s.λ_al - s.λ)
     return norm(s.c_tmp,1)
 end
 
 function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func,df,ρ,λ_al,c)
     return (df*f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]) + λ_al'*c + 0.5*ρ*c'*c)
 end
+
 barrier(x,s::Solver) = barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,
     s.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,s.model.f_func,
     s.opts.nlp_scaling ? s.df : 1.0,

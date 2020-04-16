@@ -22,12 +22,14 @@ c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 opts = Options{Float64}(kkt_solve=:symmetric,
                         relax_bnds=true,
+                        nlp_scaling=true,
                         single_bnds_damping=true,
                         iterative_refinement=true,
                         max_iterative_refinement=100,
                         max_iter=100)
 
 s = InteriorPointSolver(x0,model,opts=opts)
+s.s.ρ = 10.
 @time solve!(s,verbose=true)
 norm(c_func(s.s.x),1)
 
