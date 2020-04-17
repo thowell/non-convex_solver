@@ -74,7 +74,7 @@ end
 
 W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
-Wf = Diagonal(10.0*ones(nq))
+Wf = Diagonal(5.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
 qf = [1., r, r, 0., 0.]
 uf = zeros(nu)
@@ -193,7 +193,7 @@ s0 = 1.0e-2*rand(1)[1]
 
 x0 = zeros(T*nx)
 for t = 1:T
-    x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;λ0;β0;ψ0;η0;s0;s0]
+    x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;λ0;β0;ψ0;η0;ϕ(model,Q0[t+2]);model.μ*λ0 - β0'*ones(nβ)]
 end
 
 opts = Options{Float64}(kkt_solve=:symmetric,
@@ -201,7 +201,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        iterative_refinement=true,
                        relax_bnds=false,
                        max_iterative_refinement=100,
-                       ϵ_tol=1.0e-6)
+                       ϵ_tol=1.0e-5)
 
 s = InteriorPointSolver(x0,nlp_model,c_relax=c_relax,opts=opts)
 
@@ -213,7 +213,7 @@ norm(c_func(s.s.x)[c_relax],1)
 s_new = InteriorPointSolver(s.s.x,nlp_model,c_relax=c_relax,opts=opts)
 s_new.s.λ .= s.s.λ
 s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
-s_new.s.ρ = s.s.ρ*5.0
+s_new.s.ρ = s.s.ρ*10.0
 solve!(s_new,verbose=true)
 s = s_new
 norm(c_func(s.s.x)[c_relax .== 0],1)
