@@ -21,7 +21,7 @@ nβ = nc*nf
 
 nx = nq+nu+nc+nβ+nc+nβ+2nc
 np = nq+2nc+nβ+nc+nβ+nc
-T = 5 # number of time steps to optimize
+T = 10 # number of time steps to optimize
 
 # Parameters
 g = 9.81 # gravity
@@ -87,6 +87,7 @@ obj_cf = 0.5*(qf'*Wf*qf + uf'*R*uf)
 function linear_interp(x0,xf,T)
     n = length(x0)
     X = [copy(Array(x0)) for t = 1:T]
+
     for t = 1:T
         for i = 1:n
             X[t][i] = (xf[i]-x0[i])/(T-1)*(t-1) + x0[i]
@@ -124,10 +125,10 @@ f, ∇f!, ∇²f! = objective_functions(f_func)
 function c_func(x)
     q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
     [1/model.Δt*(M(model,qpp)*(qp - qpp) - M(model,qp)*(q - qp)) - model.Δt*∇V(model,qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
-     P(model,q)*(q-qp)/Δt + ψ*ones(nβ) - η;
+     P(model,q)*(q-qp)/model.Δt + ψ*ones(nβ) - η;
      sϕ - ϕ(model,q);
      λ*sϕ;
-     sfc - (μ*λ - β'*ones(nβ));
+     sfc - (model.μ*λ - β'*ones(nβ));
      ψ*sfc;
      β.*η]
 end
@@ -150,10 +151,10 @@ function c_func(z)
         end
 
         c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
-                                  P(model,q)*(q-_qp)/Δt + ψ*ones(nβ) - η;
+                                  P(model,q)*(q-_qp)/model.Δt + ψ*ones(nβ) - η;
                                   sϕ - ϕ(model,q);
                                   λ*sϕ;
-                                  sfc - (μ*λ - β'*ones(nβ));
+                                  sfc - (model.μ*λ - β'*ones(nβ));
                                   ψ*sfc;
                                   β.*η]
      end
@@ -200,20 +201,23 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        iterative_refinement=true,
                        relax_bnds=false,
                        max_iterative_refinement=100,
-                       ϵ_tol=1.0e-6)
+                       ϵ_tol=1.0e-5)
 
 s = InteriorPointSolver(x0,nlp_model,c_relax=c_relax,opts=opts)
 
-s.s.ρ = 10.
+s.s.ρ = 1.
 @time solve!(s,verbose=true)
+norm(c_func(s.s.x)[c_relax .== 0],1)
+norm(c_func(s.s.x)[c_relax],1)
 
 s_new = InteriorPointSolver(s.s.x,nlp_model,c_relax=c_relax,opts=opts)
 s_new.s.λ .= s.s.λ
 s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
-s_new.s.ρ = s.s.ρ*10.0
+s_new.s.ρ = s.s.ρ*5.0
 solve!(s_new,verbose=true)
 s = s_new
-norm(c_func(s.s.x),1)
+norm(c_func(s.s.x)[c_relax .== 0],1)
+norm(c_func(s.s.x)[c_relax],1)
 
 function get_q(z)
     Q = [qpp,qp]
