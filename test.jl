@@ -20,7 +20,7 @@ c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 
 opts = Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true)
-s = InteriorPointSolver(x0,model,opts=opts)
+s = InteriorPointSolver(x0,model,c_relax=zeros(Bool,model.m),opts=opts)
 solve!(s,verbose=true)
 norm(c_func(s.s.x),1)
 

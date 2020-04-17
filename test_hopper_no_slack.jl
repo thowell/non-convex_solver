@@ -74,7 +74,7 @@ end
 
 W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
-Wf = Diagonal(1.0*ones(nq))
+Wf = Diagonal(10.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
 qf = [1., r, r, 0., 0.]
 uf = zeros(nu)
@@ -99,7 +99,7 @@ end
 
 Q0 = linear_interp(q0,qf,T+2)
 
-qpp = Q0[1]
+qpp = Q0[2]
 qp = Q0[2]
 
 function f_func(x)
@@ -153,8 +153,8 @@ function c_func(z)
         c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
                                   P(model,q)*(q-_qp)/model.Δt + ψ*ones(nβ) - η;
                                   sϕ - ϕ(model,q);
-                                  λ*sϕ;
                                   sfc - (model.μ*λ - β'*ones(nβ));
+                                  λ*sϕ;
                                   ψ*sfc;
                                   β.*η]
      end
@@ -177,7 +177,7 @@ end
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 
 c_relax_t = ones(Bool,np)
-c_relax_t[1:nq+nβ] .= 0
+c_relax_t[1:nq+nβ+nc+nc] .= 0
 c_relax = ones(Bool,nlp_model.m)
 
 for t = 1:T
@@ -201,7 +201,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        iterative_refinement=true,
                        relax_bnds=false,
                        max_iterative_refinement=100,
-                       ϵ_tol=1.0e-5)
+                       ϵ_tol=1.0e-6)
 
 s = InteriorPointSolver(x0,nlp_model,c_relax=c_relax,opts=opts)
 

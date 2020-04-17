@@ -145,7 +145,7 @@ function restoration_reset!(s̄::Solver,s::Solver)
     end
     s̄.λ .= 0
 
-    @warn "resetting restoration"
+    # @warn "resetting restoration"
 
     return nothing
 end

@@ -20,20 +20,14 @@ function kkt_error_reduction(s::Solver)
         s.zL .+= s.β*s.dzL
         s.zU .+= s.β*s.dzU
 
-
-
         if check_filter(θ(s.x,s),barrier(s.x,s),s)
             status = true
             break
         else
             search_direction!(s)
-            @warn " kkt error reduce refinement!!"
             β_max!(s)
         end
 
-        # if s.t > 10
-        #     break
-        # end
         s.t += 1
         Fμ_norm = norm(s.Fμ,1)
     end

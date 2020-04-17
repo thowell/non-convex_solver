@@ -3,7 +3,7 @@ include("src/interior_point.jl")
 n = 8
 m = 7
 
-x0 = ones(n)
+x0 = rand(n)
 
 xL = zeros(n)
 xU = Inf*ones(n)
@@ -36,17 +36,16 @@ s = InteriorPointSolver(x0,model,c_relax=c_relax,opts=opts)
 s.s.ρ = 1.0
 
 @time solve!(s,verbose=true)
-norm(c_func(s.s.x),1)
-c_func(s.s.x)
+norm(c_func(s.s.x)[c_relax .== 0],1)
+norm(c_func(s.s.x)[c_relax],1)
 s_new = InteriorPointSolver(s.s.x,model,c_relax=c_relax,opts=opts)
 s_new.s.λ .= s.s.λ
 s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
 s_new.s.ρ = s.s.ρ*10.0
 solve!(s_new,verbose=true)
 s = s_new
-norm(c_func(s.s.x),1)
-
-c_func(s.s.x)[1:4]
+norm(c_func(s.s.x)[c_relax .== 0],1)
+norm(c_func(s.s.x)[c_relax],1)
 
 x = s.s.x
 x[3]
