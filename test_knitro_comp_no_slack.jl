@@ -33,19 +33,19 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         ϵ_tol=1.0e-8,
                         nlp_scaling=true)
 s = InteriorPointSolver(x0,model,c_relax=c_relax,opts=opts)
-s.s.ρ = 1.0
+# s.s.ρ = 1.0
 
 @time solve!(s,verbose=true)
-norm(c_func(s.s.x)[c_relax .== 0],1)
-norm(c_func(s.s.x)[c_relax],1)
-s_new = InteriorPointSolver(s.s.x,model,c_relax=c_relax,opts=opts)
-s_new.s.λ .= s.s.λ
-s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
-s_new.s.ρ = s.s.ρ*10.0
-solve!(s_new,verbose=true)
-s = s_new
-norm(c_func(s.s.x)[c_relax .== 0],1)
-norm(c_func(s.s.x)[c_relax],1)
+# norm(c_func(s.s.x)[c_relax .== 0],1)
+# norm(c_func(s.s.x)[c_relax],1)
+# s_new = InteriorPointSolver(s.s.x,model,c_relax=c_relax,opts=opts)
+# s_new.s.λ .= s.s.λ
+# s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
+# s_new.s.ρ = s.s.ρ*10.0
+# solve!(s_new,verbose=true)
+# s = s_new
+# norm(c_func(s.s.x)[c_relax .== 0],1)
+# norm(c_func(s.s.x)[c_relax],1)
 
 x = s.s.x
 x[3]

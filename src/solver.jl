@@ -293,7 +293,7 @@ function Solver(x0,model::AbstractModel;c_relax=ones(Bool,model.m), opts=Options
 
     Hv = H_views(H,idx)
 
-    ρ = 1.0
+    ρ = 1.0/μ
     λ_al = zeros(sum(c_relax))
 
     θ = norm(c,1)

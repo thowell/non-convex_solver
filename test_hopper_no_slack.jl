@@ -21,7 +21,7 @@ nβ = nc*nf
 
 nx = nq+nu+nc+nβ+nc+nβ+2nc
 np = nq+2nc+nβ+nc+nβ+nc
-T = 10 # number of time steps to optimize
+T = 20 # number of time steps to optimize
 
 # Parameters
 g = 9.81 # gravity
@@ -74,9 +74,9 @@ end
 
 W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
-Wf = Diagonal(5.0*ones(nq))
+Wf = Diagonal(1.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
-qf = [1., r, r, 0., 0.]
+qf = [3., r, r, 0., 0.]
 uf = zeros(nu)
 w = -W*qf
 wf = -Wf*qf
@@ -184,12 +184,12 @@ for t = 1:T
     c_relax[(t-1)*np .+ (1:np)] .= c_relax_t
 end
 
-u0 = 1.0e-2*rand(nu)
-λ0 = 1.0e-2*rand(1)[1]
-β0 = 1.0e-2*rand(nβ)
-ψ0 = 1.0e-2*rand(1)[1]
-η0 = 1.0e-2*rand(nβ)
-s0 = 1.0e-2*rand(1)[1]
+u0 = 1.0e-3*rand(nu)
+λ0 = 1.0e-3*rand(1)[1]
+β0 = 1.0e-3*rand(nβ)
+ψ0 = 1.0e-3*rand(1)[1]
+η0 = 1.0e-3*rand(nβ)
+s0 = 1.0e-3*rand(1)[1]
 
 x0 = zeros(T*nx)
 for t = 1:T
@@ -201,24 +201,24 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        iterative_refinement=true,
                        relax_bnds=false,
                        max_iterative_refinement=100,
-                       ϵ_tol=1.0e-5)
+                       ϵ_tol=1.0e-6)
 
 s = InteriorPointSolver(x0,nlp_model,c_relax=c_relax,opts=opts)
 
-s.s.ρ = 1.
+# s.s.ρ = 1.0/s.μ
 @time solve!(s,verbose=true)
 norm(c_func(s.s.x)[c_relax .== 0],1)
 norm(c_func(s.s.x)[c_relax],1)
 
-s_new = InteriorPointSolver(s.s.x,nlp_model,c_relax=c_relax,opts=opts)
-s_new.s.λ .= s.s.λ
-s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
-s_new.s.ρ = s.s.ρ*10.0
-solve!(s_new,verbose=true)
-s = s_new
-norm(c_func(s.s.x)[c_relax .== 0],1)
-norm(c_func(s.s.x)[c_relax],1)
-
+# s_new = InteriorPointSolver(s.s.x,nlp_model,c_relax=c_relax,opts=opts)
+# s_new.s.λ .= s.s.λ
+# s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
+# s_new.s.ρ = s.s.ρ*10.0
+# solve!(s_new,verbose=true)
+# s = s_new
+# norm(c_func(s.s.x)[c_relax .== 0],1)
+# norm(c_func(s.s.x)[c_relax],1)
+#
 function get_q(z)
     Q = [qpp,qp]
     for t = 1:T

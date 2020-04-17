@@ -11,23 +11,23 @@ np = nq+2nc+nβ+nc+nβ+nc
 
 dt = 0.1
 
-M = 1.0*Matrix(I,nq,nq)
-B = [1. 0.;0. 1.;0. 0.]
-G = [0; 0; 9.8]
+M(q) = 1.0*Matrix(I,nq,nq)
+B(q) = [1. 0.;0. 1.;0. 0.]
+G(q) = [0; 0; 9.8]
 
-P = [1. 0. 0.;
+P(q) = [1. 0. 0.;
      0. 1. 0.;
      -1. 0. 0.;
      0. -1. 0.]
 
-N = [0; 0; 1]
+N(q) = [0; 0; 1]
 
 qpp = [0., 0., .15]
 v0 = [5., 0., 0.]
-v1 = v0 - G*dt
+v1 = v0 - G(qpp)*dt
 qp = qpp + 0.5*dt*(v0 + v1)
 
-v2 = v1 - G*dt
+v2 = v1 - G(qp)*dt
 q1 = qp + 0.5*dt*(v1 + v2)
 
 qf = [0.; 0.; 0.]
@@ -60,11 +60,11 @@ f, ∇f!, ∇²f! = objective_functions(f_func)
 
 function c_func(x)
     q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
-    [M*(2*qp - qpp - q)/dt - G*dt + B*u + P'*β + N*λ;
-     P*(q-qp)/dt + ψ*ones(nβ) - η;
-     sϕ - N'*q;
+    [M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)*u + P(q)'*β + N(q)*λ;
+     P(q)*(q-qp)/dt + ψ*ones(nβ) - η;
+     sϕ - N(q)'*q;
      sfc - (0.5*λ - β'*ones(nβ));
-     λ*(N'*q);
+     λ*(N(q)'*q);
      ψ*(0.5*λ - β'*ones(nβ));
      β.*η]
 end
@@ -81,27 +81,27 @@ model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 c_relax = ones(Bool,model.m)
 c_relax[1:nq+nβ+nc+nc] .= 0
 q0 = q1
-u0 = 1.0e-2*rand(nu)
-λ0 = 1.0e-2*rand(1)[1]
-β0 = 1.0e-2*rand(nβ)
-ψ0 = 1.0e-2*rand(1)[1]
-η0 = 1.0e-2*rand(nβ)
-s0 = 1.0e-2*rand(1)[1]
-x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0]
+u0 = 1.0e-3*rand(nu)
+λ0 = 1.0e-3*rand(1)[1]
+β0 = 1.0e-3*rand(nβ)
+ψ0 = 1.0e-3*rand(1)[1]
+η0 = 1.0e-3*rand(nβ)
+s0 = 1.0e-3*rand(1)[1]
+x0 = [q0;u0;λ0;β0;ψ0;η0; N(q0)'*q0;0.5*λ0 - β0'*ones(nβ)]
 
-opts = Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,max_iter=500,relax_bnds=true,λ_init_ls=false)
+opts = Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,max_iter=500,relax_bnds=true,λ_init_ls=true,ϵ_tol=1.0e-8)
 s = InteriorPointSolver(x0,model,c_relax=c_relax,opts=opts)
 @time solve!(s,verbose=true)
 norm(c_func(s.s.x)[c_relax .== 0],1)
 norm(c_func(s.s.x)[c_relax],1)
 
-s_new = InteriorPointSolver(s.s.x,model,c_relax=c_relax,opts=opts)
-s_new.s.λ .= s.s.λ
-s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
-s_new.s.ρ = s.s.ρ*10.0
-solve!(s_new,verbose=true)
-s = s_new
-norm(c_func(s.s.x)[c_relax .== 0],1)
-norm(c_func(s.s.x)[c_relax],1)
+# s_new = InteriorPointSolver(s.s.x,model,c_relax=c_relax,opts=opts)
+# s_new.s.λ .= s.s.λ
+# s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
+# s_new.s.ρ = s.s.ρ*10.0
+# solve!(s_new,verbose=true)
+# s = s_new
+# norm(c_func(s.s.x)[c_relax .== 0],1)
+# norm(c_func(s.s.x)[c_relax],1)
 
 q,u,λ,β,ψ,η,sϕ,sfc = unpack(s.s.x)
