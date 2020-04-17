@@ -89,7 +89,13 @@ u0 = 1.0e-3*rand(nu)
 s0 = 1.0e-3*rand(1)[1]
 x0 = [q0;u0;λ0;β0;ψ0;η0; N(q0)'*q0;0.5*λ0 - β0'*ones(nβ)]
 
-opts = Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,max_iter=500,relax_bnds=true,λ_init_ls=true,ϵ_tol=1.0e-8)
+opts = Options{Float64}(kkt_solve=:symmetric,
+                        iterative_refinement=true,
+                        max_iter=500,
+                        relax_bnds=true,
+                        λ_init_ls=true,
+                        ϵ_tol=1.0e-8)
+                        
 s = InteriorPointSolver(x0,model,c_relax=c_relax,opts=opts)
 @time solve!(s,verbose=true)
 norm(c_func(s.s.x)[c_relax .== 0],1)

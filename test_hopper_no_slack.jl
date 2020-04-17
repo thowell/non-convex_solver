@@ -74,7 +74,7 @@ end
 
 W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
 R = Diagonal([1.0e-1,1.0e-3])
-Wf = Diagonal(1.0*ones(nq))
+Wf = Diagonal(5.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
 qf = [3., r, r, 0., 0.]
 uf = zeros(nu)
@@ -218,7 +218,7 @@ norm(c_func(s.s.x)[c_relax],1)
 # s = s_new
 # norm(c_func(s.s.x)[c_relax .== 0],1)
 # norm(c_func(s.s.x)[c_relax],1)
-#
+
 function get_q(z)
     Q = [qpp,qp]
     for t = 1:T

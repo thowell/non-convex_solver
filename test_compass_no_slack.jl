@@ -23,7 +23,7 @@ nβ = nc*nf
 
 nx = nq+nu+nc+nβ+nc+nβ+2nc
 np = nq+2nc+nβ+nc+nβ+nc
-T = 1 # number of time steps to optimize
+T = 10 # number of time steps to optimize
 
 # Parameters
 Δt = 0.1 # time step
@@ -102,13 +102,13 @@ function unpack(x)
 end
 
 W = Diagonal(1.0*ones(nq))
-R = Diagonal(1.0e-3*ones(nu))
+R = Diagonal(1.0e-1*ones(nu))
 Wf = Diagonal(10.0*ones(nq))
 
 theta = pi/12
 h = 0.5*sqrt(4*model.r^2 - (2*model.r*sin(theta))^2)
 q0 = [0., h, 0., -theta, theta]
-qf = [0., h, 0., -theta, theta]
+qf = [2., h, 0., -theta, theta]
 uf = zeros(nu)
 w = -W*qf
 wf = -Wf*qf
@@ -131,7 +131,7 @@ end
 
 Q0 = linear_interp(q0,qf,T+2)
 
-qpp = Q0[1]
+qpp = Q0[2]
 qp = Q0[2]
 
 function f_func(z)
@@ -182,6 +182,9 @@ c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
 n = T*nx
 m = T*np
 xL = zeros(T*nx)
+for t = 1:T
+    xL[(t-1)*nx .+ (1:nq+nu)] .= -Inf
+end
 xU = Inf*ones(T*nx)
 
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
@@ -194,7 +197,7 @@ for t = 1:T
     c_relax[(t-1)*np .+ (1:np)] .= c_relax_t
 end
 
-u0 = 0.0rand(nu)
+u0 = 1.0e-3*rand(nu)
 λ0 = 1.0e-3*rand(nc)
 β0 = 1.0e-3*rand(nβ)
 ψ0 = 1.0e-3*rand(nc)
@@ -211,24 +214,23 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        iterative_refinement=true,
                        relax_bnds=false,
                        max_iterative_refinement=100,
-                       ϵ_tol=1.0e-5)
+                       ϵ_tol=1.0e-6)
 
 s = InteriorPointSolver(x0,nlp_model,c_relax=c_relax,opts=opts)
 
-s.s.ρ = 10.
 @time solve!(s,verbose=true)
 norm(c_func(s.s.x)[c_relax .== 0],1)
 norm(c_func(s.s.x)[c_relax],1)
 
-s_new = InteriorPointSolver(s.s.x,nlp_model,c_relax=c_relax,opts=opts)
-s_new.s.λ .= s.s.λ
-s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
-s_new.s.ρ = s.s.ρ*10.0
-solve!(s_new,verbose=true)
-s = s_new
-norm(c_func(s.s.x)[c_relax .== 0],1)
-norm(c_func(s.s.x)[c_relax],1)
-
+# s_new = InteriorPointSolver(s.s.x,nlp_model,c_relax=c_relax,opts=opts)
+# s_new.s.λ .= s.s.λ
+# s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
+# s_new.s.ρ = s.s.ρ*10.0
+# solve!(s_new,verbose=true)
+# s = s_new
+# norm(c_func(s.s.x)[c_relax .== 0],1)
+# norm(c_func(s.s.x)[c_relax],1)
+#
 function get_q(z)
     Q = [qpp,qp]
     for t = 1:T
