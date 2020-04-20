@@ -23,7 +23,7 @@ nβ = nc*nf
 
 nx = nq+nu+nc+nβ+nc+nβ+2nc
 np = nq+2nc+nβ+nc+nβ+nc
-T = 10 # number of time steps to optimize
+T = 20 # number of time steps to optimize
 
 # Parameters
 Δt = 0.1 # time step

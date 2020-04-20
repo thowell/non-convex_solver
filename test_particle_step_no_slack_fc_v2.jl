@@ -1,29 +1,29 @@
 include("src/interior_point.jl")
 
 nc = 1
-nf = 4
+nf = 2
 nq = 3
 nu = 2
 nβ = nc*nf
 
-nx = nq+nu+nc+nβ+nc+nβ+2nc
-np = nq+2nc+nβ+nc+nβ+nc
+nx = nq+nu+nc+nβ+nc+nc+2nc
+np = nq+nβ+5nc
 
 dt = 0.1
 
 M(q) = 1.0*Matrix(I,nq,nq)
-B(q) = [1. 0.;0. 1.;0. 0.]
+P(q) = [1. 0. 0.;0. 1. 0.]
 G(q) = [0; 0; 9.8]
 
-P(q) = [1. 0. 0.;
-     0. 1. 0.;
-     -1. 0. 0.;
-     0. -1. 0.]
+# P(q) = [1. 0. 0.;
+#      0. 1. 0.;
+#      -1. 0. 0.;
+#      0. -1. 0.]
 
 N(q) = [0; 0; 1]
 
 qpp = [0., 0., .15]
-v0 = [5., 0., 0.]
+v0 = [0., 0., 0.]
 v1 = v0 - G(qpp)*dt
 qp = qpp + 0.5*dt*(v0 + v1)
 
@@ -45,9 +45,9 @@ function unpack(x)
     λ = x[nq+nu+nc]
     β = x[nq+nu+nc .+ (1:nβ)]
     ψ = x[nq+nu+nc+nβ+nc]
-    η = x[nq+nu+nc+nβ+nc .+ (1:nβ)]
-    sϕ = x[nq+nu+nc+nβ+nc+nβ+nc]
-    sfc = x[nq+nu+nc+nβ+nc+nβ+2nc]
+    η = x[nq+nu+nc+nβ+nc+nc]
+    sϕ = x[nq+nu+nc+nβ+nc+nc+nc]
+    sfc = x[nq+nu+nc+nβ+nc+nc+2nc]
 
     return q,u,λ,β,ψ,η,sϕ,sfc
 end
@@ -61,25 +61,27 @@ f, ∇f!, ∇²f! = objective_functions(f_func)
 function c_func(x)
     q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
     [M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)*u + P(q)'*β + N(q)*λ;
-     P(q)*(q-qp)/dt + ψ*ones(nβ) - η;
+     P(q)*(q-qp)/dt + 2.0*β*ψ;
      sϕ - N(q)'*q;
-     sfc - (0.5*λ - β'*ones(nβ));
-     λ*(N(q)'*q);
-     ψ*(0.5*λ - β'*ones(nβ));
-     β.*η]
+     sfc - ((0.5*λ)^2 - β'*β);
+     ψ - η;
+     λ*sϕ;
+     sfc*η]
 end
 c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
 
 n = nx
 m = np
-xL = -Inf*ones(nx)
-xL[(nq+nu+1):end] .= 0.
+xL = zeros(nx)
+xL[1:(nq+nu)] .= -Inf
+xL[nq+nu+nc .+ (1:nβ)] .= -Inf
+xL[nq+nu+nc+nβ+nc] = -Inf
 xU = Inf*ones(nx)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
 
 c_relax = ones(Bool,model.m)
-c_relax[1:nq+nβ+nc+nc] .= 0
+c_relax[1:nq+nβ+nc+nc+nc] .= 0
 q0 = q1
 u0 = 1.0e-3*rand(nu)
 λ0 = 1.0e-3*rand(1)[1]
@@ -87,7 +89,7 @@ u0 = 1.0e-3*rand(nu)
 ψ0 = 1.0e-3*rand(1)[1]
 η0 = 1.0e-3*rand(nβ)
 s0 = 1.0e-3*rand(1)[1]
-x0 = [q0;u0;λ0;β0;ψ0;η0; N(q0)'*q0;0.5*λ0 - β0'*ones(nβ)]
+x0 = [q0;u0;λ0;β0;ψ0;η0; N(q0)'*q0;(0.5*λ0)^2 - β0'*β0]
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,
@@ -111,3 +113,11 @@ norm(c_func(s.s.x)[c_relax],1)
 # norm(c_func(s.s.x)[c_relax],1)
 
 q,u,λ,β,ψ,η,sϕ,sfc = unpack(s.s.x)
+λ
+β
+(0.5*λ)^2 - β'*β
+sfc
+sϕ
+
+(q-q1)./norm(q-q1)
+β./norm(β)
