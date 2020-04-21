@@ -521,10 +521,16 @@ function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func,df,ρ,�
     return (df*f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]) + λ_al'*c[c_relax] + 0.5*ρ*c[c_relax]'*c[c_relax])
 end
 
-barrier(x,s::Solver) = barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,
+function barrier(x,s::Solver)
+    s.model.c_func!(s.c_tmp,x)
+    if s.opts.nlp_scaling
+        s.c_tmp .= s.Dc*s.c_tmp
+    end
+    return barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,
     s.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,s.model.f_func,
     s.opts.nlp_scaling ? s.df : 1.0,
-    s.ρ,s.λ_al,s.c,s.c_relax)
+    s.ρ,s.λ_al,s.c_tmp,s.c_relax)
+end
 
 function update!(s::Solver)
     s.x .= s.x⁺

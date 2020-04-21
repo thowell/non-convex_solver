@@ -183,9 +183,9 @@ end
 opts = Options{Float64}(kkt_solve=:symmetric,
                        max_iter=500,
                        iterative_refinement=true,
-                       relax_bnds=false,
+                       relax_bnds=true,
                        max_iterative_refinement=100,
-                       ϵ_tol=1.0e-6)
+                       ϵ_tol=1.0e-8)
 
 s = InteriorPointSolver(x0,nlp_model,c_relax=c_relax,opts=opts)
 

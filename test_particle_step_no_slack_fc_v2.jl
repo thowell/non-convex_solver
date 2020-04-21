@@ -12,7 +12,9 @@ np = nq+nβ+5nc
 dt = 0.1
 
 M(q) = 1.0*Matrix(I,nq,nq)
+B(q) = [1. 0. 0.;0. 1. 0.]
 P(q) = [1. 0. 0.;0. 1. 0.]
+
 G(q) = [0; 0; 9.8]
 
 # P(q) = [1. 0. 0.;
@@ -22,8 +24,8 @@ G(q) = [0; 0; 9.8]
 
 N(q) = [0; 0; 1]
 
-qpp = [0., 0., 1.]
-v0 = [1., 0., 0.]
+qpp = [0., 0., 10.]
+v0 = [10., -7.0, 0.]
 v1 = v0 - G(qpp)*dt
 qp = qpp + 0.5*dt*(v0 + v1)
 
@@ -60,7 +62,7 @@ f, ∇f!, ∇²f! = objective_functions(f_func)
 
 function c_func(x)
     q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
-    [M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)*u + P(q)'*β + N(q)*λ;
+    [M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + P(q)'*β + N(q)*λ;
      P(q)*(q-qp)/dt + 2.0*β*ψ;
      sϕ - N(q)'*q;
      sfc - ((0.5*λ)^2 - β'*β);
