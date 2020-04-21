@@ -115,14 +115,14 @@ function ∇c_func!(∇c,x)
     ∇c .= jac(nlp,x)
     return nothing
 end
-function ∇²cλ_func!(∇²cλ,x,λ)
-    ∇²cλ .= hess(nlp,x,λ) - hess(nlp,x)
+function ∇²cy_func!(∇²cy,x,y)
+    ∇²cy .= hess(nlp,x,y) - hess(nlp,x)
     return nothing
 end
 
-model = Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cλ_func!)
+model = Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cy_func!)
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,relax_bnds=true,max_iter=1000,λ_init_ls=true,max_iterative_refinement=100))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,relax_bnds=true,max_iter=1000,y_init_ls=true,max_iterative_refinement=100))
 @time solve!(s,verbose=true)
 
 finalize(nlp)

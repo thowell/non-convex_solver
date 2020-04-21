@@ -39,8 +39,8 @@ function solve!(solver::InteriorPointSolver; verbose=false)
                         return
                     else
                         augment_filter!(s)
-                        # @warn "updating λ_al"
-                        # s.λ_al .= s.λ_al + s.ρ*s.c[s.c_relax]
+                        # @warn "updating y_al"
+                        # s.y_al .= s.y_al + s.ρ*s.c[s.c_al_idx]
 
                         restoration!(solver.s̄,s)
                     end
@@ -71,7 +71,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
         update_μ!(s)
         update_τ!(s)
 
-        s.λ_al .= s.λ_al + s.ρ*s.c[s.c_relax]
+        s.y_al .= s.y_al + s.ρ*s.c[s.c_al_idx]
         s.ρ = 1.0/s.μ
 
         eval_iterate!(s)
@@ -85,7 +85,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
             update_μ!(s)
             update_τ!(s)
 
-            s.λ_al .= s.λ_al + s.ρ*s.c[s.c_relax]
+            s.y_al .= s.y_al + s.ρ*s.c[s.c_al_idx]
             s.ρ = 1.0/s.μ
 
             # eval_barrier!(s)

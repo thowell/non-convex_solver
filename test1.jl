@@ -17,9 +17,9 @@ f, ∇f!, ∇²f! = objective_functions(f_func)
 
 c_func(x) = [x[1]^2 - x[2] - 1.0;
              x[1] - x[3] - 0.5]
-c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
+c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
-model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
+model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 opts = Options{Float64}(kkt_solve=:symmetric,
                         relax_bnds=true,
                         nlp_scaling=true,
@@ -34,8 +34,8 @@ s = InteriorPointSolver(x0,model,opts=opts)
 norm(c_func(s.s.x),1)
 
 # s_new = InteriorPointSolver(s.s.x,model,opts=opts)
-# s_new.s.λ .= s.s.λ
-# s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c
+# s_new.s.y .= s.s.y
+# s_new.s.y_al .= s.s.y_al + s.s.ρ*s.s.c
 # s_new.s.ρ = s.s.ρ*10.0
 # solve!(s_new,verbose=true)
 # s = s_new

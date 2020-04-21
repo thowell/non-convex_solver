@@ -17,11 +17,11 @@ function ∇c_func!(∇c,x)
     return nothing
 end
 
-function ∇²cλ_func!(∇²c,x,λ)
+function ∇²cy_func!(∇²c,x,y)
     return nothing
 end
 
-model = Model(n,m,xL,xU,f,∇f!,∇²f!,c_func!,∇c_func!,∇²cλ_func!)
+model = Model(n,m,xL,xU,f,∇f!,∇²f!,c_func!,∇c_func!,∇²cy_func!)
 opts = Options{Float64}(iterative_refinement=true,
                         kkt_solve=:symmetric,
                         max_iter=500)

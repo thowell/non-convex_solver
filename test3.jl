@@ -18,9 +18,9 @@ function c_func!(c,x)
 end
 ∇c_func(x) = Array(ForwardDiff.gradient(c_func_d,x)')
 
-function ∇²cλ_func(x,λ)
-    ∇cλ(x) = ∇c_func(x)'*λ
-    return ForwardDiff.jacobian(∇cλ,x)
+function ∇²cy_func(x,y)
+    ∇cy(x) = ∇c_func(x)'*y
+    return ForwardDiff.jacobian(∇cy,x)
 end
 
 function ∇c_func!(∇c,x)
@@ -28,12 +28,12 @@ function ∇c_func!(∇c,x)
     return nothing
 end
 
-function ∇²cλ_func!(∇²cλ,x,λ)
-    ∇²cλ .= ∇²cλ_func(x,λ)
+function ∇²cy_func!(∇²cy,x,y)
+    ∇²cy .= ∇²cy_func(x,y)
     return nothing
 end
 
-model = Model(n,m,xL,xU,f,∇f!,∇²f!,c_func!,∇c_func!,∇²cλ_func!)
+model = Model(n,m,xL,xU,f,∇f!,∇²f!,c_func!,∇c_func!,∇²cy_func!)
 
 s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=true,
                         kkt_solve=:symmetric,
@@ -44,8 +44,8 @@ s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=true
 norm(c_func(s.s.x),1)
 
 # s_new = InteriorPointSolver(s.s.x,model,opts=opts)
-# s_new.s.λ .= s.s.λ
-# s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c
+# s_new.s.y .= s.s.y
+# s_new.s.y_al .= s.s.y_al + s.s.ρ*s.s.c
 # s_new.s.ρ = s.s.ρ*10.0
 # solve!(s_new,verbose=true)
 # s = s_new

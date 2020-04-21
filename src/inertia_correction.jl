@@ -48,9 +48,9 @@ end
 
 function factorize_kkt!(s::Solver)
     s.δ[s.idx.x] .= s.δw
-    s.δ[s.idx.λ] .= -s.δc
+    s.δ[s.idx.y] .= -s.δc
 
-    s.LBL = Ma57(s.H_sym + Diagonal(s.δ[s.idx.xλ]))
+    s.LBL = Ma57(s.H_sym + Diagonal(s.δ[s.idx.xy]))
     ma57_factorize(s.LBL)
 
     s.inertia.m = s.LBL.info.num_negative_eigs

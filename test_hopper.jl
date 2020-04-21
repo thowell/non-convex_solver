@@ -62,18 +62,18 @@ model = Hopper(mb,ml,Jb,Jl,r,μ,g,p1,Δt)
 function unpack(x)
     q = x[1:nq]
     u = x[nq .+ (1:nu)]
-    λ = nc == 1 ? x[nq+nu+1] : x[nq+nu .+ (1:nc)]
+    y = nc == 1 ? x[nq+nu+1] : x[nq+nu .+ (1:nc)]
     β = x[nq+nu+nc .+ (1:nβ)]
     ψ = nc == 1 ? x[nq+nu+nc+nβ+1] : x[nq+nu+nc+nβ .+ (1:nc)]
     η = x[nq+nu+nc+nβ+nc .+ (1:nβ)]
     s = x[nq+nu+nc+nβ+nc+nβ+nc]
     sϕ = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+2nc] : x[nq+nu+nc+nβ+nc+nβ+nc .+ (1:nc)]
-    sλϕ = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+3nc] : x[nq+nu+nc+nβ+nc+nβ+2nc .+ (1:nc)]
+    syϕ = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+3nc] : x[nq+nu+nc+nβ+nc+nβ+2nc .+ (1:nc)]
     sfc = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+4nc] : x[nq+nu+nc+nβ+nc+nβ+3nc .+ (1:nc)]
     sψfc = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+5nc] : x[nq+nu+nc+nβ+nc+nβ+4nc .+ (1:nc)]
     sβη = x[nq+nu+nc+nβ+nc+nβ+5nc .+ (1:nβ)]
 
-    return q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη
+    return q,u,y,β,ψ,η,s,sϕ,syϕ,sfc,sψfc,sβη
 end
 
 W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
@@ -106,14 +106,14 @@ qpp = Q0[1]
 qp = Q0[2]
 
 function f_func(x)
-    q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(x)
+    q,u,y,β,ψ,η,s,sϕ,syϕ,sfc,sψfc,sβη = unpack(x)
     return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c + 10.0*s
 end
 
 function f_func(z)
     _sum = 0.
     for t = 1:T
-        q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
+        q,u,y,β,ψ,η,s,sϕ,syϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
 
         if t != T
             _sum += 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c + 20.0*s
@@ -126,13 +126,13 @@ end
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
 function c_func(x)
-    q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(x)
-    [1/model.Δt*(M(model,qpp)*(qp - qpp) - M(model,qp)*(q - qp)) - model.Δt*∇V(model,qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
+    q,u,y,β,ψ,η,s,sϕ,syϕ,sfc,sψfc,sβη = unpack(x)
+    [1/model.Δt*(M(model,qpp)*(qp - qpp) - M(model,qp)*(q - qp)) - model.Δt*∇V(model,qp) + B(model,q)'*u +  N(model,q)'*y + P(model,q)'*β;
      sϕ - ϕ(model,q);
-     sλϕ - (s - λ*ϕ(model,q));
+     syϕ - (s - y*ϕ(model,q));
      P(model,q)*(q-qp)/Δt + ψ*ones(nβ) - η;
-     sfc - (μ*λ - β'*ones(nβ));
-     sψfc - (s - ψ*(μ*λ - β'*ones(nβ)));
+     sfc - (μ*y - β'*ones(nβ));
+     sψfc - (s - ψ*(μ*y - β'*ones(nβ)));
      sβη - (s*ones(nβ) - β.*η)]
 end
 
@@ -140,7 +140,7 @@ function c_func(z)
     c = zeros(eltype(z),np*T)
 
     for t = 1:T
-        q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
+        q,u,y,β,ψ,η,s,sϕ,syϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
 
         if t == 1
             _qpp = qpp
@@ -153,17 +153,17 @@ function c_func(z)
             _qp = z[(t-2)*nx .+ (1:nq)]
         end
 
-        c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
+        c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*y + P(model,q)'*β;
                                  sϕ - ϕ(model,q);
-                                 sλϕ - (s - λ*sϕ);
+                                 syϕ - (s - y*sϕ);
                                  P(model,q)*(q-_qp)/Δt + ψ*ones(nβ) - η;
-                                 sfc - (μ*λ - β'*ones(nβ));
+                                 sfc - (μ*y - β'*ones(nβ));
                                  sψfc - (s - ψ*sfc);
                                  sβη - (s*ones(nβ) - β.*η)]
      end
      return c
 end
-c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
+c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 n = T*nx
 m = T*np
@@ -176,10 +176,10 @@ for t = 1:T
     xU[(t-1)*nx + 3] = model.r
 end
 
-nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
+nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
 u0 = 1.0e-2*rand(nu)
-λ0 = 1.0e-2*rand(1)[1]
+y0 = 1.0e-2*rand(1)[1]
 β0 = 1.0e-2*rand(nβ)
 ψ0 = 1.0e-2*rand(1)[1]
 η0 = 1.0e-2*rand(nβ)
@@ -187,7 +187,7 @@ s0 = 1.0e-2*rand(1)[1]
 
 x0 = zeros(T*nx)
 for t = 1:T
-    x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;1.0e-2*rand(nβ)]
+    x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;y0;β0;ψ0;η0;s0;s0;s0;s0;s0;1.0e-2*rand(nβ)]
 end
 
 opts= Options{Float64}(kkt_solve=:symmetric,
@@ -201,8 +201,8 @@ s = InteriorPointSolver(x0,nlp_model,opts=opts)
 norm(c_func(s.s.x),1)
 
 s_new = InteriorPointSolver(s.s.x,nlp_model,opts=opts)
-s_new.s.λ .= s.s.λ
-s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c
+s_new.s.y .= s.s.y
+s_new.s.y_al .= s.s.y_al + s.s.ρ*s.s.c
 s_new.s.ρ = s.s.ρ*5.0
 solve!(s_new,verbose=true)
 s = s_new
@@ -211,7 +211,7 @@ norm(c_func(s.s.x),1)
 function get_q(z)
     Q = [qpp,qp]
     for t = 1:T
-        q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
+        q,u,y,β,ψ,η,s,sϕ,syϕ,sfc,sψfc,sβη = unpack(z[(t-1)*nx .+ (1:nx)])
         push!(Q,q)
         println("s: $s")
     end

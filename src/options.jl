@@ -20,8 +20,8 @@
     s_max::T = 100.
     κΣ::T = 1.0e10
     bnd_tol::T = 1.0e8
-    λ_init_ls::Bool = true
-    λ_max::T = 1.0e3
+    y_init_ls::Bool = true
+    y_max::T = 1.0e3
     z_reset::Bool = true
 
     δw_min::T = 1.0e-20
@@ -83,8 +83,8 @@ function Base.copy(o::Options{T}) where T
                     s_max=copy(o.s_max),
                     κΣ=copy(o.κΣ),
                     bnd_tol=copy(o.bnd_tol),
-                    λ_init_ls=copy(o.λ_init_ls),
-                    λ_max=copy(o.λ_max),
+                    y_init_ls=copy(o.y_init_ls),
+                    y_max=copy(o.y_max),
                     z_reset=copy(o.z_reset),
                     δw_min=copy(o.δw_min),
                     δw0=copy(o.δw0),

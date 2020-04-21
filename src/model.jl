@@ -13,7 +13,7 @@ mutable struct Model{T} <: AbstractModel
 
     c_func!::Function
     ∇c_func!::Function
-    ∇²cλ_func!::Function
+    ∇²cy_func!::Function
 end
 
 function objective_functions(f::Function)
@@ -37,12 +37,12 @@ function constraint_functions(c::Function)
         return nothing
     end
 
-    function ∇²cλ_func!(∇²cλ,x,λ)
+    function ∇²cy_func!(∇²cy,x,y)
         ∇c_func(x) = ForwardDiff.jacobian(c_func,x)
-        ∇cλ(x) = ∇c_func(x)'*λ
-        ∇²cλ .= ForwardDiff.jacobian(∇cλ,x)
+        ∇cy(x) = ∇c_func(x)'*y
+        ∇²cy .= ForwardDiff.jacobian(∇cy,x)
         return return nothing
     end
 
-    return c_func!, ∇c_func!, ∇²cλ_func!
+    return c_func!, ∇c_func!, ∇²cy_func!
 end

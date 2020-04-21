@@ -62,14 +62,14 @@ model = Hopper(mb,ml,Jb,Jl,r,μ,g,p1,Δt)
 function unpack(x)
     q = x[1:nq]
     u = x[nq .+ (1:nu)]
-    λ = nc == 1 ? x[nq+nu+1] : x[nq+nu .+ (1:nc)]
+    y = nc == 1 ? x[nq+nu+1] : x[nq+nu .+ (1:nc)]
     β = x[nq+nu+nc .+ (1:nβ)]
     ψ = nc == 1 ? x[nq+nu+nc+nβ+1] : x[nq+nu+nc+nβ .+ (1:nc)]
     η = x[nq+nu+nc+nβ+nc .+ (1:nβ)]
     sϕ = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+nc] : x[nq+nu+nc+nβ+nc+nβ .+ (1:nc)]
     sfc = nc == 1 ? x[nq+nu+nc+nβ+nc+nβ+2nc] : x[nq+nu+nc+nβ+nc+nβ+1nc .+ (1:nc)]
 
-    return q,u,λ,β,ψ,η,sϕ,sfc
+    return q,u,y,β,ψ,η,sϕ,sfc
 end
 
 W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
@@ -103,14 +103,14 @@ qpp = Q0[2]
 qp = Q0[2]
 
 function f_func(x)
-    q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
+    q,u,y,β,ψ,η,sϕ,sfc = unpack(x)
     return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c
 end
 
 function f_func(z)
     _sum = 0.
     for t = 1:T
-        q,u,λ,β,ψ,η,sϕ,sfc = unpack(z[(t-1)*nx .+ (1:nx)])
+        q,u,y,β,ψ,η,sϕ,sfc = unpack(z[(t-1)*nx .+ (1:nx)])
 
         if t != T
             _sum += 0.5*q'*W*q + w'*q + 0.5*u'*R*u + rr'*u + obj_c
@@ -123,12 +123,12 @@ end
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
 function c_func(x)
-    q,u,λ,β,ψ,η,sϕ,sfc = unpack(x)
-    [1/model.Δt*(M(model,qpp)*(qp - qpp) - M(model,qp)*(q - qp)) - model.Δt*∇V(model,qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
+    q,u,y,β,ψ,η,sϕ,sfc = unpack(x)
+    [1/model.Δt*(M(model,qpp)*(qp - qpp) - M(model,qp)*(q - qp)) - model.Δt*∇V(model,qp) + B(model,q)'*u +  N(model,q)'*y + P(model,q)'*β;
      P(model,q)*(q-qp)/model.Δt + ψ*ones(nβ) - η;
      sϕ - ϕ(model,q);
-     λ*sϕ;
-     sfc - (model.μ*λ - β'*ones(nβ));
+     y*sϕ;
+     sfc - (model.μ*y - β'*ones(nβ));
      ψ*sfc;
      β.*η]
 end
@@ -137,7 +137,7 @@ function c_func(z)
     c = zeros(eltype(z),np*T)
 
     for t = 1:T
-        q,u,λ,β,ψ,η,sϕ,sfc = unpack(z[(t-1)*nx .+ (1:nx)])
+        q,u,y,β,ψ,η,sϕ,sfc = unpack(z[(t-1)*nx .+ (1:nx)])
 
         if t == 1
             _qpp = qpp
@@ -150,17 +150,17 @@ function c_func(z)
             _qp = z[(t-2)*nx .+ (1:nq)]
         end
 
-        c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*λ + P(model,q)'*β;
+        c[(t-1)*np .+ (1:np)] .= [1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*y + P(model,q)'*β;
                                   P(model,q)*(q-_qp)/model.Δt + ψ*ones(nβ) - η;
                                   sϕ - ϕ(model,q);
-                                  sfc - (model.μ*λ - β'*ones(nβ));
-                                  λ*sϕ;
+                                  sfc - (model.μ*y - β'*ones(nβ));
+                                  y*sϕ;
                                   ψ*sfc;
                                   β.*η]
      end
      return c
 end
-c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
+c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 n = T*nx
 m = T*np
@@ -174,18 +174,18 @@ for t = 1:T
 end
 
 
-nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
+nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
-c_relax_t = ones(Bool,np)
-c_relax_t[1:nq+nβ+nc+nc] .= 0
-c_relax = ones(Bool,nlp_model.m)
+c_al_idx_t = ones(Bool,np)
+c_al_idx_t[1:nq+nβ+nc+nc] .= 0
+c_al_idx = ones(Bool,nlp_model.m)
 
 for t = 1:T
-    c_relax[(t-1)*np .+ (1:np)] .= c_relax_t
+    c_al_idx[(t-1)*np .+ (1:np)] .= c_al_idx_t
 end
 
 u0 = 1.0e-3*rand(nu)
-λ0 = 1.0e-3*rand(1)[1]
+y0 = 1.0e-3*rand(1)[1]
 β0 = 1.0e-3*rand(nβ)
 ψ0 = 1.0e-3*rand(1)[1]
 η0 = 1.0e-3*rand(nβ)
@@ -193,7 +193,7 @@ s0 = 1.0e-3*rand(1)[1]
 
 x0 = zeros(T*nx)
 for t = 1:T
-    x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;λ0;β0;ψ0;η0;ϕ(model,Q0[t+2]);model.μ*λ0 - β0'*ones(nβ)]
+    x0[(t-1)*nx .+ (1:nx)] .= [Q0[t+2];u0;y0;β0;ψ0;η0;ϕ(model,Q0[t+2]);model.μ*y0 - β0'*ones(nβ)]
 end
 
 opts = Options{Float64}(kkt_solve=:symmetric,
@@ -203,26 +203,26 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        max_iterative_refinement=100,
                        ϵ_tol=1.0e-6)
 
-s = InteriorPointSolver(x0,nlp_model,c_relax=c_relax,opts=opts)
+s = InteriorPointSolver(x0,nlp_model,c_al_idx=c_al_idx,opts=opts)
 
 # s.s.ρ = 1.0/s.μ
 @time solve!(s,verbose=true)
-norm(c_func(s.s.x)[c_relax .== 0],1)
-norm(c_func(s.s.x)[c_relax],1)
+norm(c_func(s.s.x)[c_al_idx .== 0],1)
+norm(c_func(s.s.x)[c_al_idx],1)
 
-# s_new = InteriorPointSolver(s.s.x,nlp_model,c_relax=c_relax,opts=opts)
-# s_new.s.λ .= s.s.λ
-# s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c[c_relax]
+# s_new = InteriorPointSolver(s.s.x,nlp_model,c_al_idx=c_al_idx,opts=opts)
+# s_new.s.y .= s.s.y
+# s_new.s.y_al .= s.s.y_al + s.s.ρ*s.s.c[c_al_idx]
 # s_new.s.ρ = s.s.ρ*10.0
 # solve!(s_new,verbose=true)
 # s = s_new
-# norm(c_func(s.s.x)[c_relax .== 0],1)
-# norm(c_func(s.s.x)[c_relax],1)
+# norm(c_func(s.s.x)[c_al_idx .== 0],1)
+# norm(c_func(s.s.x)[c_al_idx],1)
 
 function get_q(z)
     Q = [qpp,qp]
     for t = 1:T
-        q,u,λ,β,ψ,η,sϕ,sfc = unpack(z[(t-1)*nx .+ (1:nx)])
+        q,u,y,β,ψ,η,sϕ,sfc = unpack(z[(t-1)*nx .+ (1:nx)])
         push!(Q,q)
     end
     return Q

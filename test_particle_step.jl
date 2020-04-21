@@ -42,37 +42,37 @@ obj_c = 0.5*qf'*W*qf + 0.5*uf'*R*uf
 function unpack(x)
     q = x[1:nq]
     u = x[nq .+ (1:nu)]
-    λ = x[nq+nu+nc]
+    y = x[nq+nu+nc]
     β = x[nq+nu+nc .+ (1:nβ)]
     ψ = x[nq+nu+nc+nβ+nc]
     η = x[nq+nu+nc+nβ+nc .+ (1:nβ)]
     s = x[nq+nu+nc+nβ+nc+nβ+nc]
     sϕ = x[nq+nu+nc+nβ+nc+nβ+2nc]
-    sλϕ = x[nq+nu+nc+nβ+nc+nβ+3nc]
+    syϕ = x[nq+nu+nc+nβ+nc+nβ+3nc]
     sfc = x[nq+nu+nc+nβ+nc+nβ+4nc]
     sψfc = x[nq+nu+nc+nβ+nc+nβ+5nc]
     sβη = x[nq+nu+nc+nβ+nc+nβ+5nc .+ (1:nβ)]
 
-    return q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη
+    return q,u,y,β,ψ,η,s,sϕ,syϕ,sfc,sψfc,sβη
 end
 
 function f_func(x)
-    q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(x)
+    q,u,y,β,ψ,η,s,sϕ,syϕ,sfc,sψfc,sβη = unpack(x)
     return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + r'*u + obj_c + 10.0*s
 end
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
 function c_func(x)
-    q,u,λ,β,ψ,η,s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(x)
-    [M*(2*qp - qpp - q)/dt - G*dt + B*u + P'*β + N*λ;
+    q,u,y,β,ψ,η,s,sϕ,syϕ,sfc,sψfc,sβη = unpack(x)
+    [M*(2*qp - qpp - q)/dt - G*dt + B*u + P'*β + N*y;
      sϕ - N'*q;
-     sλϕ - (s - λ*(N'*q));
+     syϕ - (s - y*(N'*q));
      P*(q-qp)/dt + ψ*ones(nβ) - η;
-     sfc - (0.5*λ - β'*ones(nβ));
-     sψfc - (s - ψ*(0.5*λ - β'*ones(nβ)));
+     sfc - (0.5*y - β'*ones(nβ));
+     sψfc - (s - ψ*(0.5*y - β'*ones(nβ)));
      sβη - (s*ones(nβ) - β.*η)]
 end
-c!, ∇c!, ∇²cλ! = constraint_functions(c_func)
+c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 n = nx
 m = np
@@ -80,16 +80,16 @@ xL = -Inf*ones(nx)
 xL[(nq+nu+1):end] .= 0.
 xU = Inf*ones(nx)
 
-model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cλ!)
+model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
 q0 = 0.1*rand(nq)
 u0 = 0.1*rand(nu)
-λ0 = 0.1*rand(1)[1]
+y0 = 0.1*rand(1)[1]
 β0 = 0.1*rand(nβ)
 ψ0 = 0.1*rand(1)[1]
 η0 = 0.1*rand(nβ)
 s0 = 0.1*rand(1)[1]
-x0 = [q0;u0;λ0;β0;ψ0;η0;s0;s0;s0;s0;s0;0.1*rand(nβ)]
+x0 = [q0;u0;y0;β0;ψ0;η0;s0;s0;s0;s0;s0;0.1*rand(nβ)]
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,
@@ -101,8 +101,8 @@ s = InteriorPointSolver(x0,model,opts=opts)
 norm(c_func(s.s.x),1)
 
 s_new = InteriorPointSolver(s.s.x,model,opts=opts)
-s_new.s.λ .= s.s.λ
-s_new.s.λ_al .= s.s.λ_al + s.s.ρ*s.s.c
+s_new.s.y .= s.s.y
+s_new.s.y_al .= s.s.y_al + s.s.ρ*s.s.c
 s_new.s.ρ = s.s.ρ*2.0
 solve!(s_new,verbose=true)
 s = s_new
@@ -113,6 +113,6 @@ norm(c_func(s.s.x),1)
 
 
 
-q,u,λ,β,ψ,η,_s,sϕ,sλϕ,sfc,sψfc,sβη = unpack(s.s.x)
+q,u,y,β,ψ,η,_s,sϕ,syϕ,sfc,sψfc,sβη = unpack(s.s.x)
 
 println("s: $_s")

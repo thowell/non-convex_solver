@@ -54,7 +54,7 @@ function line_search(s::Solver)
             else
                 # backup current iterate
                 s.x_copy .= copy(s.x)
-                s.λ_copy .= copy(s.λ)
+                s.y_copy .= copy(s.y)
                 s.zL_copy .= copy(s.zL)
                 s.zU_copy .= copy(s.zU)
                 @warn "implement watchdog"

@@ -4,10 +4,10 @@ struct Indices
     xU::Vector{Int}
     xLs::Vector{Int}
     xUs::Vector{Int}
-    λ::UnitRange{Int}
+    y::UnitRange{Int}
     zL::UnitRange{Int}
     zU::UnitRange{Int}
-    xλ::UnitRange{Int}
+    xy::UnitRange{Int}
 end
 
 function indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool)
@@ -16,12 +16,12 @@ function indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool)
     xU = x[xU_bool]
     xLs = x[xLs_bool]
     xUs = x[xUs_bool]
-    λ = n .+ (1:m)
+    y = n .+ (1:m)
     zL = n + m .+ (1:nL)
     zU = n + m + nL .+ (1:nU)
-    xλ = 1:(n+m)
+    xy = 1:(n+m)
 
-    Indices(x,xL,xU,xLs,xUs,λ,zL,zU,xλ)
+    Indices(x,xL,xU,xLs,xUs,y,zL,zU,xy)
 end
 
 struct RestorationIndices
@@ -31,7 +31,7 @@ struct RestorationIndices
     zp::UnitRange{Int}
     zn::UnitRange{Int}
     zU::UnitRange{Int}
-    xλ::Vector{Int}
+    xy::Vector{Int}
 end
 
 function restoration_indices()
@@ -41,7 +41,7 @@ function restoration_indices()
     zp = 0:0
     zn = 0:0
     zU = 0:0
-    xλ = [0]
+    xy = [0]
 
-    RestorationIndices(p,n,zL,zp,zn,zU,xλ)
+    RestorationIndices(p,n,zL,zp,zn,zU,xy)
 end

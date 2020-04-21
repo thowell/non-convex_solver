@@ -20,7 +20,7 @@ mutable struct Solver{T}
     nL::Int
     nU::Int
 
-    λ::Vector{T}
+    y::Vector{T}
     zL::Vector{T}
     zU::Vector{T}
 
@@ -53,13 +53,13 @@ mutable struct Solver{T}
     c_soc::Vector{T}
     c_tmp::Vector{T}
 
-    ∇²cλ::SparseMatrixCSC{T,Int}
+    ∇²cy::SparseMatrixCSC{T,Int}
 
     d::Vector{T}
     d_soc::Vector{T}
 
     dx::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
-    dλ::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    dy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     dzL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     dzU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
 
@@ -102,7 +102,7 @@ mutable struct Solver{T}
     DR::SparseMatrixCSC{T,Int}
 
     x_copy::Vector{T}
-    λ_copy::Vector{T}
+    y_copy::Vector{T}
     zL_copy::Vector{T}
     zU_copy::Vector{T}
     d_copy::Vector{T}
@@ -119,13 +119,13 @@ mutable struct Solver{T}
     Dc::SparseMatrixCSC{T,Int}
 
     ρ::T
-    λ_al::Vector{T}
-    c_relax::Vector{Bool}
+    y_al::Vector{T}
+    c_al_idx::Vector{Bool}
 
     opts::Options{T}
 end
 
-function Solver(x0,model::AbstractModel;c_relax=ones(Bool,model.m), opts=Options{Float64}())
+function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Options{Float64}())
 
     # initialize primals
     x = zeros(model.n)
@@ -228,13 +228,13 @@ function Solver(x0,model::AbstractModel;c_relax=ones(Bool,model.m), opts=Options
     c_soc = zeros(model.m)
     c_tmp = zeros(model.m)
 
-    ∇²cλ = spzeros(model.n,model.n)
+    ∇²cy = spzeros(model.n,model.n)
 
     d = zeros(model.n+model.m+nL+nU)
     d_soc = zeros(model.n+model.m+nL+nU)
 
     dx = view(d,1:model.n)
-    dλ = view(d,model.n .+ (1:model.m))
+    dy = view(d,model.n .+ (1:model.m))
     dzL = view(d,model.n+model.m .+ (1:nL))
     dzU = view(d,model.n+model.m+nL .+ (1:nU))
 
@@ -258,11 +258,11 @@ function Solver(x0,model::AbstractModel;c_relax=ones(Bool,model.m), opts=Options
     δc = 0.
 
 
-    λ = zeros(model.m)
+    y = zeros(model.m)
 
-    opts.λ_init_ls ? init_λ!(λ,H_sym,h_sym,d,zL,zU,∇f,∇c,model.n,model.m,xL_bool,xU_bool,opts.λ_max) : zeros(model.m)
+    opts.y_init_ls ? init_y!(y,H_sym,h_sym,d,zL,zU,∇f,∇c,model.n,model.m,xL_bool,xU_bool,opts.y_max) : zeros(model.m)
 
-    sd = init_sd(λ,[zL;zU],model.n,model.m,opts.s_max)
+    sd = init_sd(y,[zL;zU],model.n,model.m,opts.s_max)
     sc = init_sc([zL;zU],model.n,opts.s_max)
 
     filter = Tuple[]
@@ -279,7 +279,7 @@ function Solver(x0,model::AbstractModel;c_relax=ones(Bool,model.m), opts=Options
     DR = spzeros(0,0)
 
     x_copy = zeros(model.n)
-    λ_copy = zeros(model.m)
+    y_copy = zeros(model.m)
     zL_copy = zeros(nL)
     zU_copy = zeros(nU)
     d_copy = zero(d)
@@ -294,7 +294,7 @@ function Solver(x0,model::AbstractModel;c_relax=ones(Bool,model.m), opts=Options
     Hv = H_views(H,idx)
 
     ρ = 1.0/μ
-    λ_al = zeros(sum(c_relax))
+    y_al = zeros(sum(c_al_idx))
 
     θ = norm(c,1)
     θ_min = init_θ_min(θ)
@@ -305,7 +305,7 @@ function Solver(x0,model::AbstractModel;c_relax=ones(Bool,model.m), opts=Options
     Solver(model,
            x,x⁺,x_soc,
            xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
-           λ,zL,zU,
+           y,zL,zU,
            H,Hv,
            h,
            H_sym,
@@ -315,8 +315,8 @@ function Solver(x0,model::AbstractModel;c_relax=ones(Bool,model.m), opts=Options
            f,∇f,∇²f,
            φ,∇φ,
            ∇L,
-           c,c_soc,c_tmp,∇²cλ,
-           d,d_soc,dx,dλ,dzL,dzU,Δ,res,
+           c,c_soc,c_tmp,∇²cy,
+           d,d_soc,dx,dy,dzL,dzU,Δ,res,
            μ,α,αz,α_max,α_min,α_soc,β,τ,
            δ,δw,δw_last,δc,
            θ,θ_min,θ_max,θ_soc,
@@ -324,24 +324,24 @@ function Solver(x0,model::AbstractModel;c_relax=ones(Bool,model.m), opts=Options
            filter,
            j,k,l,p,t,small_search_direction_cnt,
            restoration,DR,
-           x_copy,λ_copy,zL_copy,zU_copy,d_copy,
+           x_copy,y_copy,zL_copy,zU_copy,d_copy,
            Fμ,
            idx,idx_r,
            fail_cnt,
            Dx,df,Dc,
-           ρ,λ_al,c_relax,
+           ρ,y_al,c_al_idx,
            opts)
 end
 
-function eval_Eμ(x,λ,zL,zU,xL,xU,xL_bool,xU_bool,c,∇L,μ,sd,sc,ρ,λ_al,c_relax)
+function eval_Eμ(x,y,zL,zU,xL,xU,xL_bool,xU_bool,c,∇L,μ,sd,sc,ρ,y_al,c_al_idx)
     return max(norm(∇L,Inf)/sd,
-               norm(c[c_relax .== 0],Inf),
-               norm(c[c_relax] + 1.0/ρ*(λ_al - λ[c_relax]),Inf),
+               norm(c[c_al_idx .== 0],Inf),
+               norm(c[c_al_idx] + 1.0/ρ*(y_al - y[c_al_idx]),Inf),
                norm((x-xL)[xL_bool].*zL .- μ,Inf)/sc,
                norm((xU-x)[xU_bool].*zU .- μ,Inf)/sc)
 end
 
-eval_Eμ(μ,s::Solver) = eval_Eμ(s.x,s.λ,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_bool,s.c,s.∇L,μ,s.sd,s.sc,s.ρ,s.λ_al,s.c_relax)
+eval_Eμ(μ,s::Solver) = eval_Eμ(s.x,s.y,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_bool,s.c,s.∇L,μ,s.sd,s.sc,s.ρ,s.y_al,s.c_al_idx)
 
 function eval_objective!(s::Solver)
     s.f = s.opts.nlp_scaling ? s.df*s.model.f_func(s.x) : s.model.f_func(s.x)
@@ -358,7 +358,7 @@ function eval_constraints!(s::Solver)
     end
 
     s.model.∇c_func!(s.∇c,s.x)
-    s.model.∇²cλ_func!(s.∇²cλ,s.x,s.λ)
+    s.model.∇²cy_func!(s.∇²cy,s.x,s.y)
 
     s.c_tmp .= copy(s.c)
     s.θ = norm(s.c_tmp,1)
@@ -367,11 +367,11 @@ end
 
 function eval_lagrangian!(s::Solver)
     s.∇L .= s.∇f
-    s.∇L .+= s.∇c'*s.λ
+    s.∇L .+= s.∇c'*s.y
     s.∇L[s.xL_bool] -= s.zL
     s.∇L[s.xU_bool] += s.zU
 
-    s.∇²L .= s.∇²f + s.∇²cλ
+    s.∇²L .= s.∇²f + s.∇²cy
 
     # damping
     if s.opts.single_bnds_damping
@@ -388,13 +388,13 @@ function eval_barrier!(s::Solver)
     s.φ -= s.μ*sum(log.((s.x - s.xL)[s.xL_bool]))
     s.φ -= s.μ*sum(log.((s.xU - s.x)[s.xU_bool]))
 
-    s.φ += s.λ_al'*s.c[s.c_relax] + 0.5*s.ρ*s.c[s.c_relax]'*s.c[s.c_relax]
+    s.φ += s.y_al'*s.c[s.c_al_idx] + 0.5*s.ρ*s.c[s.c_al_idx]'*s.c[s.c_al_idx]
 
     s.∇φ .= s.∇f
     s.∇φ[s.xL_bool] -= s.μ./(s.x - s.xL)[s.xL_bool]
     s.∇φ[s.xU_bool] += s.μ./(s.xU - s.x)[s.xU_bool]
 
-    s.∇φ .+= s.∇c[s.c_relax,:]'*(s.λ_al + s.ρ*s.c[s.c_relax])
+    s.∇φ .+= s.∇c[s.c_al_idx,:]'*(s.y_al + s.ρ*s.c[s.c_al_idx])
 
     # damping
     if s.opts.single_bnds_damping
@@ -416,8 +416,8 @@ function eval_iterate!(s::Solver)
     return nothing
 end
 
-function init_sd(λ,z,n,m,s_max)
-    sd = max(s_max,(norm(λ,1) + norm(z,1))/(n+m))/s_max
+function init_sd(y,z,n,m,s_max)
+    sd = max(s_max,(norm(y,1) + norm(z,1))/(n+m))/s_max
     return sd
 end
 
@@ -479,7 +479,7 @@ function init_x0(x,xL,xU,κ1,κ2)
     return x
 end
 
-function init_λ!(λ,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
+function init_y!(y,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,y_max)
 
     if m > 0
         H[CartesianIndex.((1:n),(1:n))] .= 1.0
@@ -495,15 +495,15 @@ function init_λ!(λ,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,λ_max)
         ma57_factorize(LBL)
 
         d[1:(n+m)] .= ma57_solve(LBL,-h)
-        λ .= d[n .+ (1:m)]
+        y .= d[n .+ (1:m)]
 
 
-        if norm(λ,Inf) > λ_max || any(isnan.(λ))
-            @warn "least-squares λ init failure:\n λ_max = $(norm(λ,Inf))"
-            λ .= 0.
+        if norm(y,Inf) > y_max || any(isnan.(y))
+            @warn "least-squares y init failure:\n y_max = $(norm(y,Inf))"
+            y .= 0.
         end
     else
-        λ .= 0.
+        y .= 0.
     end
     H .= 0.
     return nothing
@@ -517,8 +517,8 @@ function θ(x,s::Solver)
     return norm(s.c_tmp,1)
 end
 
-function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func,df,ρ,λ_al,c,c_relax)
-    return (df*f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]) + λ_al'*c[c_relax] + 0.5*ρ*c[c_relax]'*c[c_relax])
+function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func,df,ρ,y_al,c,c_al_idx)
+    return (df*f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]) + y_al'*c[c_al_idx] + 0.5*ρ*c[c_al_idx]'*c[c_al_idx])
 end
 
 function barrier(x,s::Solver)
@@ -529,7 +529,7 @@ function barrier(x,s::Solver)
     return barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,
     s.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,s.model.f_func,
     s.opts.nlp_scaling ? s.df : 1.0,
-    s.ρ,s.λ_al,s.c_tmp,s.c_relax)
+    s.ρ,s.y_al,s.c_tmp,s.c_al_idx)
 end
 
 function update!(s::Solver)
@@ -539,7 +539,7 @@ function update!(s::Solver)
         s.x .= s.Dx*s.x
     end
 
-    s.λ .= s.λ + s.α*s.dλ
+    s.y .= s.y + s.α*s.dy
     s.zL .= s.zL + s.αz*s.dzL
     s.zU .= s.zU + s.αz*s.dzU
     return nothing
@@ -580,8 +580,8 @@ struct InteriorPointSolver{T}
     s̄::Solver{T}
 end
 
-function InteriorPointSolver(x0,model::AbstractModel; c_relax=ones(Bool,model.m),opts=Options{Float64}()) where T
-    s = Solver(x0,model,c_relax=c_relax,opts=opts)
+function InteriorPointSolver(x0,model::AbstractModel; c_al_idx=ones(Bool,model.m),opts=Options{Float64}()) where T
+    s = Solver(x0,model,c_al_idx=c_al_idx,opts=opts)
     s̄ = RestorationSolver(s)
 
     InteriorPointSolver(s,s̄)
