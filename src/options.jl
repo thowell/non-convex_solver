@@ -1,4 +1,5 @@
 @with_kw mutable struct Options{T}
+    verbose::Bool = true
     ϵ_tol::T = 1.0e-8
     max_iter::Int = 100
     zL0::T = 1.0
@@ -33,7 +34,7 @@
     κw⁻::T = 1.0/3.0
     κc::T = 0.25
 
-    ρ::T = 1000.
+    ρ_resto::T = 1000.
     κF::T = 0.999
     κ_resto::T = 0.9
 
@@ -62,7 +63,9 @@
 end
 
 function Base.copy(o::Options{T}) where T
-    return Options{T}(ϵ_tol=copy(o.ϵ_tol),
+    return Options{T}(
+                    verbose=copy(o.verbose),
+                    ϵ_tol=copy(o.ϵ_tol),
                     max_iter=copy(o.max_iter),
                     zL0=copy(o.zL0),
                     zU0=copy(o.zU0),
@@ -94,7 +97,7 @@ function Base.copy(o::Options{T}) where T
                     κw⁺=copy(o.κw⁺),
                     κw⁻=copy(o.κw⁻),
                     κc=copy(o.κc),
-                    ρ=copy(o.ρ),
+                    ρ_resto=copy(o.ρ_resto),
                     κF=copy(o.κF),
                     κ_resto=copy(o.κ_resto),
                     κ1=copy(o.κ1),

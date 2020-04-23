@@ -11,12 +11,12 @@ function iterative_refinement(d,s::Solver; verbose=true)
         if s.opts.kkt_solve == :unreduced
             s.Δ .= (s.H+Diagonal(s.δ))\s.res
         elseif s.opts.kkt_solve == :symmetric
-            s.res[s.idx.xL] .+= s.res[s.idx.zL]./((s.x - s.xL)[s.xL_bool])
-            s.res[s.idx.xU] .-= s.res[s.idx.zU]./((s.xU - s.x)[s.xU_bool])
+            s.res[s.idx.xL] .+= s.res[s.idx.zL]./s.ΔxL
+            s.res[s.idx.xU] .-= s.res[s.idx.zU]./s.ΔxU
 
             s.Δ[s.idx.xy] .= ma57_solve(s.LBL,s.res[s.idx.xy])
-            s.Δ[s.idx.zL] .= -s.zL./((s.x - s.xL)[s.xL_bool]).*s.Δ[s.idx.xL] + s.res[s.idx.zL]./((s.x - s.xL)[s.xL_bool])
-            s.Δ[s.idx.zU] .= s.zU./((s.xU - s.x)[s.xU_bool]).*s.Δ[s.idx.xU] + s.res[s.idx.zU]./((s.xU - s.x)[s.xU_bool])
+            s.Δ[s.idx.zL] .= -s.σL.*s.Δ[s.idx.xL] + s.res[s.idx.zL]./s.ΔxL
+            s.Δ[s.idx.zU] .= s.σU.*s.Δ[s.idx.xU] + s.res[s.idx.zU]./s.ΔxU
         end
 
         d .+= s.Δ

@@ -1,10 +1,10 @@
 function kkt_error_reduction(s::Solver)
     status = false
     s.t = 0
-    s.x_copy .= copy(s.x)
-    s.y_copy .= copy(s.y)
-    s.zL_copy .= copy(s.zL)
-    s.zU_copy .= copy(s.zU)
+    s.x_copy .= s.x
+    s.y_copy .= s.y
+    s.zL_copy .= s.zL
+    s.zU_copy .= s.zU
 
     Fμ_norm = norm(eval_Fμ(s.x,s.y,s.zL,s.zU,s),1)
 
@@ -37,10 +37,10 @@ function kkt_error_reduction(s::Solver)
         s.αz = s.β
         return true
     else
-        s.x .= copy(s.x_copy)
-        s.y .= copy(s.y_copy)
-        s.zL .= copy(s.zL_copy)
-        s.zU .= copy(s.zU_copy)
+        s.x .= s.x_copy
+        s.y .= s.y_copy
+        s.zL .= s.zL_copy
+        s.zU .= s.zU_copy
         return false
     end
 end
@@ -66,7 +66,7 @@ function eval_Fμ(x,y,zL,zU,s)
 
     s.Fμ[s.idx.x] = s.∇L
     s.Fμ[s.idx.y] = s.c
-    s.Fμ[s.idx.y_al] .+= 1.0/s.ρ*(s.λ - s.y_al)
+    s.Fμ[s.idx.y_al] += 1.0/s.ρ*(s.λ - s.y_al)
     s.Fμ[s.idx.zL] = zL.*((x-s.xL)[s.xL_bool]) .- s.μ
     s.Fμ[s.idx.zU] = zU.*((s.xU-x)[s.xU_bool]) .- s.μ
     return s.Fμ

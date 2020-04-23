@@ -21,7 +21,6 @@ function second_order_correction(s::Solver)
             if (s.θ <= s.θ_min && switching_condition(s))
                 if armijo(s.x⁺,s)
                     s.α = s.α_soc
-                    # s.dy .= s.d_soc[s.idx.y]
                     status = true
                     println("second-order correction: success")
                     break
@@ -30,7 +29,6 @@ function second_order_correction(s::Solver)
             else#(s.θ > s.θ_min || !switching_condition(s))
                 if sufficient_progress(s.x⁺,s)
                     s.α = s.α_soc
-                    # s.dy .= s.d_soc[s.idx.y]
                     status = true
                     println("second-order correction: success")
                     break
@@ -106,8 +104,8 @@ function search_direction_soc_symmetric!(s::Solver)
     inertia_correction!(s)
 
     s.d_soc[s.idx.xy] .= ma57_solve(s.LBL, -s.h_sym)
-    s.d_soc[s.idx.zL] .= -(Diagonal((s.x - s.xL)[s.xL_bool])\Diagonal(s.zL))*s.d_soc[s.idx.xL] - s.zL + Diagonal((s.x - s.xL)[s.xL_bool])\(s.μ*ones(s.nL))
-    s.d_soc[s.idx.zU] .= (Diagonal((s.xU - s.x)[s.xU_bool])\Diagonal(s.zU))*s.d_soc[s.idx.xU] - s.zU + Diagonal((s.xU - s.x)[s.xU_bool])\(s.μ*ones(s.nU))
+    s.d_soc[s.idx.zL] .= -s.σL.*s.d_soc[s.idx.xL] - s.zL + s.μ./s.ΔxL
+    s.d_soc[s.idx.zU] .= s.σU.*s.d_soc[s.idx.xU] - s.zU + s.μ./s.ΔxU
 
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)

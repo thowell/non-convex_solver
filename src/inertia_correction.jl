@@ -1,12 +1,12 @@
 function inertia_correction!(s::Solver; restoration=false,verbose=true)
     s.δw = 0.0
-    s.δc = 0.0#restoration ? 0. : s.μ #s.opts.δc*s.μ^s.opts.κc
+    s.δc = 0.0
 
     factorize_kkt!(s)
 
     verbose ? println("inertia-> n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)") : nothing
 
-    inertia(s) ? (return s.LBL) : nothing
+    inertia(s) ? (return nothing) : nothing
 
     if s.inertia.z != 0
         verbose ? (println("$(s.inertia.z) zero eigen values")) : nothing
