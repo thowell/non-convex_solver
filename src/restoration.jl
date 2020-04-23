@@ -372,11 +372,6 @@ end
 # symmetric KKT system
 function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     s.model.∇²cy_func!(s.∇²cy,s̄.x[s.idx.x],s̄.y)
-    s̄.ΣL[CartesianIndex.(s̄.idx.xL,s̄.idx.xL)] .= s̄.zL./((s̄.x - s̄.xL)[s̄.xL_bool])
-    s̄.ΣU[CartesianIndex.(s̄.idx.xU,s̄.idx.xU)] .= s̄.zU./((s̄.xU - s̄.x)[s̄.xU_bool])
-    s.ΣL .= s̄.ΣL[s.idx.x,s.idx.x]
-    s.ΣU .= s̄.ΣU[s.idx.x,s.idx.x]
-
     s.model.∇c_func!(s.∇c,s̄.x[s.idx.x])
 
     p = s̄.x[s̄.idx_r.p]
@@ -387,8 +382,8 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     zn = s̄.zL[s.nL + s.model.m .+ (1:s.model.m)]
 
     s.H_sym[s.idx.x,s.idx.x] .= s.∇²cy + sqrt(s̄.μ)*s̄.DR'*s̄.DR
-    s.H_sym[s.idx.x,s.idx.x] .+= s.ΣL
-    s.H_sym[s.idx.x,s.idx.x] .+= s.ΣU
+    s.H_sym[s.idx.xL,s.idx.xL] .+= Diagonal(s̄.σL[1:s.nL])
+    s.H_sym[s.idx.xU,s.idx.xU] .+= Diagonal(s̄.σU[1:s.nU])
     s.H_sym[s.idx.x,s.idx.y] .= s.∇c'
     s.H_sym[s.idx.y,s.idx.x] .= s.∇c
     s.H_sym[s.idx.y,s.idx.y] .= -1.0*Diagonal(p./zp) - Diagonal(n./zn) - Diagonal(1.0/s̄.ρ*s̄.c_al_idx)

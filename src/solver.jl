@@ -38,8 +38,8 @@ mutable struct Solver{T}
     inertia::Inertia
 
     ∇²L::SparseMatrixCSC{T,Int}
-    ΣL::SparseMatrixCSC{T,Int}
-    ΣU::SparseMatrixCSC{T,Int}
+    σL::Vector{T}
+    σU::Vector{T}
     ∇c::SparseMatrixCSC{T,Int}
 
     f::T
@@ -209,8 +209,8 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
     inertia = Inertia(0,0,0)
 
     ∇²L = spzeros(model.n,model.n)
-    ΣL = spzeros(model.n,model.n)
-    ΣU = spzeros(model.n,model.n)
+    σL = zeros(nL)
+    σU = zeros(nU)
     ∇c = spzeros(model.m,model.n)
     model.∇c_func!(∇c,x)
     Dc = init_Dc(opts.g_max,∇c,model.m)
@@ -320,7 +320,7 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
            H_sym,
            h_sym,
            LBL,inertia,
-           ∇²L,ΣL,ΣU,∇c,
+           ∇²L,σL,σU,∇c,
            f,∇f,∇²f,
            φ,∇φ,
            ∇L,
@@ -355,6 +355,9 @@ eval_Eμ(μ,s::Solver) = eval_Eμ(s.x,s.y,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_boo
 function eval_bounds!(s::Solver)
     s.ΔxL .= (s.x - s.xL)[s.xL_bool]
     s.ΔxU .= (s.xU - s.x)[s.xU_bool]
+
+    s.σL .= s.zL./s.ΔxL
+    s.σU .= s.zU./s.ΔxU
     return nothing
 end
 
