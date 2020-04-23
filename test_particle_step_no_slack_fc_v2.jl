@@ -24,7 +24,7 @@ G(q) = [0; 0; 9.8]
 
 N(q) = [0; 0; 1]
 
-qpp = [0., 0., 10.]
+qpp = [0., 0.,10.]
 v0 = [10., -7.0, 0.]
 v1 = v0 - G(qpp)*dt
 qp = qpp + 0.5*dt*(v0 + v1)
@@ -107,7 +107,7 @@ norm(c_func(s.s.x)[c_al_idx],1)
 
 # s_new = InteriorPointSolver(s.s.x,model,c_al_idx=c_al_idx,opts=opts)
 # s_new.s.y .= s.s.y
-# s_new.s.y_al .= s.s.y_al + s.s.ρ*s.s.c[c_al_idx]
+# s_new.s.λ .= s.s.λ + s.s.ρ*s.s.c[c_al_idx]
 # s_new.s.ρ = s.s.ρ*10.0
 # solve!(s_new,verbose=true)
 # s = s_new

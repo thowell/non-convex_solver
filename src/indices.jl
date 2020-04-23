@@ -5,23 +5,25 @@ struct Indices
     xLs::Vector{Int}
     xUs::Vector{Int}
     y::UnitRange{Int}
+    y_al::Vector{Int}
     zL::UnitRange{Int}
     zU::UnitRange{Int}
     xy::UnitRange{Int}
 end
 
-function indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool)
+function indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,c_al_idx)
     x = 1:n
     xL = x[xL_bool]
     xU = x[xU_bool]
     xLs = x[xLs_bool]
     xUs = x[xUs_bool]
     y = n .+ (1:m)
+    y_al = y[c_al_idx]
     zL = n + m .+ (1:nL)
     zU = n + m + nL .+ (1:nU)
     xy = 1:(n+m)
 
-    Indices(x,xL,xU,xLs,xUs,y,zL,zU,xy)
+    Indices(x,xL,xU,xLs,xUs,y,y_al,zL,zU,xy)
 end
 
 struct RestorationIndices

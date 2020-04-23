@@ -110,7 +110,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
         update_μ!(s̄)
         update_τ!(s̄)
 
-        s̄.y_al .= s̄.y_al + s̄.ρ*s̄.c[s̄.c_al_idx]
+        s̄.λ .= s̄.λ + s̄.ρ*s̄.c_al
         s̄.ρ = 1.0/s̄.μ
 
         eval_iterate!(s̄)
@@ -124,7 +124,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
             update_μ!(s̄)
             update_τ!(s̄)
 
-            s̄.y_al .= s̄.y_al + s̄.ρ*s̄.c[s̄.c_al_idx]
+            s̄.λ .= s̄.λ + s̄.ρ*s̄.c_al
             s̄.ρ = 1.0/s̄.μ
 
             eval_iterate!(s̄)
@@ -142,7 +142,7 @@ end
 
 function restoration_reset!(s̄::Solver,s::Solver)
     s.model.c_func!(s.c,s̄.x[s.idx.x])
-    s.c[s̄.c_al_idx] .+= 1.0/s̄.ρ*(s̄.y_al - s̄.y[s̄.c_al_idx])
+    s.c[s̄.c_al_idx] .+= 1.0/s̄.ρ*(s̄.λ - s̄.y_al)
 
     # initialize p,n
     for i = 1:s.model.m
@@ -209,13 +209,12 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     s̄.j = 0
 
     s.model.c_func!(s.c,s̄.x[s.idx.x])
-    # s.c[s.c_al_idx] .+= 1.0/s.ρ*(s.y_al - s.y[s.c_al_idx])
 
     s̄.μ = max(s.μ,norm(s.c,Inf))
     s̄.τ = update_τ(s̄.μ,s̄.opts.τ_min)
 
     s̄.ρ = 1/s̄.μ
-    s̄.y_al .= 0.
+    s̄.λ .= 0.
 
     s̄.x[s.idx.x] = copy(s.x)
 
@@ -387,7 +386,9 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     zp = s̄.zL[s.nL .+ (1:s.model.m)]
     zn = s̄.zL[s.nL + s.model.m .+ (1:s.model.m)]
 
-    s.H_sym[s.idx.x,s.idx.x] .= s.∇²cy + sqrt(s̄.μ)*s̄.DR'*s̄.DR + s.ΣL + s.ΣU
+    s.H_sym[s.idx.x,s.idx.x] .= s.∇²cy + sqrt(s̄.μ)*s̄.DR'*s̄.DR
+    s.H_sym[s.idx.x,s.idx.x] .+= s.ΣL
+    s.H_sym[s.idx.x,s.idx.x] .+= s.ΣU
     s.H_sym[s.idx.x,s.idx.y] .= s.∇c'
     s.H_sym[s.idx.y,s.idx.x] .= s.∇c
     s.H_sym[s.idx.y,s.idx.y] .= -1.0*Diagonal(p./zp) - Diagonal(n./zn) - Diagonal(1.0/s̄.ρ*s̄.c_al_idx)
@@ -415,7 +416,7 @@ function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
     s.h_sym[s.idx.xL] .-= μ./(s̄.x[s.idx.x] - s.xL)[s.xL_bool]
     s.h_sym[s.idx.xU] .+= μ./(s.xU - s̄.x[s.idx.x])[s.xU_bool]
     s.h_sym[s.idx.y] .= s.c - p + n + ρ*Diagonal(zp)\(μ*ones(s.model.m) - p) + ρ*Diagonal(zn)\(μ*ones(s.model.m) - n)
-    s.h_sym[s.idx.y[s̄.c_al_idx]] .+= 1.0/s̄.ρ*(s̄.y_al - s̄.y[s̄.c_al_idx])
+    s.h_sym[s.idx.y[s̄.c_al_idx]] .+= 1.0/s̄.ρ*(s̄.λ - s̄.y_al)
     return nothing
 end
 

@@ -19,6 +19,8 @@ mutable struct Solver{T}
     xUs_bool::Vector{Bool}
     nL::Int
     nU::Int
+    ΔxL::Vector{T}
+    ΔxU::Vector{T}
 
     y::Vector{T}
     zL::Vector{T}
@@ -119,7 +121,9 @@ mutable struct Solver{T}
     Dc::SparseMatrixCSC{T,Int}
 
     ρ::T
-    y_al::Vector{T}
+    λ::Vector{T}
+    y_al::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    c_al::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
     c_al_idx::Vector{Bool}
 
     opts::Options{T}
@@ -171,6 +175,9 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
 
     nL = convert(Int,sum(xL_bool))
     nU = convert(Int,sum(xU_bool))
+
+    ΔxL = zeros(nL)
+    ΔxU = zeros(nU)
 
     if opts.relax_bnds
        # relax bounds
@@ -286,7 +293,7 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
 
     Fμ = zeros(model.n+model.m+nL+nU)
 
-    idx = indices(model.n,model.m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool)
+    idx = indices(model.n,model.m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,c_al_idx)
     idx_r = restoration_indices()
 
     fail_cnt = 0
@@ -294,7 +301,9 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
     Hv = H_views(H,idx)
 
     ρ = 1.0/μ
-    y_al = zeros(sum(c_al_idx))
+    λ = zeros(sum(c_al_idx))
+    y_al = view(y,c_al_idx)
+    c_al = view(c,c_al_idx)
 
     θ = norm(c,1)
     θ_min = init_θ_min(θ)
@@ -304,7 +313,7 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
 
     Solver(model,
            x,x⁺,x_soc,
-           xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
+           xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,ΔxL,ΔxU,
            y,zL,zU,
            H,Hv,
            h,
@@ -329,7 +338,7 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
            idx,idx_r,
            fail_cnt,
            Dx,df,Dc,
-           ρ,y_al,c_al_idx,
+           ρ,λ,y_al,c_al,c_al_idx,
            opts)
 end
 
@@ -341,7 +350,13 @@ function eval_Eμ(x,y,zL,zU,xL,xU,xL_bool,xU_bool,c,∇L,μ,sd,sc,ρ,y_al,c_al_i
                norm((xU-x)[xU_bool].*zU .- μ,Inf)/sc)
 end
 
-eval_Eμ(μ,s::Solver) = eval_Eμ(s.x,s.y,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_bool,s.c,s.∇L,μ,s.sd,s.sc,s.ρ,s.y_al,s.c_al_idx)
+eval_Eμ(μ,s::Solver) = eval_Eμ(s.x,s.y,s.zL,s.zU,s.xL,s.xU,s.xL_bool,s.xU_bool,s.c,s.∇L,μ,s.sd,s.sc,s.ρ,s.λ,s.c_al_idx)
+
+function eval_bounds!(s::Solver)
+    s.ΔxL .= (s.x - s.xL)[s.xL_bool]
+    s.ΔxU .= (s.xU - s.x)[s.xU_bool]
+    return nothing
+end
 
 function eval_objective!(s::Solver)
     s.f = s.opts.nlp_scaling ? s.df*s.model.f_func(s.x) : s.model.f_func(s.x)
@@ -388,13 +403,13 @@ function eval_barrier!(s::Solver)
     s.φ -= s.μ*sum(log.((s.x - s.xL)[s.xL_bool]))
     s.φ -= s.μ*sum(log.((s.xU - s.x)[s.xU_bool]))
 
-    s.φ += s.y_al'*s.c[s.c_al_idx] + 0.5*s.ρ*s.c[s.c_al_idx]'*s.c[s.c_al_idx]
+    s.φ += s.λ'*s.c_al + 0.5*s.ρ*s.c_al'*s.c_al
 
     s.∇φ .= s.∇f
     s.∇φ[s.xL_bool] -= s.μ./(s.x - s.xL)[s.xL_bool]
     s.∇φ[s.xU_bool] += s.μ./(s.xU - s.x)[s.xU_bool]
 
-    s.∇φ .+= s.∇c[s.c_al_idx,:]'*(s.y_al + s.ρ*s.c[s.c_al_idx])
+    s.∇φ .+= s.∇c[s.c_al_idx,:]'*(s.λ + s.ρ*s.c_al)
 
     # damping
     if s.opts.single_bnds_damping
@@ -409,6 +424,7 @@ function eval_barrier!(s::Solver)
 end
 
 function eval_iterate!(s::Solver)
+    eval_bounds!(s)
     eval_objective!(s)
     eval_constraints!(s)
     eval_lagrangian!(s)
@@ -529,7 +545,7 @@ function barrier(x,s::Solver)
     return barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,
     s.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,s.model.f_func,
     s.opts.nlp_scaling ? s.df : 1.0,
-    s.ρ,s.y_al,s.c_tmp,s.c_al_idx)
+    s.ρ,s.λ,s.c_tmp,s.c_al_idx)
 end
 
 function update!(s::Solver)
