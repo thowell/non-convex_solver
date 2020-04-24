@@ -40,7 +40,7 @@ s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=true
                         nlp_scaling=true,
                         relax_bnds=true))
 # s.s.ρ = 10.0
-@time solve!(s,verbose=true)
+@time solve!(s)
 norm(c_func(s.s.x),1)
 
 # s_new = InteriorPointSolver(s.s.x,model,opts=opts)

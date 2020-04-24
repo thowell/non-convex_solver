@@ -29,7 +29,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=100)
 
 s = InteriorPointSolver(x0,model,opts=opts)
-@time solve!(s,verbose=true)
+@time solve!(s)
 norm(c_func(s.s.x),1)
 
 # ######

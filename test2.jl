@@ -26,4 +26,4 @@ opts = Options{Float64}(iterative_refinement=true,
                         kkt_solve=:symmetric,
                         max_iter=500)
 s = InteriorPointSolver(x0,model,opts=opts)
-@time solve!(s,verbose=true)
+@time solve!(s)

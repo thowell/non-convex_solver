@@ -123,6 +123,6 @@ end
 model = Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cy_func!)
 
 s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,relax_bnds=true,max_iter=1000,y_init_ls=true,max_iterative_refinement=100))
-@time solve!(s,verbose=true)
+@time solve!(s)
 
 finalize(nlp)

@@ -92,7 +92,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         ϵ_tol=1.0e-8)
 
 s = InteriorPointSolver(x0,model,c_al_idx=c_al_idx,opts=opts)
-@time solve!(s,verbose=true)
+@time solve!(s)
 norm(c_func(s.s.x)[c_al_idx .== 0],1)
 norm(c_func(s.s.x)[c_al_idx],1)
 

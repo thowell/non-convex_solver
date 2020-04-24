@@ -214,17 +214,17 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
     ∇²L = spzeros(model.n,model.n)
     σL = zeros(nL)
     σU = zeros(nU)
-    ∇c = spzeros(model.m,model.n)
+    ∇c = model.∇c
     model.∇c_func!(∇c,x)
     Dc = init_Dc(opts.g_max,∇c,model.m)
 
     f = model.f_func(x)
-    ∇f = zeros(model.n)
+    ∇f = model.∇f
     model.∇f_func!(∇f,x)
     df = init_df(opts.g_max,∇f)
     opts.nlp_scaling ? f *= df : nothing
 
-    ∇²f = spzeros(model.n,model.n)
+    ∇²f = model.∇²f
 
     φ = 0.
     φ⁺ = 0.
@@ -232,7 +232,7 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
 
     ∇L = zeros(model.n)
 
-    c = zeros(model.m)
+    c = model.c
     model.c_func!(c,x)
     opts.nlp_scaling ? c .= Dc*c : nothing
 
@@ -316,6 +316,9 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
     θ_max = init_θ_max(θ)
 
     θ_soc = 0.
+
+    model.x = x
+    model.y = y
 
     Solver(model,
            x,x⁺,x_soc,
