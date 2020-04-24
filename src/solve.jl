@@ -1,4 +1,4 @@
-function solve!(solver::InteriorPointSolver; verbose=false)
+function solve!(solver::InteriorPointSolver)
     s = solver.s
 
     # evaluate problem
@@ -7,7 +7,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
     # initialize filter
     push!(s.filter,(s.θ_max,Inf))
 
-    if verbose
+    if s.opts.verbose
         println("<interior-point solve>\n")
         println("θ0: $(s.θ), φ0: $(s.φ)")
         println("Eμ0: $(eval_Eμ(0.0,s))")
@@ -20,7 +20,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
                 s.small_search_direction_cnt += 1
                 if s.small_search_direction_cnt == s.opts.small_search_direction_max
                     if s.μ < 0.1*s.opts.ϵ_tol
-                        verbose ? println("<interior-point solve complete>: small search direction") : nothing
+                        s.opts.verbose ? println("<interior-point solve complete>: small search direction") : nothing
                         return
                     else
                         break
@@ -59,7 +59,7 @@ function solve!(solver::InteriorPointSolver; verbose=false)
                 error("max iterations")
             end
 
-            if verbose
+            if s.opts.verbose
                 println("iteration ($(s.j),$(s.k)):")
                 s.model.n < 5 ? println("x: $(s.x)") : nothing
                 println("θ: $(θ(s.x,s)), φ: $(barrier(s.x,s))")
@@ -96,5 +96,5 @@ function solve!(solver::InteriorPointSolver; verbose=false)
             push!(s.filter,(s.θ_max,Inf))
         end
     end
-    verbose ? println("<interior-point solve complete>") : nothing
+    s.opts.verbose ? println("<interior-point solve complete>") : nothing
 end
