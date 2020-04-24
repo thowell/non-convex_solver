@@ -71,7 +71,7 @@ function search_direction_symmetric!(s::Solver)
 
     inertia_correction!(s,restoration=s.restoration)
 
-    s.d[s.idx.xy] .= ma57_solve(s.LBL, -s.h_sym)
+    s.d[s.idx.xy] = ma57_solve(s.LBL, -s.h_sym)
     s.dzL .= -s.σL.*s.d[s.idx.xL] - s.zL + s.μ./s.ΔxL
     s.dzU .= s.σU.*s.d[s.idx.xU] - s.zU + s.μ./s.ΔxU
 

@@ -30,6 +30,7 @@ The following algorithms from Ipopt are implemented:
 - [X] feasibility restoration phase
 - [X] KKT error reduction
 - [X] relaxed bounds (eq. 35)
+  -[ ] implemented for restoration mode
 - [X] primal initialization (sec. 3.6)
 - [X] equality constraint multiplier initialization (eq. 36)
 - [X] single bounds damping
@@ -40,3 +41,11 @@ The following algorithms from Ipopt are implemented:
 - [X] round-off error acceptance criteria relaxation
 - [X] MA57
   - [ ] default pivot tolerance
+
+TODO
+-[ ] restoration mode cleanup
+  -[ ] indices/views
+  -[ ] single bound damping
+-[ ] iterative refinement rejection
+-[ ] watchdog
+-[ ] restoration-free version

@@ -104,24 +104,3 @@ s = InteriorPointSolver(x0,model,c_al_idx=c_al_idx,opts=opts)
 @time solve!(s,verbose=true)
 norm(c_func(s.s.x)[c_al_idx .== 0],1)
 norm(c_func(s.s.x)[c_al_idx],1)
-
-typeof(view(s.s.∇c,s.s.c_al_idx,1:s.s.model.n))
-
-# s_new = InteriorPointSolver(s.s.x,model,c_al_idx=c_al_idx,opts=opts)
-# s_new.s.y .= s.s.y
-# s_new.s.λ .= s.s.λ + s.s.ρ*s.s.c[c_al_idx]
-# s_new.s.ρ = s.s.ρ*10.0
-# solve!(s_new,verbose=true)
-# s = s_new
-# norm(c_func(s.s.x)[c_al_idx .== 0],1)
-# norm(c_func(s.s.x)[c_al_idx],1)
-
-q,u,y,β,ψ,η,sϕ,sfc = unpack(s.s.x)
-y
-β
-(0.5*y)^2 - β'*β
-sfc
-sϕ
-
-(q-q1)./norm(q-q1)
-β./norm(β)

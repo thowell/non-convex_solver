@@ -533,8 +533,8 @@ function θ(x,s::Solver)
     return norm(s.c_tmp,1)
 end
 
-function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func,df,ρ,y_al,c,c_al_idx)
-    return (df*f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]) + y_al'*c[c_al_idx] + 0.5*ρ*c[c_al_idx]'*c[c_al_idx])
+function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func,df,ρ,y_al,c_al)
+    return (df*f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]) + y_al'*c_al + 0.5*ρ*c_al'*c_al)
 end
 
 function barrier(x,s::Solver)
@@ -545,7 +545,7 @@ function barrier(x,s::Solver)
     return barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,
         s.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,s.model.f_func,
         s.opts.nlp_scaling ? s.df : 1.0,
-        s.ρ,s.λ,s.c_tmp,s.c_al_idx)
+        s.ρ,s.λ,s.c_tmp[s.c_al_idx])
 end
 
 function update!(s::Solver)
