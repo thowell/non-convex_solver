@@ -4,33 +4,32 @@ function line_search(s::Solver)
     α_max!(s)
     αz_max!(s)
 
-    # trial step
-    s.x⁺ .= s.x + s.α*s.dx
+    trial_step!(s)
 
     s.l = 0
     status = false
     while s.α > s.α_min
-        if check_filter(θ(s.x⁺,s),barrier(s.x⁺,s),s)
+        if check_filter(s.θ⁺,s.φ⁺,s)
             if s.l == 0
                 s.fail_cnt = 0
             end
 
             # case 1
             if (s.θ <= s.θ_min && switching_condition(s))
-                if armijo(s.x⁺,s)
+                if armijo(s)
                     status = true
                     break
                 end
             # case 2
             else #(s.θ > s.θ_min || !switching_condition(s))
-                if sufficient_progress(s.x⁺,s)
+                if sufficient_progress(s)
                     status = true
                     break
                 end
             end
         end
 
-        if s.l > 0 || θ(s.x⁺,s) < s.θ || s.restoration == true
+        if s.l > 0 || s.θ⁺ < s.θ || s.restoration == true
             if s.l == 0
                 s.fail_cnt += 1
             end
@@ -47,7 +46,7 @@ function line_search(s::Solver)
 
         # accelerating heuristics
         if s.fail_cnt == s.opts.max_fail_cnt
-            if s.θ_max > 0.1*θ(s.x⁺,s)
+            if s.θ_max > 0.1*s.θ⁺
                 s.θ_max *= 0.1
                 empty!(s.filter)
                 push!(s.filter,(s.θ_max,Inf))
@@ -62,7 +61,7 @@ function line_search(s::Solver)
             end
         end
 
-        s.x⁺ .= s.x + s.α*s.dx
+        trial_step!(s)
 
         s.l += 1
     end
@@ -71,8 +70,8 @@ end
 
 function trial_step!(s::Solver)
     s.x⁺ .= s.x + s.α*s.dx
-    θ(s.x⁺,s)
-    barrier(s.x⁺,s)
+    s.θ⁺ = θ(s.x⁺,s)
+    s.φ⁺ = barrier(s.x⁺,s)
     return nothing
 end
 
@@ -121,11 +120,11 @@ function switching_condition(s::Solver)
 end
 
 sufficient_progress(θ⁺,θ,φ⁺,φ,γθ,γφ,ϵ_mach) = (θ⁺ - 10.0*ϵ_mach*abs(θ) <= (1-γθ)*θ || φ⁺ - 10.0*ϵ_mach*abs(φ) <= φ - γφ*θ)
-function sufficient_progress(x⁺,s::Solver)
-    return sufficient_progress(θ(x⁺,s),s.θ,barrier(x⁺,s),s.φ,s.opts.γθ,s.opts.γφ,
+function sufficient_progress(s::Solver)
+    return sufficient_progress(s.θ⁺,s.θ,s.φ⁺,s.φ,s.opts.γθ,s.opts.γφ,
         s.opts.ϵ_mach)
 end
 
 armijo(φ⁺,φ,η,α,∇φ,d,ϵ_mach) = (φ⁺ - φ - 10.0*ϵ_mach*abs(φ) <= η*α*∇φ'*d)
-armijo(x⁺,s::Solver) = armijo(barrier(x⁺,s),s.φ,s.opts.ηφ,s.α,s.∇φ,s.dx,
+armijo(s::Solver) = armijo(s.φ⁺,s.φ,s.opts.ηφ,s.α,s.∇φ,s.dx,
     s.opts.ϵ_mach)

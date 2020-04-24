@@ -1,15 +1,15 @@
-function inertia_correction!(s::Solver; restoration=false,verbose=true)
+function inertia_correction!(s::Solver; restoration=false)
     s.δw = 0.0
     s.δc = 0.0
 
     factorize_kkt!(s)
 
-    verbose ? println("inertia-> n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)") : nothing
+    s.opts.verbose ? println("inertia-> n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)") : nothing
 
     inertia(s) ? (return nothing) : nothing
 
     if s.inertia.z != 0
-        verbose ? (println("$(s.inertia.z) zero eigen values")) : nothing
+        s.opts.verbose ? (println("$(s.inertia.z) zero eigen values")) : nothing
         s.δc = s.opts.δc*s.μ^s.opts.κc
     end
 
@@ -24,7 +24,7 @@ function inertia_correction!(s::Solver; restoration=false,verbose=true)
         factorize_kkt!(s)
 
         if inertia(s)
-            verbose ? println("inertia (corrected)-> n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)") : nothing
+            s.opts.verbose ? println("inertia (corrected)-> n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)") : nothing
             break
         else
             if s.δw_last == 0
@@ -35,8 +35,10 @@ function inertia_correction!(s::Solver; restoration=false,verbose=true)
         end
 
         if s.δw > s.opts.δw_max
-            println("n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)")
-            println("s.δw: $(s.δw)")
+            if s.opts.verbose
+                println("n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)")
+                println("s.δw: $(s.δw)")
+            end
             error("inertia correction failure")
         end
     end

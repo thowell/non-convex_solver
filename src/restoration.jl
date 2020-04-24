@@ -1,5 +1,5 @@
 function restoration!(s̄::Solver,s::Solver)
-    println("~restoration phase~\n")
+    s̄.opts.verbose ? println("~restoration phase~\n") : nothing
     if !kkt_error_reduction(s)
         # phase 2 solver
         initialize_restoration_solver!(s̄,s)
@@ -10,7 +10,7 @@ function restoration!(s̄::Solver,s::Solver)
         # update phase 1 solver
         update_phase1_solver!(s̄,s)
     else
-        println("-KKT error reduction: success")
+        s̄.opts.verbose ? println("-KKT error reduction: success") : nothing
     end
     return nothing
 end
@@ -46,7 +46,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
     # initialize filter
     push!(s̄.filter,(s̄.θ_max,Inf))
 
-    if verbose
+    if s̄.opts.verbose
         println("θ0: $(s̄.θ), φ0: $(s̄.φ)")
         println("Eμ0: $(eval_Eμ(0.0,s̄))\n")
     end
@@ -57,7 +57,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                 s̄.small_search_direction_cnt += 1
                 if s̄.small_search_direction_cnt == s̄.opts.small_search_direction_max
                     if s̄.μ < 0.1*s̄.opts.ϵ_tol
-                        verbose ? println("<phase 2 complete>: small search direction") : nothing
+                        s̄.opts.verbose ? println("<phase 2 complete>: small search direction") : nothing
                         return
                     end
                 else
@@ -84,7 +84,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
             end
 
             if check_filter(θ(s̄.x[s.idx.x],s),barrier(s̄.x[s.idx.x],s),s) && θ(s̄.x[s.idx.x],s) <= s̄.opts.κ_resto*s.θ
-                println("-restoration phase: success\n")
+                s̄.opts.verbose ? println("-restoration phase: success\n") : nothing
                 return true
             end
 
@@ -97,7 +97,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                 error("max iterations (restoration)")
             end
 
-            if verbose
+            if s̄.opts.verbose
                 println("restoration iteration ($(s̄.j),$(s̄.k)):")
                 s.model.n < 5 ? println("x: $(s̄.x[s.idx.x])") : nothing
                 println("θ: $(θ(s̄.x,s̄)), φ: $(barrier(s̄.x,s̄))")
@@ -237,7 +237,7 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
         s̄.zU[i] = min(s̄.opts.ρ_resto,s.zU[i])
     end
 
-    s̄.zL[s.nL .+ (1:2s.model.m)] .= s̄.μ./s̄.x[s.model.n .+ (1:2s.model.m)]
+    s̄.zL[s.nL .+ (1:2s.model.m)] = s̄.μ./s̄.x[s.model.n .+ (1:2s.model.m)]
 
     init_DR!(s̄.DR,s.x,s.model.n)
 
@@ -276,7 +276,7 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
     end
 
     function ∇f_func!(∇f,x)
-        ∇f[s.idx.x] .= ζ*DR'*DR*(x[s.idx.x] - s.x)
+        ∇f[s.idx.x] = ζ*DR'*DR*(x[s.idx.x] - s.x)
         ∇f[idx_pn] .= s̄.opts.ρ_resto
         return nothing
     end
@@ -375,12 +375,13 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     zp = s̄.zL[s.nL .+ (1:s.model.m)]
     zn = s̄.zL[s.nL + s.model.m .+ (1:s.model.m)]
 
-    s.H_sym[s.idx.x,s.idx.x] .= s.∇²cy + sqrt(s̄.μ)*s̄.DR'*s̄.DR
-    s.H_sym[s.idx.xL,s.idx.xL] .+= Diagonal(s̄.σL[1:s.nL])
-    s.H_sym[s.idx.xU,s.idx.xU] .+= Diagonal(s̄.σU[1:s.nU])
-    s.H_sym[s.idx.x,s.idx.y] .= s.∇c'
-    s.H_sym[s.idx.y,s.idx.x] .= s.∇c
-    s.H_sym[s.idx.y,s.idx.y] .= -1.0*Diagonal(p./zp) - Diagonal(n./zn) - Diagonal(1.0/s̄.ρ*s̄.c_al_idx)
+    update!(s.Hv_sym.xx,s.∇²cy + sqrt(s̄.μ)*s̄.DR'*s̄.DR)
+    add_update!(s.Hv_sym.xLxL,s̄.σL[1:s.nL])
+    add_update!(s.Hv_sym.xUxU,s̄.σU[1:s.nU])
+    update!(s.Hv_sym.xy,s.∇c')
+    update!(s.Hv_sym.yx,s.∇c)
+    update!(s.Hv_sym.yy,-1.0*p./zp - n./zn)
+    add_update!(s.Hv_sym.yalyal,-1.0/s̄.ρ)
 
     return nothing
 end
@@ -403,11 +404,11 @@ function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
 
     # TODO damping
 
-    s.h_sym[s.idx.x] .= sqrt(μ)*s̄.DR'*s̄.DR*(s̄.x[s.idx.x] - s.x) + s.∇c'*s̄.y
-    s.h_sym[s.idx.xL] .-= μ./(s̄.x[s.idx.x] - s.xL)[s.xL_bool]
-    s.h_sym[s.idx.xU] .+= μ./(s.xU - s̄.x[s.idx.x])[s.xU_bool]
-    s.h_sym[s.idx.y] .= s.c - p + n + ρ_resto*Diagonal(zp)\(μ*ones(s.model.m) - p) + ρ_resto*Diagonal(zn)\(μ*ones(s.model.m) - n)
-    s.h_sym[s.idx.y_al] .+= 1.0/s̄.ρ*(s̄.λ - s̄.y_al)
+    s.h_sym[s.idx.x] = sqrt(μ)*s̄.DR'*s̄.DR*(s̄.x[s.idx.x] - s.x) + s.∇c'*s̄.y
+    s.h_sym[s.idx.xL] -= μ./(s̄.x[s.idx.x] - s.xL)[s.xL_bool]
+    s.h_sym[s.idx.xU] += μ./(s.xU - s̄.x[s.idx.x])[s.xU_bool]
+    s.h_sym[s.idx.y] = s.c - p + n + ρ_resto*Diagonal(zp)\(μ*ones(s.model.m) - p) + ρ_resto*Diagonal(zn)\(μ*ones(s.model.m) - n)
+    s.h_sym[s.idx.y_al] += 1.0/s̄.ρ*(s̄.λ - s̄.y_al)
     return nothing
 end
 
@@ -417,7 +418,7 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
 
     inertia_correction!(s)
 
-    s̄.d[s̄.idx_r.xy] .= ma57_solve(s.LBL, -s.h_sym)
+    s̄.d[s̄.idx_r.xy] = ma57_solve(s.LBL, -s.h_sym)
     dx = s̄.d[s.idx.x]
     dy = s̄.d[s̄.idx.y]
 
@@ -436,55 +437,55 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
     μ = s̄.μ
     ρ_resto = s̄.opts.ρ_resto
 
+    #TODO grab from σL, σU
     Σp = Diagonal(zp./p)
     Σn = Diagonal(zn./n)
 
     # dp
-    s̄.d[s̄.idx_r.p] .= Diagonal(zp)\(μ*ones(s.model.m) + Diagonal(p)*(y + dy) - ρ_resto*p)
+    s̄.d[s̄.idx_r.p] = Diagonal(zp)\(μ*ones(s.model.m) + Diagonal(p)*(y + dy) - ρ_resto*p)
     dp = s̄.d[s̄.idx_r.p]
 
     # dn
-    s̄.d[s̄.idx_r.n] .= Diagonal(zn)\(μ*ones(s.model.m) - Diagonal(n)*(y + dy) - ρ_resto*n)
+    s̄.d[s̄.idx_r.n] = Diagonal(zn)\(μ*ones(s.model.m) - Diagonal(n)*(y + dy) - ρ_resto*n)
     dn = s̄.d[s̄.idx_r.n]
 
     # dzL
     zL_idx = (s̄.model.n + s.model.m) .+ (1:s.nL)
-    s̄.d[zL_idx] .= -zL./((x - s.xL)[s.xL_bool]).*dx[s.xL_bool] - zL + μ./((x - s.xL)[s.xL_bool])
+    s̄.d[zL_idx] = -zL./((x - s.xL)[s.xL_bool]).*dx[s.xL_bool] - zL + μ./((x - s.xL)[s.xL_bool])
     dzL = s̄.d[zL_idx]
 
     #dzU
     zU_idx = (s̄.model.n + s.model.m + s.nL + s.model.m + s.model.m) .+ (1:s.nU)
-    s̄.d[zU_idx] .= zU./((s.xU - x)[s.xU_bool]).*dx[s.xU_bool] - zU + μ./((s.xU - x)[s.xU_bool])
+    s̄.d[zU_idx] = zU./((s.xU - x)[s.xU_bool]).*dx[s.xU_bool] - zU + μ./((s.xU - x)[s.xU_bool])
     dzU = s̄.d[zU_idx]
 
     # dzp
     zp_idx = (s̄.model.n + s.model.m + s.nL) .+ (1:s.model.m)
-    s̄.d[zp_idx] .= μ*Diagonal(p)\ones(s.model.m) - zp - Σp*dp
+    s̄.d[zp_idx] = μ*Diagonal(p)\ones(s.model.m) - zp - Σp*dp
     dzp = s̄.d[zp_idx]
 
     # dzn
     zn_idx = (s̄.model.n + s.model.m + s.nL + s.model.m) .+ (1:s.model.m)
-    s̄.d[zn_idx] .= μ*Diagonal(n)\ones(s.model.m) - zn - Σn*dn
+    s̄.d[zn_idx] = μ*Diagonal(n)\ones(s.model.m) - zn - Σn*dn
     dzn = s̄.d[zn_idx]
 
+    kkt_hessian_unreduced!(s̄)
+    kkt_gradient_unreduced!(s̄)
     s̄.opts.iterative_refinement ? iterative_refinement_restoration(s̄.d,s̄,s) : nothing
 
     return small_search_direction(s̄)
 end
 
-function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
-    s̄.d_copy = copy(d)
+function iterative_refinement_restoration(d::Vector{T},s̄::Solver,s::Solver) where T
+    s̄.d_copy .= d
     iter = 0
 
-    kkt_hessian_unreduced!(s̄)
-    kkt_gradient_unreduced!(s̄)
-
-    s̄.res = -s̄.h - s̄.H*d
+    s̄.res .= -s̄.h - s̄.H*d
 
     res_norm = norm(s̄.res,Inf)
     res_norm_init = copy(res_norm)
 
-    verbose ? println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)") : nothing
+    s̄.opts.verbose ? println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)") : nothing
 
     x = s̄.x[s.idx.x]
     p = s̄.x[s̄.idx_r.p]
@@ -509,24 +510,24 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
         r7 = s̄.res[s̄.model.n + s.model.m + s.nL + s.model.m .+ (1:s.model.m)]
         r8 = s̄.res[s̄.model.n + s.model.m + s.nL + s.model.m + s.model.m .+ (1:s.nU)]
 
-        s̄.res[s.idx.xL] .+= r5./xL
-        s̄.res[s.idx.xU] .-= r8./xU
-        s̄.res[s̄.model.n .+ (1:s.model.m)] .+= p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
+        s̄.res[s.idx.xL] += r5./xL
+        s̄.res[s.idx.xU] -= r8./xU
+        s̄.res[s̄.model.n .+ (1:s.model.m)] += p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
 
-        s̄.Δ[s̄.idx_r.xy] .= ma57_solve(s.LBL,s̄.res[s̄.idx_r.xy])
+        s̄.Δ[s̄.idx_r.xy] = ma57_solve(s.LBL,s̄.res[s̄.idx_r.xy])
 
         dx = s̄.Δ[s.idx.x]
         dy = s̄.Δ[s̄.idx.y]
 
-        s̄.Δ[s̄.idx_r.p] .= -p.*(-dy - r2)./zp + r6./zp
-        s̄.Δ[s̄.idx_r.n] .= -n.*(dy - r3)./zn + r7./zn
-        s̄.Δ[s.model.n + 3s.model.m .+ (1:s.nL)] .= -zL./xL.*dx[s.xL_bool] + r5./xL
-        s̄.Δ[s.model.n + 3s.model.m + s.nL .+ (1:s.model.m)] .= -dy - r2
-        s̄.Δ[s.model.n + 4s.model.m + s.nL .+ (1:s.model.m)] .= dy - r3
-        s̄.Δ[s.model.n + 5s.model.m + s.nL .+ (1:s.nU)] .= zU./xU.*dx[s.xU_bool] + r8./xU
+        s̄.Δ[s̄.idx_r.p] = -p.*(-dy - r2)./zp + r6./zp
+        s̄.Δ[s̄.idx_r.n] = -n.*(dy - r3)./zn + r7./zn
+        s̄.Δ[s.model.n + 3s.model.m .+ (1:s.nL)] = -zL./xL.*dx[s.xL_bool] + r5./xL
+        s̄.Δ[s.model.n + 3s.model.m + s.nL .+ (1:s.model.m)] = -dy - r2
+        s̄.Δ[s.model.n + 4s.model.m + s.nL .+ (1:s.model.m)] = dy - r3
+        s̄.Δ[s.model.n + 5s.model.m + s.nL .+ (1:s.nU)] = zU./xU.*dx[s.xU_bool] + r8./xU
 
         d .+= s̄.Δ
-        s̄.res = -s̄.h - s̄.H*d
+        s̄.res .= -s̄.h - s̄.H*d
 
         res_norm = norm(s̄.res,Inf)
 
@@ -534,11 +535,11 @@ function iterative_refinement_restoration(d,s̄::Solver,s::Solver; verbose=true)
     end
 
     if res_norm < s̄.opts.ϵ_iterative_refinement# || res_norm < res_norm_init
-        verbose ? println("iterative refinement success: $(res_norm), iter: $iter") : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+        s̄.opts.verbose ? println("iterative refinement success: $(res_norm), iter: $iter") : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
         return true
     else
         d .= s̄.d_copy
-        verbose ? println("iterative refinement failure: $(res_norm), iter: $iter") : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+        s̄.opts.verbose ? println("iterative refinement failure: $(res_norm), iter: $iter") : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
         return false
     end
 end

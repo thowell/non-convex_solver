@@ -35,6 +35,7 @@ mutable struct Solver{T}
     ∇²f::SparseMatrixCSC{T,Int}
 
     φ::T
+    φ⁺::T
     ∇φ::Vector{T}
 
     ∇L::Vector{T}
@@ -47,11 +48,12 @@ mutable struct Solver{T}
     ∇²cy::SparseMatrixCSC{T,Int}
 
     H::SparseMatrixCSC{T,Int}
-    Hv::H_views
+    H_sym::SparseMatrixCSC{T,Int}
+
+    Hv::H_unreduced_views{T}
+    Hv_sym::H_symmetric_views{T}
 
     h::Vector{T}
-
-    H_sym::SparseMatrixCSC{T,Int}
     h_sym::Vector{T}
 
     LBL::Ma57{T}
@@ -81,6 +83,7 @@ mutable struct Solver{T}
     δc::T
 
     θ::T
+    θ⁺::T
     θ_min::T
     θ_max::T
     θ_soc::T
@@ -224,6 +227,7 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
     ∇²f = spzeros(model.n,model.n)
 
     φ = 0.
+    φ⁺ = 0.
     ∇φ = zeros(model.n)
 
     ∇L = zeros(model.n)
@@ -297,7 +301,8 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
 
     fail_cnt = 0
 
-    Hv = H_views(H,idx)
+    Hv = H_unreduced_views(H,idx)
+    Hv_sym = H_symmetric_views(H_sym,idx)
 
     ρ = 1.0/μ
     λ = zeros(sum(c_al_idx))
@@ -306,6 +311,7 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
     ∇c_al = view(∇c,c_al_idx,idx.x)
 
     θ = norm(c,1)
+    θ⁺ = copy(θ)
     θ_min = init_θ_min(θ)
     θ_max = init_θ_max(θ)
 
@@ -317,18 +323,17 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
            y,
            zL,zU,σL,σU,
            f,∇f,∇²f,
-           φ,∇φ,
+           φ,φ⁺,∇φ,
            ∇L,∇²L,
            c,c_soc,c_tmp,∇c,∇²cy,
-           H,Hv,
-           h,
-           H_sym,
-           h_sym,
+           H,H_sym,
+           Hv,Hv_sym,
+           h,h_sym,
            LBL,inertia,
            d,d_soc,dx,dy,dzL,dzU,Δ,res,
            α,αz,α_max,α_min,α_soc,β,
            δ,δw,δw_last,δc,
-           θ,θ_min,θ_max,θ_soc,
+           θ,θ⁺,θ_min,θ_max,θ_soc,
            sd,sc,
            μ,τ,
            filter,

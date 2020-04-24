@@ -29,17 +29,8 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=100)
 
 s = InteriorPointSolver(x0,model,opts=opts)
-# s.s.ρ = 10.
 @time solve!(s,verbose=true)
 norm(c_func(s.s.x),1)
-
-# s_new = InteriorPointSolver(s.s.x,model,opts=opts)
-# s_new.s.y .= s.s.y
-# s_new.s.λ .= s.s.λ + s.s.ρ*s.s.c
-# s_new.s.ρ = s.s.ρ*10.0
-# solve!(s_new,verbose=true)
-# s = s_new
-# norm(c_func(s.s.x),1)
 
 # ######
 # using Ipopt, MathOptInterface

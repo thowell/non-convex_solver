@@ -13,13 +13,13 @@ function second_order_correction(s::Solver)
 
     α_soc_max!(s)
 
-    s.x⁺ .= s.x + s.α_soc*s.d_soc[s.idx.x]
+    trial_step_soc!(s)
 
     while true
-        if check_filter(θ(s.x⁺,s),barrier(s.x⁺,s),s)
+        if check_filter(s.θ⁺,s.φ⁺,s)
             # case 1
             if (s.θ <= s.θ_min && switching_condition(s))
-                if armijo(s.x⁺,s)
+                if armijo(s)
                     s.α = s.α_soc
                     status = true
                     println("second-order correction: success")
@@ -27,7 +27,7 @@ function second_order_correction(s::Solver)
                 end
             # case 2
             else#(s.θ > s.θ_min || !switching_condition(s))
-                if sufficient_progress(s.x⁺,s)
+                if sufficient_progress(s)
                     s.α = s.α_soc
                     status = true
                     println("second-order correction: success")
@@ -40,7 +40,7 @@ function second_order_correction(s::Solver)
             break
         end
 
-        if s.p == s.opts.p_max || θ(s.x⁺,s) > s.opts.κ_soc*s.θ_soc
+        if s.p == s.opts.p_max || s.θ⁺ > s.opts.κ_soc*s.θ_soc
             s.α = 0.5*s.α_max
             println("second-order correction: failure")
             break
@@ -49,16 +49,23 @@ function second_order_correction(s::Solver)
 
             s.model.c_func!(s.c,s.x⁺)
             s.c_soc .= s.α_soc*s.c_soc + (s.opts.nlp_scaling ? s.Dc*s.c : s.c)
-            s.θ_soc = θ(s.x⁺,s)
+            s.θ_soc = s.θ⁺
 
             search_direction_soc!(s)
 
             α_soc_max!(s)
-            s.x⁺ .= s.x + s.α_soc*s.d_soc[s.idx.x]
+            trial_step_soc!(s)
         end
     end
 
     return status
+end
+
+function trial_step_soc!(s::Solver)
+    s.x⁺ .= s.x + s.α_soc*s.d_soc[s.idx.x]
+    s.θ⁺ = θ(s.x⁺,s)
+    s.φ⁺ = barrier(s.x⁺,s)
+    return nothing
 end
 
 function α_soc_max!(s::Solver)

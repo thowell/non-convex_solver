@@ -22,14 +22,5 @@ model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 opts = Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true)
 c_al_idx = ones(Bool,model.m)
 s = InteriorPointSolver(x0,model,c_al_idx=c_al_idx,opts=opts)
-# s.s.ρ = 1.0/s.s.μ
 solve!(s,verbose=true)
 norm(c_func(s.s.x),1)
-
-# s_new = InteriorPointSolver(s.s.x,model,c_al_idx=c_al_idx,opts=opts)
-# s_new.s.y .= s.s.y
-# s_new.s.λ .= s.s.λ + s.s.ρ*s.s.c[c_al_idx]
-# s_new.s.ρ = s.s.ρ*10.0
-# solve!(s_new,verbose=true)
-# s = s_new
-# norm(c_func(s.s.x),1)
