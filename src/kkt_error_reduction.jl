@@ -46,12 +46,12 @@ function kkt_error_reduction(s::Solver)
 end
 
 function eval_Fμ(x,y,zL,zU,s)
-    s.model.∇f_func!(s.∇f,x)
-    s.model.c_func!(s.c,x)
+    s.model.∇f_func!(s.∇f,x,s.model)
+    s.model.c_func!(s.c,x,s.model)
     if s.opts.nlp_scaling
         s.c .= s.Dc*s.c
     end
-    s.model.∇c_func!(s.∇c,x)
+    s.model.∇c_func!(s.∇c,x,s.model)
     s.∇L .= s.∇f + s.∇c'*y
     s.∇L[s.xL_bool] -= zL
     s.∇L[s.xU_bool] += zU

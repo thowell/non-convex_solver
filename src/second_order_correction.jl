@@ -3,7 +3,7 @@ function second_order_correction(s::Solver)
 
     s.p = 1
     s.θ_soc = copy(s.θ)
-    s.model.c_func!(s.c_soc,s.x⁺)
+    s.model.c_func!(s.c_soc,s.x⁺,s.model)
     if s.opts.nlp_scaling
         s.c_soc .= s.Dc*s.c_soc
     end
@@ -47,7 +47,7 @@ function second_order_correction(s::Solver)
         else
             s.p += 1
 
-            s.model.c_func!(s.c,s.x⁺)
+            s.model.c_func!(s.c,s.x⁺,s.model)
             s.c_soc .= s.α_soc*s.c_soc + (s.opts.nlp_scaling ? s.Dc*s.c : s.c)
             s.θ_soc = s.θ⁺
 

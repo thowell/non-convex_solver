@@ -10,14 +10,14 @@ xU = [0.25; 0.25]
 f_func(x) = (x[1] + 0.5)^2 + (x[2] - 0.5)^2
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
-function c_func!(c,x)
+function c_func!(c,x,model::AbstractModel)
     return nothing
 end
-function ∇c_func!(∇c,x)
+function ∇c_func!(∇c,x,model::AbstractModel)
     return nothing
 end
 
-function ∇²cy_func!(∇²c,x,y)
+function ∇²cy_func!(∇²c,x,y,model::AbstractModel)
     return nothing
 end
 

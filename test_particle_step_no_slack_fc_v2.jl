@@ -62,11 +62,11 @@ f, ∇f!, ∇²f! = objective_functions(f_func)
 
 function c_func(x)
     q,u,y,β,ψ,η,sϕ,sfc = unpack(x)
-    [M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + P(q)'*β + N(q)*y;
-     P(q)*(q-qp)/dt + 2.0*β*ψ;
-     sϕ - N(q)'*q;
-     sfc - ((0.5*y)^2 - β'*β);
-     ψ - η;
+    [(M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + P(q)'*β + N(q)*y);
+     (P(q)*(q-qp)/dt + 2.0*β*ψ);
+     (sϕ - N(q)'*q);
+     (sfc - ((0.5*y)^2 - β'*β));
+     (ψ - η);
      y*sϕ;
      sfc*η]
 end
@@ -89,8 +89,7 @@ u0 = 1.0e-3*rand(nu)
 y0 = 1.0e-3*rand(1)[1]
 β0 = 1.0e-3*rand(nβ)
 ψ0 = 1.0e-3*rand(1)[1]
-η0 = 1.0e-3*rand(nβ)
-s0 = 1.0e-3*rand(1)[1]
+η0 = 1.0e-3*rand(1)[1]
 x0 = [q0;u0;y0;β0;ψ0;η0; N(q0)'*q0;(0.5*y0)^2 - β0'*β0]
 
 opts = Options{Float64}(kkt_solve=:symmetric,

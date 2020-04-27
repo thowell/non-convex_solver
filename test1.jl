@@ -30,7 +30,6 @@ opts = Options{Float64}(kkt_solve=:symmetric,
 
 s = InteriorPointSolver(x0,model,opts=opts)
 @time solve!(s)
-norm(c_func(s.s.x),1)
 
 # ######
 # using Ipopt, MathOptInterface

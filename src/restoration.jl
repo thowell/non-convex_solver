@@ -32,8 +32,8 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
     s.zL .+= s.αz*s.dzL
     s.zU .+= s.αz*s.dzU
 
-    s.model.∇f_func!(s.∇f,s.x)
-    s.model.∇c_func!(s.∇c,s.x)
+    s.model.∇f_func!(s.∇f,s.x,s.model)
+    s.model.∇c_func!(s.∇c,s.x,s.model)
     init_y!(s.y,s.H_sym,s.h_sym,s.d,s.zL,s.zU,s.∇f,s.∇c,s.model.n,s.model.m,s.xL_bool,s.xU_bool,s.opts.y_max)
 
     return nothing
@@ -139,7 +139,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 end
 
 function restoration_reset!(s̄::Solver,s::Solver)
-    s.model.c_func!(s.c,s̄.x[s.idx.x])
+    s.model.c_func!(s.c,s̄.x[s.idx.x],s.model)
     s.c_al .+= 1.0/s̄.ρ*(s̄.λ - s̄.y_al)
 
     # initialize p,n
@@ -171,24 +171,24 @@ function RestorationSolver(s::Solver)
     x̄U = Inf*ones(n̄)
     x̄U[s.idx.x] = s.xU
 
-    f̄_func(x) = 0.
+    f̄_func(x,model::AbstractModel) = 0.
 
-    function ∇f̄_func!(∇f,x)
+    function ∇f̄_func!(∇f,x,model::AbstractModel)
         return nothing
     end
-    function ∇²f̄_func!(∇²f,x)
-        return nothing
-    end
-
-    function c̄_func!(c,x)
+    function ∇²f̄_func!(∇²f,x,model::AbstractModel)
         return nothing
     end
 
-    function ∇c̄_func!(∇c,x)
+    function c̄_func!(c,x,model::AbstractModel)
         return nothing
     end
 
-    function ∇²c̄y_func!(∇²c̄y,x,y)
+    function ∇c̄_func!(∇c,x,model::AbstractModel)
+        return nothing
+    end
+
+    function ∇²c̄y_func!(∇²c̄y,x,y,model::AbstractModel)
         return nothing
     end
 
@@ -204,7 +204,7 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     s̄.k = 0
     s̄.j = 0
 
-    s.model.c_func!(s.c,s̄.x[s.idx.x])
+    s.model.c_func!(s.c,s̄.x[s.idx.x],s.model)
 
     s̄.μ = max(s.μ,norm(s.c,Inf))
     s̄.τ = update_τ(s̄.μ,s̄.opts.τ_min)
@@ -247,9 +247,9 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     update_restoration_constraints!(s̄,s)
     empty!(s̄.filter)
 
-    s̄.model.∇f_func!(s̄.∇f,s̄.x)
-    s̄.model.c_func!(s̄.c,s̄.x)
-    s̄.model.∇c_func!(s̄.∇c,s̄.x)
+    s̄.model.∇f_func!(s̄.∇f,s̄.x,s̄.model)
+    s̄.model.c_func!(s̄.c,s̄.x,s̄.model)
+    s̄.model.∇c_func!(s̄.∇c,s̄.x,s̄.model)
 
     init_Dx!(s̄.Dx,s̄.model.n)
     s̄.df = init_df(s̄.opts.g_max,s̄.∇f)
@@ -271,17 +271,17 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
     DR = s̄.DR
     idx_pn = s.model.n .+ (1:2s.model.m)
 
-    function f_func(x)
+    function f_func(x,model::AbstractModel)
         s̄.opts.ρ_resto*sum(x[idx_pn]) + 0.5*ζ*(x[s.idx.x] - s.x)'*DR'*DR*(x[s.idx.x] - s.x)
     end
 
-    function ∇f_func!(∇f,x)
+    function ∇f_func!(∇f,x,model::AbstractModel)
         ∇f[s.idx.x] = ζ*DR'*DR*(x[s.idx.x] - s.x)
         ∇f[idx_pn] .= s̄.opts.ρ_resto
         return nothing
     end
 
-    function ∇²f_func!(∇²f,x)
+    function ∇²f_func!(∇²f,x,model::AbstractModel)
         ∇²f[s.idx.x,s.idx.x] .= ζ*DR'*DR
         return nothing
     end
@@ -294,22 +294,22 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
 end
 
 function update_restoration_constraints!(s̄::Solver,s::Solver)
-    function c_func!(c,x)
-        s.model.c_func!(c,x[s.idx.x])
+    function c_func!(c,x,model::AbstractModel)
+        s.model.c_func!(c,x[s.idx.x],s.model)
         c .-= x[s̄.idx_r.p]
         c .+= x[s̄.idx_r.n]
         return nothing
     end
 
-    function ∇c_func!(∇c,x)
-        s.model.∇c_func!(view(∇c,1:s.model.m,s.idx.x),x[s.idx.x])
+    function ∇c_func!(∇c,x,model::AbstractModel)
+        s.model.∇c_func!(view(∇c,1:s.model.m,s.idx.x),x[s.idx.x],s.model)
         ∇c[CartesianIndex.(1:s.model.m,s̄.idx_r.p)] .= -1.0
         ∇c[CartesianIndex.(1:s.model.m,s̄.idx_r.n)] .= 1.0
         return nothing
     end
 
-    function ∇²cy_func!(∇²cy,x,y)
-        s.model.∇²cy_func!(view(∇²cy,s.idx.x,s.idx.x),x[s.idx.x],y)
+    function ∇²cy_func!(∇²cy,x,y,model::AbstractModel)
+        s.model.∇²cy_func!(view(∇²cy,s.idx.x,s.idx.x),x[s.idx.x],y,s.model)
         return return nothing
     end
 
@@ -365,8 +365,8 @@ end
 
 # symmetric KKT system
 function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
-    s.model.∇²cy_func!(s.∇²cy,s̄.x[s.idx.x],s̄.y)
-    s.model.∇c_func!(s.∇c,s̄.x[s.idx.x])
+    s.model.∇²cy_func!(s.∇²cy,s̄.x[s.idx.x],s̄.y,s.model)
+    s.model.∇c_func!(s.∇c,s̄.x[s.idx.x],s.model)
 
     p = s̄.x[s̄.idx_r.p]
     n = s̄.x[s̄.idx_r.n]
@@ -387,8 +387,8 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
 end
 
 function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
-    s.model.c_func!(s.c,s̄.x[s.idx.x])
-    s.model.∇c_func!(s.∇c,s̄.x[s.idx.x])
+    s.model.c_func!(s.c,s̄.x[s.idx.x],s.model)
+    s.model.∇c_func!(s.∇c,s̄.x[s.idx.x],s.model)
 
     p = s̄.x[s̄.idx_r.p]
     n = s̄.x[s̄.idx_r.n]

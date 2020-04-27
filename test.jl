@@ -12,30 +12,9 @@ xU = Inf*ones(n)
 xU[5] = 20.
 
 f_func(x) = x'*x
-# function ∇f_func!(∇f,x)
-#     ∇f .= 2*x
-#     return nothing
-# end
-# function ∇²f_func!(∇²f,x)
-#     view(∇²f,CartesianIndex.(1:n,1:n)) .= 2.0
-#     return nothing
-# end
-
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
 c_func(x) = x[1:m].^2 .- 1.2
-# function c_func!(c,x)
-#     c .= x[1:m].^2 .- 1.2
-#     return nothing
-# end
-# function ∇c_func!(∇c,x)
-#     ∇c[:,1:m] = 2.0*Diagonal(x[1:m])
-#     return nothing
-# end
-# function ∇²cy_func!(∇²c,x,y)
-#     ∇²c[1:m,1:m] = 2.0*Diagonal(y)
-#     return nothing
-# end
 c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)

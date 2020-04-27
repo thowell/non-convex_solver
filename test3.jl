@@ -12,7 +12,7 @@ f, ∇f!, ∇²f! = objective_functions(f_func)
 
 c_func(x) = [x[1]^2 + x[2]^2 - 1.0]
 c_func_d(x) = x[1]^2 + x[2]^2 - 1.0
-function c_func!(c,x)
+function c_func!(c,x,model)
     c .= c_func(x)
     return nothing
 end
@@ -23,30 +23,22 @@ function ∇²cy_func(x,y)
     return ForwardDiff.jacobian(∇cy,x)
 end
 
-function ∇c_func!(∇c,x)
+function ∇c_func!(∇c,x,model)
     ∇c .= ∇c_func(x)
     return nothing
 end
 
-function ∇²cy_func!(∇²cy,x,y)
+function ∇²cy_func!(∇²cy,x,y,model)
     ∇²cy .= ∇²cy_func(x,y)
     return nothing
 end
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c_func!,∇c_func!,∇²cy_func!)
 
+model.∇c_func!(spzeros(m,n),zeros(n),model)
 s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=true,
                         kkt_solve=:symmetric,
                         nlp_scaling=true,
                         relax_bnds=true))
-# s.s.ρ = 10.0
 @time solve!(s)
 norm(c_func(s.s.x),1)
-
-# s_new = InteriorPointSolver(s.s.x,model,opts=opts)
-# s_new.s.y .= s.s.y
-# s_new.s.λ .= s.s.λ + s.s.ρ*s.s.c
-# s_new.s.ρ = s.s.ρ*10.0
-# solve!(s_new,verbose=true)
-# s = s_new
-# norm(c_func(s.s.x),1)

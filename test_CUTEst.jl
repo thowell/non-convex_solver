@@ -25,7 +25,7 @@ include("src/interior_point.jl")
 # nlp = CUTEstModel("BT10")
 # nlp = CUTEstModel("BT11")
 # nlp = CUTEstModel("BT12")
-# nlp = CUTEstModel("BYRDSPHR")
+nlp = CUTEstModel("BYRDSPHR")
 # nlp = CUTEstModel("COOLHANS")
 # nlp = CUTEstModel("DIXCHLNG")
 # nlp = CUTEstModel("EIGENA2")
@@ -83,7 +83,7 @@ include("src/interior_point.jl")
 # nlp = CUTEstModel("ORTHREGD")
 # nlp = CUTEstModel("ORTHREGM")
 # nlp = CUTEstModel("ORTHREGS")
-nlp = CUTEstModel("S316-322")
+# nlp = CUTEstModel("S316-322")
 # nlp = CUTEstModel("WOODSNE")
 
 
@@ -97,32 +97,38 @@ x0 = nlp.meta.x0
 xL = nlp.meta.lvar
 xU = nlp.meta.uvar
 
-f_func(x) = obj(nlp,x)
-function ∇f_func!(∇f,x)
+f_func(x,model) = obj(nlp,x)
+function ∇f_func!(∇f,x,model)
     grad!(nlp,x,∇f)
     return nothing
 end
-function ∇²f_func!(∇²f,x)
+function ∇²f_func!(∇²f,x,model)
     ∇²f .= hess(nlp,x)
     return nothing
 end
 
-function c_func!(c,x)
+function c_func!(c,x,model)
     cons!(nlp,x,c)
     return nothing
 end
-function ∇c_func!(∇c,x)
+function ∇c_func!(∇c,x,model)
     ∇c .= jac(nlp,x)
     return nothing
 end
-function ∇²cy_func!(∇²cy,x,y)
+function ∇²cy_func!(∇²cy,x,y,model)
     ∇²cy .= hess(nlp,x,y) - hess(nlp,x)
     return nothing
 end
 
 model = Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cy_func!)
+opts = Options{Float64}(kkt_solve=:symmetric,
+                        iterative_refinement=true,
+                        relax_bnds=true,
+                        max_iter=100,
+                        y_init_ls=true,
+                        max_iterative_refinement=1000)
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,relax_bnds=true,max_iter=1000,y_init_ls=true,max_iterative_refinement=100))
+s = InteriorPointSolver(x0,model,c_al_idx=zeros(Bool,m),opts=opts)
 @time solve!(s)
 
 finalize(nlp)

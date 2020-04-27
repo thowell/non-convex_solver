@@ -214,13 +214,13 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
     ∇²L = spzeros(model.n,model.n)
     σL = zeros(nL)
     σU = zeros(nU)
-    ∇c = model.∇c
-    model.∇c_func!(∇c,x)
+    ∇c = spzeros(model.m,model.n)
+    model.∇c_func!(∇c,x,model)
     Dc = init_Dc(opts.g_max,∇c,model.m)
 
-    f = model.f_func(x)
-    ∇f = model.∇f
-    model.∇f_func!(∇f,x)
+    f = model.f_func(x,model)
+    ∇f = zeros(model.n)
+    model.∇f_func!(∇f,x,model)
     df = init_df(opts.g_max,∇f)
     opts.nlp_scaling ? f *= df : nothing
 
@@ -232,8 +232,8 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
 
     ∇L = zeros(model.n)
 
-    c = model.c
-    model.c_func!(c,x)
+    c = zeros(model.m)
+    model.c_func!(c,x,model)
     opts.nlp_scaling ? c .= Dc*c : nothing
 
     c_soc = zeros(model.m)
@@ -317,9 +317,6 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
 
     θ_soc = 0.
 
-    model.x = x
-    model.y = y
-
     Solver(model,
            x,x⁺,x_soc,
            xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,ΔxL,ΔxU,
@@ -371,18 +368,18 @@ function eval_bounds!(s::Solver)
 end
 
 function eval_objective!(s::Solver)
-    s.f = s.opts.nlp_scaling ? s.df*s.model.f_func(s.x) : s.model.f_func(s.x)
-    s.model.∇f_func!(s.∇f,s.x)
-    s.model.∇²f_func!(s.∇²f,s.x)
+    s.f = s.opts.nlp_scaling ? s.df*s.model.f_func(s.x,s.model) : s.model.f_func(s.x,s.model)
+    s.model.∇f_func!(s.∇f,s.x,s.model)
+    s.model.∇²f_func!(s.∇²f,s.x,s.model)
     return nothing
 end
 
 function eval_constraints!(s::Solver)
-    s.model.c_func!(s.c,s.x)
+    s.model.c_func!(s.c,s.x,s.model)
     s.opts.nlp_scaling ? (s.c .= s.Dc*s.c) : nothing
 
-    s.model.∇c_func!(s.∇c,s.x)
-    s.model.∇²cy_func!(s.∇²cy,s.x,s.y)
+    s.model.∇c_func!(s.∇c,s.x,s.model)
+    s.model.∇²cy_func!(s.∇²cy,s.x,s.y,s.model)
 
     s.θ = norm(s.c,1)
     return nothing
@@ -534,25 +531,28 @@ function init_y!(y,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,y_max)
 end
 
 function θ(x,s::Solver)
-    s.model.c_func!(s.c_tmp,x)
+    s.model.c_func!(s.c_tmp,x,s.model)
     if s.opts.nlp_scaling
         s.c_tmp .= s.Dc*s.c_tmp
     end
     return norm(s.c_tmp,1)
 end
 
-function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f_func,df,ρ,y_al,c_al)
-    return (df*f_func(x) - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]) + y_al'*c_al + 0.5*ρ*c_al'*c_al)
+function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f,ρ,y_al,c_al)
+    return (f - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool])) + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool]) + y_al'*c_al + 0.5*ρ*c_al'*c_al)
 end
 
 function barrier(x,s::Solver)
-    s.model.c_func!(s.c_tmp,x)
+    s.f = s.model.f_func(x,s.model)
+
+    s.model.c_func!(s.c_tmp,x,s.model)
     if s.opts.nlp_scaling
         s.c_tmp .= s.Dc*s.c_tmp
     end
+
     return barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,
-        s.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,s.model.f_func,
-        s.opts.nlp_scaling ? s.df : 1.0,
+        s.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,
+        s.opts.nlp_scaling ? s.df*s.f : s.f,
         s.ρ,s.λ,s.c_tmp[s.c_al_idx])
 end
 
