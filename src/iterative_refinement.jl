@@ -1,3 +1,8 @@
+"""
+    iterative_refinement(d, s::Solver)
+
+Use iterative refinement on the unreduced KKT system to improve the current step `d`.
+"""
 function iterative_refinement(d::Vector{T},s::Solver) where T
     s.d_copy .= d
     iter = 0

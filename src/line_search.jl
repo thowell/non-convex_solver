@@ -1,14 +1,17 @@
 function line_search(s::Solver)
+    # A-5.1 Initilize the line search
     # compute α, αz
-    α_min!(s)
-    α_max!(s)
+    α_min!(s)  # update s.α_min
+    α_max!(s)  # update s.α_max and s.α
     αz_max!(s)
-
-    trial_step!(s)
-
-    s.l = 0
+    s.l = 0   # line search interations
     status = false
+
+    # A-5.2 Compute the new trial point
+    trial_step!(s)  # update s.x⁺
+
     while s.α > s.α_min
+        # A-5.3 Check acceptability to the filter
         if check_filter(s.θ⁺,s.φ⁺,s)
             if s.l == 0
                 s.fail_cnt = 0
@@ -28,14 +31,17 @@ function line_search(s::Solver)
                 end
             end
         end
+        # TODO: the else here should go directly to A-5.10
 
+        # A-5.5 Initialize the second-order correction
         if s.l > 0 || s.θ⁺ < s.θ || s.restoration == true
+            # A-5.10 Choose new trail step size
             if s.l == 0
                 s.fail_cnt += 1
             end
             s.α *= 0.5
         else
-            # second order correction
+            # A-5.6-9 Second order correction
             if second_order_correction(s)
                 status = true
                 break
@@ -68,6 +74,12 @@ function line_search(s::Solver)
     return status
 end
 
+"""
+    trial_step!(s::Solver)
+
+Calculate the new candidate primal variables using the current step size and step.
+Evaluate the constraint norm and the barrier objective at the new candidate.
+"""
 function trial_step!(s::Solver)
     s.x⁺ .= s.x + s.α*s.dx
     s.θ⁺ = θ(s.x⁺,s)
@@ -86,11 +98,21 @@ function α_min(d,θ,∇φ,θ_min,δ,γα,γθ,γφ,sθ,sφ)
     return α_min
 end
 
+"""
+    α_min!(s::Solver)
+
+Compute the minimum step length (Eq. 23)
+"""
 function α_min!(s::Solver)
     s.α_min = α_min(s.dx,s.θ,s.∇φ,s.θ_min,s.opts.δ,s.opts.γα,s.opts.γθ,s.opts.γφ,s.opts.sθ,s.opts.sφ)
     return nothing
 end
 
+"""
+    α_max!(s::Solver)
+
+Compute the maximum step length (Eq. 15)
+"""
 function α_max!(s::Solver)
     s.α_max = 1.0
     while !fraction_to_boundary_bnds(s.x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.dx,s.α_max,s.τ)
@@ -101,6 +123,7 @@ function α_max!(s::Solver)
     return nothing
 end
 
+# TODO: these can all use the same function, since it's the same algorithm
 function αz_max!(s::Solver)
     s.αz = 1.0
     while !fraction_to_boundary(s.zL,s.dzL,s.αz,s.τ)

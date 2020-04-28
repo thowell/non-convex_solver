@@ -1,4 +1,5 @@
 function solve!(solver::InteriorPointSolver)
+    # TODO: some sort of reset?
     s = solver.s
 
     # evaluate problem
@@ -14,8 +15,12 @@ function solve!(solver::InteriorPointSolver)
     end
 
     while eval_Eμ(0.0,s) > s.opts.ϵ_tol
+
+        # Converge the interior point sub-problem
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
             s.opts.relax_bnds ? relax_bnds!(s) : nothing
+
+            # solve for the search direction and check if it's small
             if search_direction!(s)
                 s.small_search_direction_cnt += 1
                 if s.small_search_direction_cnt == s.opts.small_search_direction_max
@@ -29,10 +34,11 @@ function solve!(solver::InteriorPointSolver)
                 α_max!(s)
                 αz_max!(s)
                 augment_filter!(s)
-                update!(s)
+                update!(s)  # TODO: maybe call this something a little more informative?
             else
                 s.small_search_direction_cnt = 0
 
+                # Perform line search and check if it fails
                 if !line_search(s)
                     if s.θ < s.opts.ϵ_tol
                         @warn "infeasibility detected"
@@ -44,7 +50,7 @@ function solve!(solver::InteriorPointSolver)
 
                         restoration!(solver.s̄,s)
                     end
-                else
+                else  # successful line search
                     augment_filter!(s)
                     update!(s)
                 end
@@ -52,6 +58,8 @@ function solve!(solver::InteriorPointSolver)
 
             s.c_tmp .= copy(s.c)
             s.opts.z_reset ? reset_z!(s) : nothing
+
+            # Calculate everything at the new trial point
             eval_iterate!(s)
 
             s.k += 1
@@ -66,21 +74,28 @@ function solve!(solver::InteriorPointSolver)
                 println("Eμ: $(eval_Eμ(s.μ,s))")
                 println("α: $(s.α)\n")
             end
-        end
+        end  # while
 
+        # Update the penalty parameter
         update_μ!(s)
         update_τ!(s)
 
+        # Augmented Lagrangian update
         s.λ .= s.λ + s.ρ*s.c_al
         s.ρ = 1.0/s.μ
 
+        # Calculate everything again with updated multipliers and penalties
+        # TODO: shouldn't need to recalculate f or c
         eval_iterate!(s)
 
         # eval_barrier!(s)
+
+        # Reset the filter
         s.j += 1
         empty!(s.filter)
         push!(s.filter,(s.θ_max,Inf))
 
+        # QUESTION: why is this necessary? Duplicate code to the above?
         if s.k == 0
             update_μ!(s)
             update_τ!(s)
@@ -95,6 +110,6 @@ function solve!(solver::InteriorPointSolver)
             empty!(s.filter)
             push!(s.filter,(s.θ_max,Inf))
         end
-    end
+    end  # while
     s.opts.verbose ? println("<interior-point solve complete>") : nothing
 end
