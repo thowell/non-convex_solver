@@ -1,3 +1,8 @@
+"""
+    H_symmetric_views{T}
+
+Views into the unreduced KKT matrix
+"""
 struct H_unreduced_views{T}
     xx::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
     xy::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
@@ -26,6 +31,11 @@ function H_unreduced_views(H::SparseMatrixCSC,idx::Indices)
     H_unreduced_views(xx,xy,yx,xLzL,zLxL,xUzU,zUxU,zLzL,zUzU,yalyal)
 end
 
+"""
+    H_symmetric_views{T}
+
+Views into the symmetric KKT matrix
+"""
 struct H_symmetric_views{T}
     xx::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
     xLxL::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
@@ -48,6 +58,14 @@ function H_symmetric_views(H::SparseMatrixCSC,idx::Indices)
     H_symmetric_views(xx,xLxL,xUxU,xy,yx,yy,yalyal)
 end
 
+# TODO: shouldn't this be `Base.copyto(x,y)`?
+# TODO: should be able to combine these into a single function, at least using `Union`
+"""
+    update!(x,y)
+
+Copy `y` to `x` element-wise, where `x` is a view into a `SparseMatrixCSC`, and `y` is either
+a `SparseMatrixCSC` or a number.
+"""
 function update!(x::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false},y::SparseMatrixCSC{T,Int}) where T
     x .= y
     return nothing
@@ -64,6 +82,13 @@ function update!(x::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianInd
     x .= y
     return nothing
 end
+
+"""
+    add_update!(x,y)
+
+Add `y` to `x` element-wise, where `x` is a view into a `SparseMatrixCSC`, and `y` is either
+a `Vector` or a number.
+"""
 function add_update!(x::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false},y::Vector{T}) where T
     x .+= y
     return nothing

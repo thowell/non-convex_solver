@@ -1,3 +1,9 @@
+"""
+    search_direction!(s::Solver)
+
+Compute the search direction `s.d` by solving the KKT system. Includes both inertia
+correction and iterative refinement.
+"""
 function search_direction!(s::Solver)
     if s.opts.kkt_solve == :symmetric
         search_direction_symmetric!(s)
@@ -47,12 +53,12 @@ end
 
 # symmetric KKT system
 function kkt_hessian_symmetric!(s::Solver)
-    update!(s.Hv_sym.xx,s.∇²L)
-    add_update!(s.Hv_sym.xLxL,s.σL)
-    add_update!(s.Hv_sym.xUxU,s.σU)
-    update!(s.Hv_sym.xy,s.∇c')
-    update!(s.Hv_sym.yx,s.∇c)
-    update!(s.Hv_sym.yalyal,-1.0/s.ρ)
+    update!(s.Hv_sym.xx, s.∇²L)
+    add_update!(s.Hv_sym.xLxL, s.σL)
+    add_update!(s.Hv_sym.xUxU, s.σU)
+    update!(s.Hv_sym.xy, s.∇c')
+    update!(s.Hv_sym.yx, s.∇c)
+    update!(s.Hv_sym.yalyal, -1.0/s.ρ)
     return nothing
 end
 

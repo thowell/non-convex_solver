@@ -1,14 +1,20 @@
+"""
+    Indices
+
+Stores useful indices into the primal-dual vector `[x; y]` where `x` is the vector
+of `n` primal variables and `y` is the vector of `m` dual variables.
+"""
 struct Indices
-    x::UnitRange{Int}
-    xL::Vector{Int}
-    xU::Vector{Int}
-    xLs::Vector{Int}
-    xUs::Vector{Int}
-    y::UnitRange{Int}
-    y_al::Vector{Int}
-    zL::UnitRange{Int}
-    zU::UnitRange{Int}
-    xy::UnitRange{Int}
+    x::UnitRange{Int}    # primal variables
+    xL::Vector{Int}      # set of lower bounds on primals
+    xU::Vector{Int}      # set of upper bounds on primals
+    xLs::Vector{Int}     # set of lower bounds on slacks
+    xUs::Vector{Int}     # set of upper bounds on slacks
+    y::UnitRange{Int}    # dual variables
+    y_al::Vector{Int}    # dual augmented lagrangian variables
+    zL::UnitRange{Int}   # duals for slack lower bounds?
+    zU::UnitRange{Int}   # duals for slack upper bounds?
+    xy::UnitRange{Int}   # entire primal-dual vector
 end
 
 function indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,c_al_idx)

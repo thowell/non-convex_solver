@@ -1,3 +1,4 @@
+# TODO: add descriptions to these options
 @with_kw mutable struct Options{T}
     verbose::Bool = true
     ϵ_tol::T = 1.0e-8
@@ -63,6 +64,7 @@
     ϵ_mach::T = 1.0e-16
 end
 
+# TODO: do this with a loop
 function Base.copy(o::Options{T}) where T
     return Options{T}(
                     verbose=copy(o.verbose),
