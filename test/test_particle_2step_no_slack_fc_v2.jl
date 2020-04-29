@@ -1,4 +1,5 @@
-include("src/interior_point.jl")
+include("../src/interior_point.jl")
+
 
 T = 2
 nc = 1
@@ -66,7 +67,7 @@ f, ∇f!, ∇²f! = objective_functions(f_func)
 function c_func(x)
     q1,u1,y1,β1,ψ1,η1,sϕ1,sfc1 = unpack(x[1:nx])
     q2,u2,y2,β2,ψ2,η2,sϕ2,sfc2 = unpack(x[nx .+ (1:nx)])
-    [(M(q1)*(2*qp - qpp - q1)/dt - G(q1)*dt + B(q1)'*u1 + P(q1)'*β1 + N(q1)*y1);
+    [(M(qp)*(2*qp - qpp - q1)/dt - G(qp)*dt + B(q1)'*u1 + P(q1)'*β1 + N(q1)*y1);
      (P(q1)*(q1-qp)/dt + 2.0*β1*ψ1);
      (sϕ1 - N(q1)'*q1);
      (sfc1 - ((0.5*y1)^2 - β1'*β1));
@@ -104,10 +105,10 @@ c_al_idx[np .+ (1:nq+nβ+nc+nc+nc)] .= 0
 
 q0 = q1
 u0 = 1.0e-3*rand(nu)
-y0 = 1.0e-1*rand(1)[1]
-β0 = 1.0e-1*rand(nβ)
-ψ0 = 1.0e-1*rand(1)[1]
-η0 = 1.0e-1*rand(1)[1]
+y0 = 1.0e-2*rand(1)[1]
+β0 = 1.0e-2*rand(nβ)
+ψ0 = 1.0e-2*rand(1)[1]
+η0 = 1.0e-2*rand(1)[1]
 x0 = [q0;u0;y0;β0;ψ0;η0; N(q0)'*q0;(0.5*y0)^2 - β0'*β0;q0;u0;y0;β0;ψ0;η0; N(q0)'*q0;(0.5*y0)^2 - β0'*β0]
 
 opts = Options{Float64}(kkt_solve=:symmetric,

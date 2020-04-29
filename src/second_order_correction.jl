@@ -22,7 +22,7 @@ function second_order_correction(s::Solver)
                 if armijo(s)
                     s.α = s.α_soc
                     status = true
-                    println("second-order correction: success")
+                    s.opts.verbose && println("second-order correction: success")
                     break
                 end
             # case 2
@@ -30,19 +30,19 @@ function second_order_correction(s::Solver)
                 if sufficient_progress(s)
                     s.α = s.α_soc
                     status = true
-                    println("second-order correction: success")
+                    s.opts.verbose && println("second-order correction: success")
                     break
                 end
             end
         else
             s.α = 0.5*s.α_max
-            println("second-order correction: failure")
+            s.opts.verbose && println("second-order correction: failure")
             break
         end
 
         if s.p == s.opts.p_max || s.θ⁺ > s.opts.κ_soc*s.θ_soc
             s.α = 0.5*s.α_max
-            println("second-order correction: failure")
+            s.opts.verbose && println("second-order correction: failure")
             break
         else
             s.p += 1

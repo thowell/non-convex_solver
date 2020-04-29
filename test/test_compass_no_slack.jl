@@ -1,4 +1,5 @@
-include("src/interior_point.jl")
+include("../src/interior_point.jl")
+
 
 mutable struct Compass{T} <: AbstractModel
     m1::T

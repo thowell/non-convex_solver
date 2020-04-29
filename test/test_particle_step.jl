@@ -1,4 +1,5 @@
-include("src/interior_point.jl")
+include("../src/interior_point.jl")
+
 
 nc = 1
 nf = 4

@@ -1,6 +1,7 @@
-# NOTE: Ipopt fails to converge on this problem. This solver also fail, unless δc ≈ 0.1.
+# NOTE: Ipopt fails to converge on this problem. This solver also fail, unless
+#    δc ≈ 0.1. or augmented Lagrangian is used for constraints
 
-include("src/interior_point.jl")
+include("../src/interior_point.jl")
 
 n = 3
 m = 2
@@ -28,7 +29,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iterative_refinement=100,
                         max_iter=100)
 
-s = InteriorPointSolver(x0,model,opts=opts)
+s = InteriorPointSolver(x0,model,c_al_idx=ones(Bool,m),opts=opts)
 @time solve!(s)
 
 # ######

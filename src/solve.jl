@@ -1,4 +1,6 @@
 function solve!(solver::InteriorPointSolver)
+    println("<augmented-Lagrangian interior-point solve>\n")
+
     s = solver.s
 
     # evaluate problem
@@ -8,7 +10,6 @@ function solve!(solver::InteriorPointSolver)
     push!(s.filter,(s.θ_max,Inf))
 
     if s.opts.verbose
-        println("<interior-point solve>\n")
         println("θ0: $(s.θ), φ0: $(s.φ)")
         println("Eμ0: $(eval_Eμ(0.0,s))")
     end
@@ -39,9 +40,6 @@ function solve!(solver::InteriorPointSolver)
                         return
                     else
                         augment_filter!(s)
-                        # @warn "updating y_al"
-                        # s.λ .= s.λ + s.ρ*s.c_al
-
                         restoration!(solver.s̄,s)
                     end
                 else
@@ -50,7 +48,6 @@ function solve!(solver::InteriorPointSolver)
                 end
             end
 
-            s.c_tmp .= copy(s.c)
             s.opts.z_reset ? reset_z!(s) : nothing
             eval_iterate!(s)
 
@@ -64,7 +61,6 @@ function solve!(solver::InteriorPointSolver)
                 s.model.n < 5 ? println("x: $(s.x)") : nothing
                 println("θ: $(θ(s.x,s)), φ: $(barrier(s.x,s))")
                 println("Eμ: $(eval_Eμ(s.μ,s))")
-                println("E0: $(eval_Eμ(0.0,s))")
 
                 println("α: $(s.α)\n")
             end
@@ -73,45 +69,34 @@ function solve!(solver::InteriorPointSolver)
         if eval_Eμ(0.0,s) <= s.opts.ϵ_tol && norm(s.c_al,1) <= s.opts.ϵ_al_tol
             break
         else
-
-            update_μ!(s)
-            update_τ!(s)
-
-            s.λ .= s.λ + s.ρ*s.c_al
-            s.ρ = 1.0/s.μ
-
+            barrier_update!(s)
+            augmented_lagrangian_update!(s)
             eval_iterate!(s)
 
-            # eval_barrier!(s)
-            s.j += 1
-            empty!(s.filter)
-            push!(s.filter,(s.θ_max,Inf))
-
             if s.k == 0
-                update_μ!(s)
-                update_τ!(s)
-
-                s.λ .= s.λ + s.ρ*s.c_al
-                s.ρ = 1.0/s.μ
-
-                # eval_barrier!(s)
+                barrier_update!(s)
+                augmented_lagrangian_update!(s)
                 eval_iterate!(s)
-
-                s.j += 1
-                empty!(s.filter)
-                push!(s.filter,(s.θ_max,Inf))
             end
         end
     end
-    if s.opts.verbose
-        println("<interior-point solve complete>")
-        println("   iteration ($(s.j),$(s.k)):")
 
-        s.model.n < 5 ? println("x: $(s.x)") : nothing
-        println("   θ: $(θ(s.x,s)), φ: $(barrier(s.x,s))")
-        println("   E0: $(eval_Eμ(0.0,s))")
-        println("   f: $(s.f)")
-        println("   norm(c): $(norm(s.c[s.c_al_idx .== 0]))")
-        println("   norm(c_al): $(norm(s.c_al))")
-    end
+    println("<augmented-Lagrangian interior-point solve>: complete")
+    println("   iteration ($(s.j),$(s.k)):")
+
+    s.model.n < 5 ? println("   x: $(s.x)") : nothing
+    println("   f: $(s.f)")
+    println("   θ: $(s.θ), φ: $(s.φ)")
+    println("   E0: $(eval_Eμ(0.0,s))")
+    println("   norm(c): $(norm(s.c[s.c_al_idx .== 0]))")
+    println("   norm(c_al): $(norm(s.c_al))")
+end
+
+function barrier_update!(s::Solver)
+    update_μ!(s)
+    update_τ!(s)
+
+    s.j += 1
+    empty!(s.filter)
+    push!(s.filter,(s.θ_max,Inf))
 end
