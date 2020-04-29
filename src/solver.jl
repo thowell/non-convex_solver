@@ -355,6 +355,137 @@ function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Option
            opts)
 end
 
+function reset_solver!(s::Solver, x0)
+    opts = s.opts
+    model = s.model
+
+    # Reset primals
+    s.x .= 0
+    s.x⁺ .= 0
+    s.x_soc .= 0
+    s.xL .= model.xL
+    s.xU .= model.xU
+
+    s.ΔxL .= 0
+    s.ΔxU .= 0
+
+    if opts.relax_bnds
+       # relax bounds
+       for i in (1:model.n)[s.xL_bool]
+           s.xL[i] = relax_bnd(s.xL[i], opts.ϵ_tol, :L)
+       end
+       for i in (1:model.n)[s.xU_bool]
+           s.xU[i] = relax_bnd(s.xU[i], opts.ϵ_tol, :U)
+       end
+    end
+
+    for i = 1:model.n
+        s.x[i] = init_x0(x0[i], s.xL[i], s.xU[i], opts.κ1, opts.κ2)
+    end
+
+    s.Dx = init_Dx(model.n)
+    opts.nlp_scaling && s.x .= s.Dx * s.x
+
+    s.zL = opts.zL0*ones(s.nL)
+    s.zU = opts.zU0*ones(s.nU)
+
+    s.H .= 0
+    s.h .= 0
+    s.H_sym .= 0
+    s.h_sym .= 0
+    s.inertia = Inertia(0,0,0)
+
+    s.∇²L .= 0
+    s.σL .= 0
+    s.σU .= 0
+    s.∇c .= 0
+
+    model.∇c_func!(s.∇c, s.x, model)
+    Dc = init_Dc(opts.g_max, s.∇c, model.m)
+
+    s.f = model.f_func(x0, model)
+    s.∇f .= 0
+    s.df = init_df(opts.g_max, s.∇f)
+    opts.nlp_scaling && (s.f *= s.df)
+    s.∇²f = model.∇²f
+
+    s.φ = 0.
+    s.φ⁺ = 0.
+    s.∇φ .= 0.
+    s.∇L .= 0
+
+    s.c .= 0
+    model.c_func!(s.c, s.x, model)
+    opts.nlp_scaling && s.c .= s.Dc*s.c
+
+    s.c_soc .= 0
+    s.c_tmp .= 0
+    s.∇²cy .= 0
+
+    s.d .= 0
+    s.d_soc .= 0
+
+    s.Δ .= 0
+    s.res .= 0
+
+    # Reset penalies
+    s.μ = copy(opts.μ0)
+    s.τ = update_τ(s.μ, opts.τ_min)
+    s.ρ = 1/s.μ
+
+    # Reset line search
+    s.α = 1.0
+    s.αz = 1.0
+    s.α_max = 1.0
+    s.α_min = 1.0
+    s.α_soc = 1.0
+    s.β = 1.0
+
+    # Reset regularization
+    s.δ = zero(s.d)
+    s.δw = 0.
+    s.δw_last = 0.
+    s.δc = 0.
+
+    # Reset duals
+    s.y .= 0
+    opts.y_init_ls && init_y!(s.y, s.H_sym, s.h_sym, s.d, s.zL, s.zU, s.∇f, s.∇c,
+        model.n, model.m, s.xL_bool, s.xU_bool, opts.y_max)
+
+    s.sd = init_sd(s.y,[s.zL;s.zU], model.n, model.m, opts.s_max)
+    s.sc = init_sc([s.zL; s.zU], model.n, opts.s_max)
+
+    s.filter = Tuple[]
+
+    # Reset iteration counts
+    s.j = s.k = s.l = s.p = s.t = 0
+    s.small_search_direction_cnt = 0
+    s.restoration = false
+
+    s.DR .= 0
+
+    s.x_copy .= 0
+    s.y_copy .= 0
+    s.zL_copy .= 0
+    s.zL_copy .= 0
+    s.zU_copy .= 0
+    s.d_copy .= 0
+
+    s.Fμ .= 0
+
+    s.fail_cnt = 0
+
+    s.λ .= 0
+
+    s.θ = norm(s.c, 1)
+    s.θ⁺ = s.θ
+    s.θ_min = init_θ_min(s.θ)
+    s.θ_max = init_θ_max(s.θ)
+    s.θ_soc = 0.
+
+    return s
+end
+
 """
     eval_Eμ(x, y, zL, zU, ∇xL, ∇xU, c, ∇L, μ, sd, sc, ρ, λ, y_al, c_al)
     eval_Eμ(solver::Solver)
