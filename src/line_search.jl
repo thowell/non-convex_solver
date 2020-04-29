@@ -56,14 +56,14 @@ function line_search(s::Solver)
                 s.θ_max *= 0.1
                 empty!(s.filter)
                 push!(s.filter,(s.θ_max,Inf))
-                @warn "acceleration heuristic: resetting filter, reducing θ_max"
+                s.opts.verbose && @warn "acceleration heuristic: resetting filter, reducing θ_max"
             else
                 # backup current iterate
                 s.x_copy .= s.x
                 s.y_copy .= s.y
                 s.zL_copy .= s.zL
                 s.zU_copy .= s.zU
-                @warn "acceleration heuristic: implement watchdog"
+                s.opts.verbose && @warn "acceleration heuristic: implement watchdog"
             end
         end
 

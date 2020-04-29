@@ -41,7 +41,7 @@ function solve!(solver::InteriorPointSolver)
                 # Perform line search and check if it fails
                 if !line_search(s)
                     if s.θ < s.opts.ϵ_tol
-                        @warn "infeasibility detected"
+                        s.opts.verbose && @warn "infeasibility detected"
                         return
                     else
                         augment_filter!(s)
@@ -64,6 +64,7 @@ function solve!(solver::InteriorPointSolver)
 
             s.k += 1
             if s.k > s.opts.max_iter
+                # TODO: don't throw an error! handle this gracefully
                 error("max iterations")
             end
 
