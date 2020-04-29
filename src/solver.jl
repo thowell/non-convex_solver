@@ -138,8 +138,7 @@ mutable struct Solver{T}
     opts::Options{T}
 end
 
-function Solver(x0,model::AbstractModel;c_al_idx=ones(Bool,model.m), opts=Options{Float64}())
-    # QUESTION: defaults to setting all constraints to AL constraints?
+function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Options{Float64}())
 
     # initialize primals
     x = zeros(model.n)
@@ -878,7 +877,7 @@ struct InteriorPointSolver{T}
     s̄::Solver{T}
 end
 
-function InteriorPointSolver(x0,model::AbstractModel; c_al_idx=ones(Bool,model.m),opts=Options{Float64}()) where T
+function InteriorPointSolver(x0,model::AbstractModel; c_al_idx=zeros(Bool,model.m),opts=Options{Float64}()) where T
     s = Solver(x0,model,c_al_idx=c_al_idx,opts=opts)
     s̄ = RestorationSolver(s)
 

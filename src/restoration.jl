@@ -88,7 +88,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                 return true
             end
 
-            s̄.opts.z_reset ? reset_z!(s̄) : nothing
+            s̄.opts.z_reset && reset_z!(s̄)
 
             eval_iterate!(s̄)
 
@@ -106,30 +106,14 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
             end
         end
 
-        update_μ!(s̄)
-        update_τ!(s̄)
-
-        s̄.λ .= s̄.λ + s̄.ρ*s̄.c_al
-        s̄.ρ = 1.0/s̄.μ
-
+        barrier_update!(s̄)
+        augmented_lagrangian_update!(s̄)
         eval_iterate!(s̄)
 
-        s̄.j += 1
-        empty!(s̄.filter)
-        push!(s̄.filter,(s̄.θ_max,Inf))
-
         if s̄.k == 0
-            update_μ!(s̄)
-            update_τ!(s̄)
-
-            s̄.λ .= s̄.λ + s̄.ρ*s̄.c_al
-            s̄.ρ = 1.0/s̄.μ
-
+            barrier_update!(s̄)
+            augmented_lagrangian_update!(s̄)
             eval_iterate!(s̄)
-
-            s̄.j += 1
-            empty!(s̄.filter)
-            push!(s̄.filter,(s̄.θ_max,Inf))
         end
 
         update_restoration_objective!(s̄,s)

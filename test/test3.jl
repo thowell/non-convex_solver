@@ -1,4 +1,4 @@
-include("src/interior_point.jl")
+include("../src/interior_point.jl")
 
 n = 2
 m = 1

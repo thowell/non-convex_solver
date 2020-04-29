@@ -48,8 +48,8 @@ function second_order_correction(s::Solver)
                 end
             end
         else
-            # QUESTION: shouldn't this exit this function and not attempt another SOC?
-            s.α = 0.5*s.α_max   # QUESTION: shouldn't this be 0.5*s.α?
+            #TODO check this exit criteria
+            s.α = 0.5*s.α_max
             s.opts.verbose && println("second-order correction: failure")
             break
         end

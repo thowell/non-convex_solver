@@ -1,5 +1,6 @@
 using CUTEst, NLPModels
-include("src/interior_point.jl")
+include("../src/interior_point.jl")
+
 
 # nlp = CUTEstModel("HS35")
 # nlp = CUTEstModel("STRTCHDVNE")
