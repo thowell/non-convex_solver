@@ -41,6 +41,7 @@ end
 
 function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
     # evaluate problem
+    s̄.opts.verbose = true
     eval_iterate!(s̄)
 
     # initialize filter

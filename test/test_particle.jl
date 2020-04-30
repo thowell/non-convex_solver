@@ -105,7 +105,7 @@ s = InteriorPointSolver(x0,nlp_model,c_al_idx=c_al_idx,opts=opts)
 norm(c_func(s.s.x)[c_al_idx .== 0],1)
 norm(c_func(s.s.x)[c_al_idx],1)
 
-using BenchmarkTools
+# using BenchmarkTools
 
 # @benchmark model.∇c_func!($model.∇c,$s.s.x,$model)
 # @benchmark _model.c_func!($_model.c,$s.s.x,$_model)

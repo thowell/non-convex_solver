@@ -21,7 +21,7 @@ model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,
-                        verbose=true)
+                        verbose=false)
 
 s = InteriorPointSolver(x0,model,opts=opts)
 @time solve!(s)

@@ -27,7 +27,8 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         single_bnds_damping=true,
                         iterative_refinement=true,
                         max_iterative_refinement=100,
-                        max_iter=100)
+                        max_iter=100,
+                        verbose=false)
 
 s = InteriorPointSolver(x0,model,c_al_idx=ones(Bool,m),opts=opts)
 @time solve!(s)

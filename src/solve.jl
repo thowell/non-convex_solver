@@ -1,11 +1,13 @@
 using Crayons
 function solve!(solver::InteriorPointSolver)
     # println("<augmented-Lagrangian interior-point solve>\n")
-    title = "AUGMENTED LAGRANGIAN INTERIOR-POINT SOLVER"
+    title = "AUGMENTED-LAGRANGIAN INTERIOR-POINT SOLVER"
     println(crayon"bold underline cyan", title)
     println(crayon"reset","written and maintained by")
-    println("\tthe Robotic Exploration Lab")
-    println("\tat Stanford University\n")
+    println(crayon"reset","Taylor Howell and Brian Jackson")
+
+    println("Robotic Exploration Lab")
+    println("Stanford University\n")
 
     s = solver.s
 

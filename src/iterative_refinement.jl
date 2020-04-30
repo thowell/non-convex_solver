@@ -10,7 +10,7 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
 
     res_norm = norm(s.res,Inf)
     res_norm_init = copy(res_norm)
-    s.opts.verbose ? println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)") : nothing
+    # s.opts.verbose ? println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)") : nothing
 
     while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement) || iter < s.opts.min_iterative_refinement
         if s.opts.kkt_solve == :unreduced
@@ -33,11 +33,11 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
     end
 
     if res_norm < s.opts.ϵ_iterative_refinement
-        s.opts.verbose ? println("iterative refinement success: $(res_norm), iter: $iter") : nothing #, cond: $(cond(Array(s.H+Diagonal(s.δ)))), rank: $(rank(Array(s.H+Diagonal(s.δ))))") : nothing
+        # s.opts.verbose ? println("iterative refinement success: $(res_norm), iter: $iter") : nothing #, cond: $(cond(Array(s.H+Diagonal(s.δ)))), rank: $(rank(Array(s.H+Diagonal(s.δ))))") : nothing
         return true
     else
         d .= s.d_copy
-        s.opts.verbose ? println("iterative refinement failure: $(res_norm), iter: $iter") : nothing #, cond: $(cond(Array(s.H+Diagonal(s.δ)))), rank: $(rank(Array(s.H+Diagonal(s.δ))))") : nothing
+        # s.opts.verbose ? println("iterative refinement failure: $(res_norm), iter: $iter") : nothing #, cond: $(cond(Array(s.H+Diagonal(s.δ)))), rank: $(rank(Array(s.H+Diagonal(s.δ))))") : nothing
         return false
     end
 end
