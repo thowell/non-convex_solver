@@ -122,4 +122,4 @@ CUTEsizes = [
     (4000, 3001)
 ]
 CUTEstProbs = Dict(:all => CUTEstAll, :small => smallProbs, :medium => interProbs,
-    :large => largeProbs, :sizes => CUTEsizes, :form => rightForm)
+    :large => largeProbs, :sizes => CUTEsizes)

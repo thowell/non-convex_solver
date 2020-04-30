@@ -1,4 +1,5 @@
 using LinearAlgebra, ForwardDiff, SparseArrays, Parameters
+using SolverLogging, Logging
 using HSL
 
 include("options.jl")
