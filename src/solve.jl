@@ -131,10 +131,10 @@ end
 function log_stats(s)
     @logmsg InnerLoop :j value=s.j width=3
     @logmsg InnerLoop :k value=s.k width=3
-    @logmsg InnerLoop :f value=s.f width=10
-    @logmsg InnerLoop :μ value=s.μ width=10
     @logmsg InnerLoop :θ value=s.θ width=10
     @logmsg InnerLoop :φ value=s.φ width=10
     @logmsg InnerLoop :Eμ value=eval_Eμ(s.μ, s)
+    @logmsg InnerLoop :f value=s.f width=10
+    @logmsg InnerLoop :μ value=s.μ width=10
     @logmsg InnerLoop :α value=s.α
 end

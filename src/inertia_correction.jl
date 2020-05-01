@@ -13,8 +13,7 @@ function inertia_correction!(s::Solver; restoration=false)
 
     s.opts.verbose ? println("inertia-> n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)") : nothing
 
-    inertia(s) ? (return nothing) : nothing
-    # inertia(s) && return nothing
+    inertia(s) && return nothing
 
     # IC-2
     if s.inertia.z != 0
@@ -24,9 +23,9 @@ function inertia_correction!(s::Solver; restoration=false)
 
     # IC-3
     if s.δw_last == 0.
-        s.δw = max(s.δw, s.opts.δw0)  # QUESTION: shouldn't this be s.δw = s.opts.δw0?
+        s.δw = s.opts.δw0
     else
-        s.δw = max(s.δw, s.opts.δw_min, s.opts.κw⁻*s.δw_last)
+        s.δw = max(s.opts.δw_min, s.opts.κw⁻*s.δw_last)
     end
 
     while !inertia(s)
@@ -73,7 +72,7 @@ function factorize_kkt!(s::Solver)
     s.δ[s.idx.x] .= s.δw
     s.δ[s.idx.y] .= -s.δc
 
-    s.LBL = Ma57(s.H_sym + Diagonal(s.δ[s.idx.xy]))
+    s.LBL = Ma57(s.H_sym + Diagonal(view(s.δ,s.idx.xy)))
     ma57_factorize(s.LBL)
 
     s.inertia.m = s.LBL.info.num_negative_eigs

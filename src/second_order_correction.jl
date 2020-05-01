@@ -29,7 +29,7 @@ function second_order_correction(s::Solver)
     trial_step_soc!(s)
 
     while true
-        if check_filter(s.θ⁺,s.φ⁺,s)  # A-5.7
+        if check_filter(s.θ⁺,s.φ⁺,s.filter)  # A-5.7
             # case 1
             if (s.θ <= s.θ_min && switching_condition(s))  # A-5.8
                 if armijo(s)

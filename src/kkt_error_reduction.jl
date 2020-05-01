@@ -20,7 +20,7 @@ function kkt_error_reduction(s::Solver)
         s.zL .+= s.β*s.dzL
         s.zU .+= s.β*s.dzU
 
-        if check_filter(θ(s.x,s),barrier(s.x,s),s)
+        if check_filter(θ(s.x,s),barrier(s.x,s),s.filter)
             status = true
             break
         else

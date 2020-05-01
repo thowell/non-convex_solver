@@ -12,7 +12,7 @@ function line_search(s::Solver)
 
     while s.α > s.α_min
         # A-5.3 Check acceptability to the filter
-        if check_filter(s.θ⁺,s.φ⁺,s)
+        if check_filter(s.θ⁺,s.φ⁺,s.filter)
             if s.l == 0
                 s.fail_cnt = 0
             end
@@ -59,6 +59,7 @@ function line_search(s::Solver)
                 push!(s.filter,(s.θ_max,Inf))
                 s.opts.verbose && @warn "acceleration heuristic: resetting filter, reducing θ_max"
             else
+                @warn "WATCH DOG : UNTESTED"
                 if watch_dog!(s)
                     s.opts.verbose && @warn "acceleration heuristic: watch dog -success"
                     status = true

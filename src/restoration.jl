@@ -84,7 +84,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                 end
             end
 
-            if check_filter(θ(s̄.x[s.idx.x],s),barrier(s̄.x[s.idx.x],s),s) && θ(s̄.x[s.idx.x],s) <= s̄.opts.κ_resto*s.θ
+            if check_filter(θ(s̄.x[s.idx.x],s),barrier(s̄.x[s.idx.x],s),s.filter) && θ(s̄.x[s.idx.x],s) <= s̄.opts.κ_resto*s.θ
                 s̄.opts.verbose ? println("-restoration phase: success\n") : nothing
                 return true
             end

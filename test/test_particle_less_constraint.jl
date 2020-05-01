@@ -84,9 +84,9 @@ c_al_idx = ones(Bool,nlp_model.m)
 c_al_idx[1:nq+nβ+nc+nc] .= 0
 q0 = q1
 u0 = 1.0e-3*rand(nu)
-y0 = 1.0e-3*rand(1)[1]
-β0 = 1.0e-3*rand(nβ)
-ψ0 = 1.0e-3*rand(1)[1]
+y0 = 1.0*rand(1)[1]
+β0 = 1.0*rand(nβ)
+ψ0 = 1.0*rand(1)[1]
 x0 = [q0;u0;y0;β0;ψ0; N(q0)'*q0;(0.5*y0)^2 - β0'*β0]
 
 opts = Options{Float64}(kkt_solve=:symmetric,
@@ -94,15 +94,10 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=500,
                         relax_bnds=true,
                         y_init_ls=true,
-                        ϵ_tol=1.0e-8,
+                        ϵ_tol=1.0e-6,
                         verbose=false)
 
 s = InteriorPointSolver(x0,nlp_model,c_al_idx=c_al_idx,opts=opts)
 @time solve!(s)
 norm(c_func(s.s.x)[c_al_idx .== 0],1)
 norm(c_func(s.s.x)[c_al_idx],1)
-
-using BenchmarkTools
-
-# @benchmark model.∇c_func!($model.∇c,$s.s.x,$model)
-# @benchmark _model.c_func!($_model.c,$s.s.x,$_model)

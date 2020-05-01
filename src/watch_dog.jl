@@ -1,3 +1,5 @@
+#TODO: needs to be tested-- don't have a good problem to try on
+
 function watch_dog!(s::Solver)
     # cache current iterate
     s.x_copy .= s.x
@@ -26,7 +28,7 @@ function watch_dog!(s::Solver)
     trial_step!(s)
 
     # check second new trial point with filter
-    if check_filter(s.θ⁺,s.φ⁺,s)
+    if check_filter(s.θ⁺,s.φ⁺,s.filter)
         if s.l == 0
             s.fail_cnt = 0
         end
