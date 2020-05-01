@@ -11,7 +11,7 @@ struct Indices
     xLs::Vector{Int}     # set of lower bounds on slacks
     xUs::Vector{Int}     # set of upper bounds on slacks
     y::UnitRange{Int}    # dual variables
-    y_al::Vector{Int}    # dual augmented lagrangian variables
+    y_al::Vector{Int}    # augmented Lagrangian dual variable estimates
     zL::UnitRange{Int}   # duals for slack lower bounds?
     zU::UnitRange{Int}   # duals for slack upper bounds?
     xy::UnitRange{Int}   # entire primal-dual vector

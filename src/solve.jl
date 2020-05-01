@@ -38,12 +38,13 @@ function solve!(solver::InteriorPointSolver)
         # Converge the interior point sub-problem
         # s.k > 0 && print_header(logger, InnerLoop)
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
-            s.opts.relax_bnds ? relax_bnds!(s) : nothing
+            s.opts.relax_bnds && relax_bnds!(s)
 
             # solve for the search direction and check if it's small
             if search_direction!(s)
                 s.small_search_direction_cnt += 1
                 if s.small_search_direction_cnt == s.opts.small_search_direction_max
+                    s.small_search_direction_cnt = 0
                     if s.μ < 0.1*s.opts.ϵ_tol
                         @logmsg InnerLoop "<interior-point solve complete>: small search direction"
                         return
@@ -54,14 +55,15 @@ function solve!(solver::InteriorPointSolver)
                 α_max!(s)
                 αz_max!(s)
                 augment_filter!(s)
-                accept_step!(s)  # TODO: maybe call this something a little more informative?
+                accept_step!(s)
             else
                 s.small_search_direction_cnt = 0
 
                 # Perform line search and check if it fails
                 if !line_search(s)
                     if s.θ < s.opts.ϵ_tol
-                        @logmsg InnerLoop "Infeasibility detected"
+                        # @logmsg InnerLoop "Infeasibility detected"
+                        @warn "Infeasibiity detected"
                         return
                     else
                         augment_filter!(s)
@@ -73,7 +75,7 @@ function solve!(solver::InteriorPointSolver)
                 end
             end
 
-            s.opts.z_reset ? reset_z!(s) : nothing
+            s.opts.z_reset && reset_z!(s)
 
             # Calculate everything at the new trial point
             eval_step!(s)
@@ -82,7 +84,8 @@ function solve!(solver::InteriorPointSolver)
             s.k += 1
             if s.k > s.opts.max_iter
                 # TODO: don't throw an error! handle this gracefully
-                error("max iterations")
+                @warn "max iterations"
+                return
             end
 
             log_stats(s)

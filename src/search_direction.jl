@@ -46,7 +46,7 @@ function search_direction_unreduced!(s::Solver)
     kkt_gradient_unreduced!(s)
     s.d .= lu(s.H + Diagonal(s.δ))\(-s.h)
 
-    s.opts.iterative_refinement ? iterative_refinement(s.d,s) : nothing
+    s.opts.iterative_refinement && iterative_refinement(s.d,s)
 
     return nothing
 end
@@ -76,13 +76,15 @@ function search_direction_symmetric!(s::Solver)
 
     inertia_correction!(s,restoration=s.restoration)
 
-    s.d[s.idx.xy] = ma57_solve(s.LBL, -s.h_sym)
-    s.dzL .= -s.σL.*s.d[s.idx.xL] - s.zL + s.μ./s.ΔxL
-    s.dzU .= s.σU.*s.d[s.idx.xU] - s.zU + s.μ./s.ΔxU
+    s.dxy .= ma57_solve(s.LBL, -s.h_sym)
+    s.dzL .= -s.σL.*s.dxL - s.zL + s.μ./s.ΔxL
+    s.dzU .= s.σU.*s.dxU - s.zU + s.μ./s.ΔxU
 
-    kkt_hessian_unreduced!(s)
-    kkt_gradient_unreduced!(s)
-    s.opts.iterative_refinement ? iterative_refinement(s.d,s) : nothing
+    if s.opts.iterative_refinement
+        kkt_hessian_unreduced!(s)
+        kkt_gradient_unreduced!(s)
+        iterative_refinement(s.d,s)
+    end
 
     return nothing
 end

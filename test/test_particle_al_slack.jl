@@ -1,6 +1,5 @@
 include("../src/interior_point.jl")
 
-
 nc = 1
 nf = 2
 nq = 3
@@ -91,7 +90,7 @@ u0 = 1.0e-3*rand(nu)
 y0 = 1.0*rand(1)[1]
 β0 = 1.0*rand(nβ)
 ψ0 = 1.0*rand(1)[1]
-x0 = [q0;u0;y0;β0;ψ0; N(q0)'*q0;(0.5*y0)^2 - β0'*β0; 1.0; 1.0]
+x0 = [q0;u0;y0;β0;ψ0; N(q0)'*q0;(0.5*y0)^2 - β0'*β0; 1.0*rand(nc)[1]; 1.0*rand(nc)[1]]
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,

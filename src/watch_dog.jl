@@ -9,11 +9,12 @@ function watch_dog!(s::Solver)
     s.d_copy .= s.d
 
     # new trial point
+    search_direction!(s)
     α_max!(s)
     αz_max!(s)
-    α_max = min(s.α,s.αz)
-    s.α = α_max
-    s.αz = α_max
+    # α_max = min(s.α,s.αz)
+    # s.α = α_max
+    # s.αz = α_max
     trial_step!(s)
     accept_step!(s)
 
@@ -22,9 +23,9 @@ function watch_dog!(s::Solver)
     search_direction!(s)
     α_max!(s)
     αz_max!(s)
-    α_max = min(s.α,s.αz)
-    s.α = α_max
-    s.αz = α_max
+    # α_max = min(s.α,s.αz)
+    # s.α = α_max
+    # s.αz = α_max
     trial_step!(s)
 
     # check second new trial point with filter

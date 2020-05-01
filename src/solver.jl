@@ -9,7 +9,6 @@ mutable struct Solver{T}
 
     x::Vector{T}            # primal variables (n,)
     x⁺::Vector{T}
-    x_soc::Vector{T}
 
     xL::Vector{T}                   # lower bound
     xU::Vector{T}                   # upper bounds
@@ -63,12 +62,26 @@ mutable struct Solver{T}
     d_soc::Vector{T}
 
     dx::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}   # current step in the primals
+    dxL::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}   # current step in the primals with lower bounds
+    dxU::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}   # current step in the primals with upper bounds
     dy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}   # current step in the duals
+    dxy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     dzL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
     dzU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
 
-    Δ::Vector{T}    # ?
-    res::Vector{T}  # ?
+    Δ::Vector{T}    # iterative refinement step
+    Δ_xL::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    Δ_xU::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    Δ_xy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    Δ_zL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    Δ_zU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+
+    res::Vector{T}  # iterative refinement residual
+    res_xL::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    res_xU::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    res_xy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    res_zL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    res_zU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
 
     # Line search values
     α::T
@@ -143,7 +156,6 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     # initialize primals
     x = zeros(model.n)
     x⁺ = zeros(model.n)
-    x_soc = zeros(model.n)
 
     # primal bounds
     xL = copy(model.xL)
@@ -250,14 +262,6 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     d = zeros(model.n+model.m+nL+nU)
     d_soc = zeros(model.n+model.m+nL+nU)
 
-    dx = view(d,1:model.n)
-    dy = view(d,model.n .+ (1:model.m))
-    dzL = view(d,model.n+model.m .+ (1:nL))
-    dzU = view(d,model.n+model.m+nL .+ (1:nU))
-
-    Δ = zero(d)
-    res = zero(d)
-
     μ = copy(opts.μ0)
 
     α = 1.0
@@ -305,6 +309,7 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     idx = indices(model.n,model.m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,c_al_idx)
     idx_r = restoration_indices()
 
+
     fail_cnt = 0
 
     Hv = H_unreduced_views(H,idx)
@@ -323,8 +328,30 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
 
     θ_soc = 0.
 
+    dx = view(d,idx.x)
+    dxL = view(d,idx.xL)
+    dxU = view(d,idx.xU)
+    dy = view(d,idx.y)
+    dxy = view(d,idx.xy)
+    dzL = view(d,idx.zL)
+    dzU = view(d,idx.zU)
+
+    Δ = zero(d)
+    Δ_xL = view(Δ,idx.xL)
+    Δ_xU = view(Δ,idx.xU)
+    Δ_xy = view(Δ,idx.xy)
+    Δ_zL = view(Δ,idx.zL)
+    Δ_zU = view(Δ,idx.zU)
+
+    res = zero(d)
+    res_xL = view(res,idx.xL)
+    res_xU = view(res,idx.xU)
+    res_xy = view(res,idx.xy)
+    res_zL = view(res,idx.zL)
+    res_zU = view(res,idx.zU)
+
     Solver(model,
-           x,x⁺,x_soc,
+           x,x⁺,
            xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,ΔxL,ΔxU,
            y,
            zL,zU,σL,σU,
@@ -336,7 +363,9 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
            Hv,Hv_sym,
            h,h_sym,
            LBL,inertia,
-           d,d_soc,dx,dy,dzL,dzU,Δ,res,
+           d,d_soc,dx,dxL,dxU,dy,dxy,dzL,dzU,
+           Δ,Δ_xL,Δ_xU,Δ_xy,Δ_zL,Δ_zU,
+           res,res_xL,res_xU,res_xy,res_zL,res_zU,
            α,αz,α_max,α_min,α_soc,β,
            δ,δw,δw_last,δc,
            θ,θ⁺,θ_min,θ_max,θ_soc,
@@ -361,7 +390,6 @@ function reset_solver!(s::Solver, x0)
     # Reset primals
     s.x .= 0
     s.x⁺ .= 0
-    s.x_soc .= 0
     s.xL .= model.xL
     s.xU .= model.xU
 
