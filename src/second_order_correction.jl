@@ -39,7 +39,7 @@ function second_order_correction(s::Solver)
                     break
                 end
             # case 2
-            else#(s.θ > s.θ_min || !switching_condition(s))
+            else
                 if sufficient_progress(s)
                     s.α = s.α_soc
                     status = true
@@ -48,7 +48,6 @@ function second_order_correction(s::Solver)
                 end
             end
         else
-            #TODO check this exit criteria
             s.α = 0.5*s.α_max
             s.opts.verbose && println("second-order correction: failure")
             break
@@ -96,7 +95,7 @@ Compute the approximate result of Eq. 28, the step size for the second order cor
 function α_soc_max!(s::Solver)
     s.α_soc = 1.0
     while !fraction_to_boundary_bnds(s.x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.d_soc[s.idx.x],s.α_soc,s.τ)
-        s.α_soc *= 0.5  # QUESTION: is there a smarter way to find the approximate minimizer? Binary search?
+        s.α_soc *= 0.5  # QUESTION: is there a smarter way to find the approximate minimizer? Binary search? -maybe, no one does that
     end
     return nothing
 end
@@ -146,18 +145,18 @@ function search_direction_soc_symmetric!(s::Solver)
 
     inertia_correction!(s)
 
-    # QUESTION: this seems to be re-computing the factorization?
-    s.d_soc[s.idx.xy] = ma57_solve(s.LBL, -s.h_sym)
-    s.d_soc[s.idx.zL] = -s.σL.*s.d_soc[s.idx.xL] - s.zL + s.μ./s.ΔxL  # Eq. 12
-    s.d_soc[s.idx.zU] = s.σU.*s.d_soc[s.idx.xU] - s.zU + s.μ./s.ΔxU   # Eq. 12
+    # QUESTION: this seems to be re-computing the factorization? - no, solve does not recompute factorization. factorization happens in inertia correction
+    s.dxy_soc .= ma57_solve(s.LBL, -s.h_sym)
+    s.dzL_soc .= -s.σL.*s.dxL_soc - s.zL + s.μ./s.ΔxL  # Eq. 12
+    s.dzU_soc .= s.σU.*s.dxU_soc - s.zU + s.μ./s.ΔxU   # Eq. 12
 
-    # QUESTION: do you need to do this if you don't do iterative refinement?
-    kkt_hessian_unreduced!(s)
-    kkt_gradient_unreduced!(s)
-    s.h[s.idx.y] = s.c_soc
-    s.h[s.idx.y_al] += 1.0/s.ρ*(s.λ - s.y_al)
-
-    s.opts.iterative_refinement ? iterative_refinement(s.d_soc,s) : nothing
+    if s.opts.iterative_refinement
+        kkt_hessian_unreduced!(s)
+        kkt_gradient_unreduced!(s)
+        s.h[s.idx.y] = s.c_soc
+        s.h[s.idx.y_al] += 1.0/s.ρ*(s.λ - s.y_al)
+        iterative_refinement(s.d_soc,s)
+    end
 
     return nothing
 end

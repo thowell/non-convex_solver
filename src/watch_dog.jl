@@ -9,6 +9,7 @@ function watch_dog!(s::Solver)
     s.d_copy .= s.d
 
     # new trial point
+    eval_step!(s)
     search_direction!(s)
     α_max!(s)
     αz_max!(s)

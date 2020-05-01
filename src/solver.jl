@@ -59,8 +59,6 @@ mutable struct Solver{T}
     inertia::Inertia
 
     d::Vector{T}                    # current step
-    d_soc::Vector{T}
-
     dx::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}   # current step in the primals
     dxL::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}   # current step in the primals with lower bounds
     dxU::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}   # current step in the primals with upper bounds
@@ -68,6 +66,15 @@ mutable struct Solver{T}
     dxy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     dzL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
     dzU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
+
+    d_soc::Vector{T}
+    dx_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}   # current step in the primals
+    dxL_soc::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}   # current step in the primals with lower bounds
+    dxU_soc::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}   # current step in the primals with upper bounds
+    dy_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}   # current step in the duals
+    dxy_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    dzL_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
+    dzU_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
 
     Δ::Vector{T}    # iterative refinement step
     Δ_xL::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
@@ -336,6 +343,14 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     dzL = view(d,idx.zL)
     dzU = view(d,idx.zU)
 
+    dx_soc = view(d_soc,idx.x)
+    dxL_soc = view(d_soc,idx.xL)
+    dxU_soc = view(d_soc,idx.xU)
+    dy_soc = view(d_soc,idx.y)
+    dxy_soc = view(d_soc,idx.xy)
+    dzL_soc = view(d_soc,idx.zL)
+    dzU_soc = view(d_soc,idx.zU)
+
     Δ = zero(d)
     Δ_xL = view(Δ,idx.xL)
     Δ_xU = view(Δ,idx.xU)
@@ -363,7 +378,8 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
            Hv,Hv_sym,
            h,h_sym,
            LBL,inertia,
-           d,d_soc,dx,dxL,dxU,dy,dxy,dzL,dzU,
+           d,dx,dxL,dxU,dy,dxy,dzL,dzU,
+           d_soc,dx_soc,dxL_soc,dxU_soc,dy_soc,dxy_soc,dzL_soc,dzU_soc,
            Δ,Δ_xL,Δ_xU,Δ_xy,Δ_zL,Δ_zU,
            res,res_xL,res_xU,res_xy,res_zL,res_zU,
            α,αz,α_max,α_min,α_soc,β,
