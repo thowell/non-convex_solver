@@ -48,8 +48,8 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
     push!(s̄.filter,(s̄.θ_max,Inf))
 
     if s̄.opts.verbose
-        println("θ0: $(s̄.θ), φ0: $(s̄.φ)")
-        println("Eμ0: $(eval_Eμ(0.0,s̄))\n")
+        println("   θ0: $(s̄.θ), φ0: $(s̄.φ)")
+        println("   Eμ0: $(eval_Eμ(0.0,s̄))\n")
     end
 
     while eval_Eμ(0.0,s̄) > s̄.opts.ϵ_tol
@@ -99,11 +99,11 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
             end
 
             if s̄.opts.verbose
-                println("restoration iteration ($(s̄.j),$(s̄.k)):")
-                s.model.n < 5 ? println("x: $(s̄.x[s.idx.x])") : nothing
-                println("θ: $(θ(s̄.x,s̄)), φ: $(barrier(s̄.x,s̄))")
-                println("Eμ: $(eval_Eμ(s̄.μ,s̄))")
-                println("α: $(s̄.α)\n")
+                println("   restoration iteration ($(s̄.j),$(s̄.k)):")
+                s.model.n < 5 ? println("   x: $(s̄.x[s.idx.x])") : nothing
+                println("   θ: $(θ(s̄.x,s̄)), φ: $(barrier(s̄.x,s̄))")
+                println("   Eμ: $(eval_Eμ(s̄.μ,s̄))")
+                println("   α: $(s̄.α)\n")
             end
         end
 

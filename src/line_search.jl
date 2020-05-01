@@ -65,6 +65,7 @@ function line_search(s::Solver)
                 s.zU_copy .= s.zU
                 s.opts.verbose && @warn "acceleration heuristic: implement watchdog"
             end
+            s.fail_cnt = 0
         end
 
         trial_step!(s)
