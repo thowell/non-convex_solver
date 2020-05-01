@@ -24,9 +24,9 @@ The following algorithms from Ipopt are implemented:
 - [X] second-order corrections
 - [X] inertia correction
   - modified: \delta_c = \mu
-- [ ] acceleration heuristics (sec. 3.2)
+- [X] acceleration heuristics (sec. 3.2)
   - [X] Case 1
-  - [ ] Case 2: watchdog
+  - [X] Case 2: watchdog
 - [X] feasibility restoration phase
 - [X] KKT error reduction
 - [X] relaxed bounds (eq. 35)
@@ -34,6 +34,7 @@ The following algorithms from Ipopt are implemented:
 - [X] primal initialization (sec. 3.6)
 - [X] equality constraint multiplier initialization (eq. 36)
 - [X] single bounds damping
+  -[ ] implemented for restoration mode
 - [X] automatic scaling of problem statement
 - [X] small search directions
 - [X] iterative refinement on unreduced system
@@ -42,10 +43,9 @@ The following algorithms from Ipopt are implemented:
 - [X] MA57
   - [ ] default pivot tolerance
 
-TODO
+TODO:
 -[ ] restoration mode cleanup
   -[ ] indices/views
   -[ ] single bound damping
 -[ ] iterative refinement rejection
--[ ] watchdog
 -[ ] restoration-free version

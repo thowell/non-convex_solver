@@ -1,7 +1,7 @@
 using Crayons
 function solve!(solver::InteriorPointSolver)
     # println("<augmented-Lagrangian interior-point solve>\n")
-    title = "AUGMENTED-LAGRANGIAN INTERIOR-POINT SOLVER"
+    title = "PRIMAL-DUAL AUGMENTED-LAGRANGIAN BARRIER SOLVER"
     println(crayon"bold underline cyan", title)
     println(crayon"reset","written and maintained by")
     println(crayon"reset","Taylor Howell and Brian Jackson")
@@ -24,7 +24,7 @@ function solve!(solver::InteriorPointSolver)
     with_logger(logger) do
 
     # evaluate problem
-    eval_iterate!(s)
+    eval_step!(s)
 
     # initialize filter
     push!(s.filter,(s.θ_max,Inf))
@@ -54,7 +54,7 @@ function solve!(solver::InteriorPointSolver)
                 α_max!(s)
                 αz_max!(s)
                 augment_filter!(s)
-                update!(s)  # TODO: maybe call this something a little more informative?
+                accept_step!(s)  # TODO: maybe call this something a little more informative?
             else
                 s.small_search_direction_cnt = 0
 
@@ -69,14 +69,14 @@ function solve!(solver::InteriorPointSolver)
                     end
                 else  # successful line search
                     augment_filter!(s)
-                    update!(s)
+                    accept_step!(s)
                 end
             end
 
             s.opts.z_reset ? reset_z!(s) : nothing
 
             # Calculate everything at the new trial point
-            eval_iterate!(s)
+            eval_step!(s)
 
 
             s.k += 1
@@ -96,12 +96,12 @@ function solve!(solver::InteriorPointSolver)
         else
             barrier_update!(s)
             augmented_lagrangian_update!(s)
-            eval_iterate!(s)
+            eval_step!(s)
 
             if s.k == 0
                 barrier_update!(s)
                 augmented_lagrangian_update!(s)
-                eval_iterate!(s)
+                eval_step!(s)
             end
         end
     end  # outer while loop

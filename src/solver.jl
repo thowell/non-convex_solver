@@ -602,39 +602,19 @@ function eval_barrier!(s::Solver)
 end
 
 """
-    eval_iterate!(s::Solver)
+    eval_step!(s::Solver)
 
 Evaluate all critical values for the current iterate stored in `s.x` and `s.y`, including
 bound constraints, objective, constraints, Lagrangian, and barrier objective, and their
 required derivatives.
 """
-function eval_iterate!(s::Solver)
+function eval_step!(s::Solver)
     eval_bounds!(s)
     eval_objective!(s)
     eval_constraints!(s)
     eval_lagrangian!(s)
     eval_barrier!(s)
     return nothing
-end
-
-"""
-    init_sd(y, z, n, m, s_max)
-
-Calculate the scaling parameter for the dual variables
-"""
-function init_sd(y,z,n,m,s_max)
-    sd = max(s_max,(norm(y,1) + norm(z,1))/(n+m))/s_max
-    return sd
-end
-
-"""
-    init_sc(z, n, s+max)
-
-Calculate the scaling parameter for the constraints
-"""
-function init_sc(z,n,s_max)
-    sc = max(s_max,norm(z,1)/n)/s_max
-    return sc
 end
 
 """
@@ -800,11 +780,11 @@ function barrier(x,s::Solver)
 end
 
 """
-    update!(s::Solver)
+    accept_step!(s::Solver)
 
 Accept the current step, copying the candidate primals and duals into the current iterate.
 """
-function update!(s::Solver)
+function accept_step!(s::Solver)
     s.x .= s.x⁺
 
     if s.opts.nlp_scaling
@@ -882,34 +862,4 @@ function InteriorPointSolver(x0,model::AbstractModel; c_al_idx=zeros(Bool,model.
     s̄ = RestorationSolver(s)
 
     InteriorPointSolver(s,s̄)
-end
-
-# QUESTION: why not just use `sparse(I,n,n)?`
-# QUESTION: where are these used?
-function init_Dx!(Dx,n)
-    for i = 1:n
-        Dx[i,i] = 1.0
-    end
-    return nothing
-end
-
-function init_Dx(n)
-    Dx = spzeros(n,n)
-    init_Dx!(Dx,n)
-    return Dx
-end
-
-
-init_df(g_max,∇f) = min(1.0,g_max/norm(∇f,Inf))
-
-function init_Dc!(Dc,g_max,∇c,m)
-    for j = 1:m
-        Dc[j,j] = min(1.0,g_max/norm(∇c[j,:],Inf))
-    end
-end
-
-function init_Dc(g_max,∇c,m)
-    Dc = spzeros(m,m)
-    init_Dc!(Dc,g_max,∇c,m)
-    return Dc
 end

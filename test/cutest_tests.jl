@@ -17,7 +17,7 @@ status = Symbol[]
         solver = InteriorPointSolver(nlp.meta.x0, model, c_al_idx=zeros(Bool,nlp.meta.ncon),opts=opts)
         try
             solve!(solver)
-            eval_iterate!(solver.s)
+            eval_step!(solver.s)
             @test norm(solver.s.∇L, Inf) < tol
             @test norm(solver.s.c, Inf) < tol
             @test norm(min.(solver.s.x - solver.s.xL, 0), Inf) < tol

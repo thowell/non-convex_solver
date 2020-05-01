@@ -42,7 +42,7 @@ end
 function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
     # evaluate problem
     s̄.opts.verbose = true
-    eval_iterate!(s̄)
+    eval_step!(s̄)
 
     # initialize filter
     push!(s̄.filter,(s̄.θ_max,Inf))
@@ -67,7 +67,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                 α_max!(s̄)
                 αz_max!(s̄)
                 augment_filter!(s̄)
-                update!(s̄)
+                accept_step!(s̄)
             else
                 s̄.small_search_direction_cnt = 0
 
@@ -80,7 +80,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                     end
                 else
                     augment_filter!(s̄)
-                    update!(s̄)
+                    accept_step!(s̄)
                 end
             end
 
@@ -91,7 +91,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
             s̄.opts.z_reset && reset_z!(s̄)
 
-            eval_iterate!(s̄)
+            eval_step!(s̄)
 
             s̄.k += 1
             if s̄.k > s̄.opts.max_iter
@@ -109,12 +109,12 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
         barrier_update!(s̄)
         augmented_lagrangian_update!(s̄)
-        eval_iterate!(s̄)
+        eval_step!(s̄)
 
         if s̄.k == 0
             barrier_update!(s̄)
             augmented_lagrangian_update!(s̄)
-            eval_iterate!(s̄)
+            eval_step!(s̄)
         end
 
         update_restoration_objective!(s̄,s)

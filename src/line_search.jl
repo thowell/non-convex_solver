@@ -52,20 +52,19 @@ function line_search(s::Solver)
 
         # accelerating heuristics
         if s.fail_cnt == s.opts.max_fail_cnt
+            s.fail_cnt = 0
             if s.θ_max > 0.1*s.θ⁺
                 s.θ_max *= 0.1
                 empty!(s.filter)
                 push!(s.filter,(s.θ_max,Inf))
                 s.opts.verbose && @warn "acceleration heuristic: resetting filter, reducing θ_max"
             else
-                # backup current iterate
-                s.x_copy .= s.x
-                s.y_copy .= s.y
-                s.zL_copy .= s.zL
-                s.zU_copy .= s.zU
-                s.opts.verbose && @warn "acceleration heuristic: implement watchdog"
+                if watch_dog!(s)
+                    s.opts.verbose && @warn "acceleration heuristic: watch dog -success"
+                    status = true
+                    break
+                end
             end
-            s.fail_cnt = 0
         end
 
         trial_step!(s)
