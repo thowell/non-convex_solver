@@ -136,10 +136,10 @@ function c_func(z)
 
         c[(t-1)*np .+ (1:np)] .= [(1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*y + P(model,q)'*β);
                                   (P(model,q)*(q-_qp)/model.Δt + 2.0*β*ψ);
-                                  (sϕ - ϕ(model,q));
-                                  (sfc - ((model.μ*y)^2 - β'*β));
-                                  rϕ - y*sϕ;
-                                  rfc - sfc*ψ;
+                                  (ϕ(model,q) - sϕ);
+                                  (((model.μ*y)^2 - β'*β) - sfc);
+                                  y*ϕ(model,q) - rϕ;
+                                  ψ*((model.μ*y)^2 - β'*β) - rfc;
                                   rϕ;
                                   rfc]
      end

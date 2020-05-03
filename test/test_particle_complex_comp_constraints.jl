@@ -1,13 +1,14 @@
 include("../src/interior_point.jl")
 
+
 nc = 1
 nf = 2
 nq = 3
 nu = 2
 nβ = nc*nf
 
-nx = nq+nu+nc+nβ+nc+nc+nc + 2nc
-np = nq+nβ+4nc + 2nc
+nx = nq+nu+nc+nβ+nc+nc+nc
+np = nq+nβ+4nc
 
 dt = 0.1
 
@@ -49,28 +50,24 @@ function unpack(x)
     ψ = x[nq+nu+nc+nβ+nc]
     sϕ = x[nq+nu+nc+nβ+nc+nc]
     sfc = x[nq+nu+nc+nβ+nc+nc+nc]
-    rϕ = x[nq+nu+nc+nβ+nc+nc+nc+nc]
-    rfc = x[nq+nu+nc+nβ+nc+nc+nc+nc+nc]
 
-    return q,u,y,β,ψ,sϕ,sfc,rϕ,rfc
+    return q,u,y,β,ψ,sϕ,sfc
 end
 
 function f_func(x)
-    q,u,y,β,ψ,sϕ,sfc,rϕ,rfc = unpack(x)
+    q,u,y,β,ψ,sϕ,sfc = unpack(x)
     return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + r'*u + obj_c
 end
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
 function c_func(x)
-    q,u,y,β,ψ,sϕ,sfc,rϕ,rfc = unpack(x)
+    q,u,y,β,ψ,sϕ,sfc = unpack(x)
     [(M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + P(q)'*β + N(q)*y);
      (P(q)*(q-qp)/dt + 2.0*β*ψ);
-     (N(q)'*q) - sϕ;
-     (((0.5*y)^2 - β'*β) - sfc);
-     y*(N(q)'*q) - rϕ;
-     ψ*((0.5*y)^2 - β'*β) - rfc;
-     rϕ;
-     rfc]
+     (sϕ - N(q)'*q);
+     (sfc - ((0.5*y)^2 - β'*β));
+     y*(N(q)'*q);
+     ψ*((0.5*y)^2 - β'*β)]
 end
 c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
@@ -84,13 +81,13 @@ xU = Inf*ones(nx)
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
 c_al_idx = ones(Bool,nlp_model.m)
-c_al_idx[1:nq+nβ+nc+nc+nc+nc] .= 0
+c_al_idx[1:nq+nβ+nc+nc] .= 0
 q0 = q1
 u0 = 1.0e-3*rand(nu)
 y0 = 1.0*rand(1)[1]
 β0 = 1.0*rand(nβ)
 ψ0 = 1.0*rand(1)[1]
-x0 = [q0;u0;y0;β0;ψ0; N(q0)'*q0;(0.5*y0)^2 - β0'*β0; 1.0*rand(nc)[1]; 1.0*rand(nc)[1]]
+x0 = [q0;u0;y0;β0;ψ0; N(q0)'*q0;(0.5*y0)^2 - β0'*β0]
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,
@@ -98,7 +95,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         relax_bnds=true,
                         y_init_ls=true,
                         ϵ_tol=1.0e-6,
-                        verbose=true)
+                        verbose=false)
 
 s = InteriorPointSolver(x0,nlp_model,c_al_idx=c_al_idx,opts=opts)
 @time solve!(s)
