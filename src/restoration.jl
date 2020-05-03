@@ -17,8 +17,8 @@ end
 
 function update_phase1_solver!(s̄::Solver,s::Solver)
     s.dx .= s̄.x[s.idx.x] - s.x
-    s.dzL .= -s.σL.*s.d[s.idx.xL] - s.zL + s.μ./s.ΔxL
-    s.dzU .= s.σU.*s.d[s.idx.xU] - s.zU + s.μ./s.ΔxU
+    s.dzL .= -s.σL.*s.dxL - s.zL + s.μ./s.ΔxL
+    s.dzU .= s.σU.*s.dxU - s.zU + s.μ./s.ΔxU
 
     αz_max!(s)
 
@@ -57,6 +57,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
             if search_direction_restoration!(s̄,s)
                 s̄.small_search_direction_cnt += 1
                 if s̄.small_search_direction_cnt == s̄.opts.small_search_direction_max
+                    s̄.small_search_direction_cnt = 0
                     if s̄.μ < 0.1*s̄.opts.ϵ_tol
                         s̄.opts.verbose ? println("<phase 2 complete>: small search direction") : nothing
                         return
@@ -151,10 +152,10 @@ function RestorationSolver(s::Solver)
     x̄ = zeros(n̄)
 
     x̄L = zeros(n̄)
-    x̄L[s.idx.x] = s.xL
+    x̄L[s.idx.x] = s.model.xL # maybe initialized with phase 1 relaxed bounds
 
     x̄U = Inf*ones(n̄)
-    x̄U[s.idx.x] = s.xU
+    x̄U[s.idx.x] = s.model.xU # maybe initialize with phase 1 relaxed bounds
 
     f̄_func(x,model::AbstractModel) = 0.
 
@@ -520,11 +521,11 @@ function iterative_refinement_restoration(d::Vector{T},s̄::Solver,s::Solver) wh
     end
 
     if res_norm < s̄.opts.ϵ_iterative_refinement# || res_norm < res_norm_init
-        s̄.opts.verbose ? println("iterative refinement success: $(res_norm), iter: $iter") : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+        println("iterative refinement success: $(res_norm), iter: $iter") : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
         return true
     else
         d .= s̄.d_copy
-        s̄.opts.verbose ? println("iterative refinement failure: $(res_norm), iter: $iter") : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+        println("iterative refinement failure: $(res_norm), iter: $iter") : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
         return false
     end
 end
