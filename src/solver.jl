@@ -535,8 +535,7 @@ end
 
 Evaluate the optimality error.
 """
-function eval_Eμ(x,y,zL,zU,ΔxL,ΔxU,c,∇L,μ,sd,sc,ρ,λ,y_al,c_al)
-    # QUESTION: unused x, y, zL, zU?
+function eval_Eμ(zL,zU,ΔxL,ΔxU,c,∇L,μ,sd,sc,ρ,λ,y_al,c_al)
     return max(norm(∇L,Inf)/sd,
                norm(c,Inf),
                norm(c_al + 1.0/ρ*(λ - y_al),Inf),
@@ -544,7 +543,7 @@ function eval_Eμ(x,y,zL,zU,ΔxL,ΔxU,c,∇L,μ,sd,sc,ρ,λ,y_al,c_al)
                norm(ΔxU.*zU .- μ,Inf)/sc)
 end
 
-eval_Eμ(μ,s::Solver) = eval_Eμ(s.x,s.y,s.zL,s.zU,s.ΔxL,s.ΔxU,s.c[s.c_al_idx .== 0],s.∇L,μ,s.sd,s.sc,s.ρ,s.λ,s.y_al,s.c_al)
+eval_Eμ(μ,s::Solver) = eval_Eμ(s.zL,s.zU,s.ΔxL,s.ΔxU,s.c[s.c_al_idx .== 0],s.∇L,μ,s.sd,s.sc,s.ρ,s.λ,s.y_al,s.c_al)
 
 """
     eval_bounds!(s::Solver)
@@ -734,7 +733,7 @@ the provided guess `x0` slightly inside of the feasible region, with `κ1`, `κ2
 determining how far into the interior the value is projected.
 """
 function init_x0(x,xL,xU,κ1,κ2)
-    # QUESTION: are these scalars?
+    # QUESTION: are these scalars? -yes
     pl = min(κ1*max(1.0,abs(xL)),κ2*(xU-xL))
     pu = min(κ1*max(1.0,abs(xU)),κ2*(xU-xL))
 

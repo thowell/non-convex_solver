@@ -97,3 +97,7 @@ function add_update!(x::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{Cartesia
     x .+= y
     return nothing
 end
+function add_update!(x::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false},y::SubArray{S}) where {T,S}
+    x .+= y
+    return nothing
+end

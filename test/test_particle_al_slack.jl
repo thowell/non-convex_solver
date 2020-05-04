@@ -102,5 +102,10 @@ opts = Options{Float64}(kkt_solve=:symmetric,
 
 s = InteriorPointSolver(x0,nlp_model,c_al_idx=c_al_idx,opts=opts)
 @time solve!(s)
-norm(c_func(s.s.x)[c_al_idx .== 0],1)
-norm(c_func(s.s.x)[c_al_idx],1)
+# norm(c_func(s.s.x)[c_al_idx .== 0],1)
+# norm(c_func(s.s.x)[c_al_idx],1)
+#
+# eval_step!(s.s)
+# initialize_restoration_solver!(s.s̄,s.s)
+# @time solve_restoration!(s.s̄,s.s,verbose=true)
+#

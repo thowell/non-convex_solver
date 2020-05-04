@@ -51,7 +51,12 @@ model.info = CustomModelInfo(view(model.∇²f,CartesianIndex.(1:n,1:n)),view(mo
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,
-                        verbose=false)
+                        verbose=false,
+                        max_iterative_refinement=100)
 
 s = InteriorPointSolver(x0,model,opts=opts)
-@time solve!(s)
+# @time solve!(s)
+
+# eval_step!(s.s)
+# initialize_restoration_solver!(s.s̄,s.s)
+# @time solve_restoration!(s.s̄,s.s,verbose=true)
