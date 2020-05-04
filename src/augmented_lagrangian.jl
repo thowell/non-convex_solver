@@ -1,5 +1,5 @@
 function λ_update!(s::Solver)
-    s.λ .+= s.ρ*s.c_al
+    s.λ .+= s.ρ*s.cA
     return nothing
 end
 

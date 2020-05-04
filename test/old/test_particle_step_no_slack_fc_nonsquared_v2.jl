@@ -83,8 +83,8 @@ xU = Inf*ones(nx)
 
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
-c_al_idx = ones(Bool,nlp_model.m)
-c_al_idx[1:nq+nβ+nc+nc+nc] .= 0
+cA_idx = ones(Bool,nlp_model.m)
+cA_idx[1:nq+nβ+nc+nc+nc] .= 0
 q0 = q1
 u0 = 1.0e-3*rand(nu)
 y0 = 1.0e-1*rand(1)[1]
@@ -100,10 +100,10 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         y_init_ls=true,
                         ϵ_tol=1.0e-4)
 
-s = InteriorPointSolver(x0,nlp_model,c_al_idx=c_al_idx,opts=opts)
+s = InteriorPointSolver(x0,nlp_model,cA_idx=cA_idx,opts=opts)
 @time solve!(s)
-norm(c_func(s.s.x)[c_al_idx .== 0],1)
-norm(c_func(s.s.x)[c_al_idx],1)
+norm(c_func(s.s.x)[cA_idx .== 0],1)
+norm(c_func(s.s.x)[cA_idx],1)
 
 using BenchmarkTools
 

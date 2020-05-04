@@ -7,7 +7,7 @@ end
 mutable struct Solver{T}
     model::AbstractModel
 
-    x::Vector{T}            # primal variables (n,)
+    x::Vector{T}                   # primal variables (n,)
     x⁺::Vector{T}
 
     xL::Vector{T}                   # lower bound
@@ -38,7 +38,7 @@ mutable struct Solver{T}
     ∇φ::Vector{T}                   # gradient of barrier objective
 
     ∇L::Vector{T}                   # gradient of the Lagrangian?
-    ∇²L::SparseMatrixCSC{T,Int}     # Hessian of the Lagrangian?
+    W::SparseMatrixCSC{T,Int}       # Hessian of the Lagrangian w.r.t x
 
     c::Vector{T}                    # constraint values
     c_soc::Vector{T}
@@ -66,6 +66,9 @@ mutable struct Solver{T}
     dxy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     dzL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
     dzU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
+    ds
+    dzS
+    dr
 
     d_soc::Vector{T}
     dx_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}   # current step in the primals
@@ -75,6 +78,9 @@ mutable struct Solver{T}
     dxy_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     dzL_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
     dzU_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
+    ds_soc
+    dzS_soc
+    dr_soc
 
     Δ::Vector{T}    # iterative refinement step
     Δ_xL::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
@@ -82,6 +88,9 @@ mutable struct Solver{T}
     Δ_xy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     Δ_zL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     Δ_zU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    Δ_s
+    Δ_zS
+    Δ_r
 
     res::Vector{T}  # iterative refinement residual
     res_xL::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
@@ -89,6 +98,9 @@ mutable struct Solver{T}
     res_xy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     res_zL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     res_zU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    res_s
+    res_zS
+    res_r
 
     # Line search values
     α::T
@@ -148,17 +160,47 @@ mutable struct Solver{T}
     df::T
     Dc::SparseMatrixCSC{T,Int}
 
-    ρ::T
-    λ::Vector{T}
-    y_al::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
-    c_al::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
-    ∇c_al::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{Array{Int,1},UnitRange{Int}},false}
-    c_al_idx::Vector{Bool}
+    mI::Int
+    mA::Int
+
+    # slack for general inequality constraints
+    s::Vector{T}
+    sL::Vector{T}
+    ΔsL::Vector{T}
+    zS::Vector{T}
+
+    yI::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    cI::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    ∇cI::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{Array{Int,1},UnitRange{Int}},false}
+    cI_idx::Vector{Bool}
+
+    yE::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    cE::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    ∇cE::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{Array{Int,1},UnitRange{Int}},false}
+    cE_idx::Vector{Bool}
+
+    # augmented Lagrangian terms
+    r::Vector{T} # slack
+
+    ρ::T # penalty
+    λ::Vector{T} # dual variable estimate
+    yA::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    cA::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    ∇cA::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{Array{Int,1},UnitRange{Int}},false}
+    cA_idx::Vector{Bool}
+
+    s_copy::Vector{T}
+    zS_copy::Vector{T}
+    r_copy::Vector{T}
 
     opts::Options{T}
 end
 
-function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Options{Float64}())
+function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(Bool,model.m), opts=Options{Float64}())
+
+    # slack dimensions
+    mI = convert(Int,sum(cI_idx))
+    mA = convert(Int,sum(cA_idx))
 
     # initialize primals
     x = zeros(model.n)
@@ -204,6 +246,9 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     nL = convert(Int,sum(xL_bool))
     nU = convert(Int,sum(xU_bool))
 
+    idx = indices(model.n,model.m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,mI,mA,cI_idx,cA_idx)
+    idx_r = restoration_indices()
+
     ΔxL = zeros(nL)
     ΔxU = zeros(nU)
 
@@ -227,8 +272,8 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     zL = opts.zL0*ones(nL)
     zU = opts.zU0*ones(nU)
 
-    H = spzeros(model.n+model.m+nL+nU,model.n+model.m+nL+nU)
-    h = zeros(model.n+model.m+nL+nU)
+    H = spzeros(model.n+model.m+nL+nU+mI+mI+mA,model.n+model.m+nL+nU+mI+mI+mA)
+    h = zeros(model.n+model.m+nL+nU+mI+mI+mA)
 
     H_sym = spzeros(model.n+model.m,model.n+model.m)
     h_sym = zeros(model.n+model.m)
@@ -236,7 +281,7 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     LBL = Ma57(H_sym)
     inertia = Inertia(0,0,0)
 
-    ∇²L = spzeros(model.n,model.n)
+    W = spzeros(model.n,model.n)
     σL = zeros(nL)
     σU = zeros(nU)
     ∇c = spzeros(model.m,model.n)
@@ -253,9 +298,9 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
 
     φ = 0.
     φ⁺ = 0.
-    ∇φ = zeros(model.n)
+    ∇φ = zeros(model.n+mI+mA)
 
-    ∇L = zeros(model.n)
+    ∇L = zeros(model.n+mI+mA)
 
     c = zeros(model.m)
     model.c_func!(c,x,model)
@@ -266,8 +311,8 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
 
     ∇²cy = spzeros(model.n,model.n)
 
-    d = zeros(model.n+model.m+nL+nU)
-    d_soc = zeros(model.n+model.m+nL+nU)
+    d = zeros(model.n+model.m+nL+nU+mI+mI+mA)
+    d_soc = zeros(model.n+model.m+nL+nU+mI+mI+mA)
 
     μ = copy(opts.μ0)
 
@@ -289,8 +334,6 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
 
     opts.y_init_ls ? init_y!(y,H_sym,h_sym,d,zL,zU,∇f,∇c,model.n,model.m,xL_bool,xU_bool,opts.y_max) : zeros(model.m)
 
-    sd = init_sd(y,[zL;zU],model.n,model.m,opts.s_max)
-    sc = init_sc([zL;zU],model.n,opts.s_max)
 
     filter = Tuple[]
 
@@ -311,11 +354,7 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     zU_copy = zeros(nU)
     d_copy = zero(d)
 
-    Fμ = zeros(model.n+model.m+nL+nU)
-
-    idx = indices(model.n,model.m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,c_al_idx)
-    idx_r = restoration_indices()
-
+    Fμ = zeros(model.n+model.m+nL+nU+mI+mA)
 
     fail_cnt = 0
 
@@ -323,10 +362,10 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     Hv_sym = H_symmetric_views(H_sym,idx)
 
     ρ = 1.0/μ
-    λ = zeros(sum(c_al_idx))
-    y_al = view(y,c_al_idx)
-    c_al = view(c,c_al_idx)
-    ∇c_al = view(∇c,c_al_idx,idx.x)
+    λ = zeros(sum(cA_idx))
+    yA = view(y,cA_idx)
+    cA = view(c,cA_idx)
+    ∇cA = view(∇c,cA_idx,idx.x)
 
     θ = norm(c,1)
     θ⁺ = copy(θ)
@@ -342,6 +381,9 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     dxy = view(d,idx.xy)
     dzL = view(d,idx.zL)
     dzU = view(d,idx.zU)
+    ds = view(d,idx.s)
+    dzS = view(d,idx.zS)
+    dr = view(d,idx.r)
 
     dx_soc = view(d_soc,idx.x)
     dxL_soc = view(d_soc,idx.xL)
@@ -350,6 +392,9 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     dxy_soc = view(d_soc,idx.xy)
     dzL_soc = view(d_soc,idx.zL)
     dzU_soc = view(d_soc,idx.zU)
+    ds_soc = view(d_soc,idx.s)
+    dzS_soc = view(d_soc,idx.zS)
+    dr_soc = view(d_soc,idx.r)
 
     Δ = zero(d)
     Δ_xL = view(Δ,idx.xL)
@@ -357,6 +402,9 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     Δ_xy = view(Δ,idx.xy)
     Δ_zL = view(Δ,idx.zL)
     Δ_zU = view(Δ,idx.zU)
+    Δ_s = view(Δ,idx.s)
+    Δ_zS = view(Δ,idx.zS)
+    Δ_r = view(Δ,idx.r)
 
     res = zero(d)
     res_xL = view(res,idx.xL)
@@ -364,6 +412,38 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     res_xy = view(res,idx.xy)
     res_zL = view(res,idx.zL)
     res_zU = view(res,idx.zU)
+    res_s = view(res,idx.s)
+    res_zS = view(res,idx.zS)
+    res_r = view(res,idx.r)
+
+    s = copy(c[cI_idx])
+    sL = zeros(mI)
+    if opts.relax_bnds
+       # relax bounds
+       for i = 1:mI
+           sL[i] = relax_bnd(sL[i],opts.ϵ_tol,:L)
+       end
+    end
+    ΔsL = zeros(mI)
+    zS = opts.zS0*ones(mI)
+
+    r = copy(c[cA_idx])
+
+    s_copy = zeros(mI)
+    zS_copy = zeros(mI)
+    r_copy = zeros(mA)
+
+    sd = init_sd(y,[zL;zU;zS],nL+nU+mI,model.m,opts.s_max)
+    sc = init_sc([zL;zU],nL+nU,opts.s_max)
+
+    yI = view(y,cI_idx)
+    cI = view(c,cI_idx)
+    ∇cI = view(∇c,cI_idx,idx.x)
+
+    cE_idx = Vector((cI_idx + cA_idx) .== 0)
+    yE = view(y,cE_idx)
+    cE = view(c,cE_idx)
+    ∇cE = view(∇c,cE_idx,idx.x)
 
     Solver(model,
            x,x⁺,
@@ -372,16 +452,18 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
            zL,zU,σL,σU,
            f,∇f,∇²f,
            φ,φ⁺,∇φ,
-           ∇L,∇²L,
-           c,c_soc,c_tmp,∇c,∇²cy,
+           ∇L,
+           W,
+           c,c_soc,c_tmp,
+           ∇c,∇²cy,
            H,H_sym,
            Hv,Hv_sym,
            h,h_sym,
            LBL,inertia,
-           d,dx,dxL,dxU,dy,dxy,dzL,dzU,
-           d_soc,dx_soc,dxL_soc,dxU_soc,dy_soc,dxy_soc,dzL_soc,dzU_soc,
-           Δ,Δ_xL,Δ_xU,Δ_xy,Δ_zL,Δ_zU,
-           res,res_xL,res_xU,res_xy,res_zL,res_zU,
+           d,dx,dxL,dxU,dy,dxy,dzL,dzU,ds,dzS,dr,
+           d_soc,dx_soc,dxL_soc,dxU_soc,dy_soc,dxy_soc,dzL_soc,dzU_soc,ds_soc,dzS_soc,dr_soc,
+           Δ,Δ_xL,Δ_xU,Δ_xy,Δ_zL,Δ_zU,Δ_s,Δ_zS,Δ_r,
+           res,res_xL,res_xU,res_xy,res_zL,res_zU,res_s,res_zS,res_r,
            α,αz,α_max,α_min,α_soc,β,
            δ,δw,δw_last,δc,
            θ,θ⁺,θ_min,θ_max,θ_soc,
@@ -395,10 +477,15 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
            idx,idx_r,
            fail_cnt,
            Dx,df,Dc,
-           ρ,λ,y_al,c_al,∇c_al,c_al_idx,
+           mI,mA,
+           s,sL,ΔsL,zS,yI,cI,∇cI,cI_idx,
+           yE,cE,∇cE,cE_idx,
+           r,ρ,λ,yA,cA,∇cA,cA_idx,
+           s_copy,zS_copy,r_copy,
            opts)
 end
 
+#TODO fix this post slack reformulation
 function reset_solver!(s::Solver, x0)
     opts = s.opts
     model = s.model
@@ -438,7 +525,7 @@ function reset_solver!(s::Solver, x0)
     s.h_sym .= 0
     s.inertia = Inertia(0,0,0)
 
-    s.∇²L .= 0
+    s.W .= 0
     s.σL .= 0
     s.σU .= 0
     s.∇c .= 0
@@ -526,24 +613,30 @@ function reset_solver!(s::Solver, x0)
     s.θ_max = init_θ_max(s.θ)
     s.θ_soc = 0.
 
+    s.s .= 0.
+    s.r .= 0.
+
     return s
 end
 
 """
-    eval_Eμ(x, y, zL, zU, ∇xL, ∇xU, c, ∇L, μ, sd, sc, ρ, λ, y_al, c_al)
+    eval_Eμ(x, y, zL, zU, ∇xL, ∇xU, c, ∇L, μ, sd, sc, ρ, λ, yA, cA)
     eval_Eμ(solver::Solver)
 
 Evaluate the optimality error.
 """
-function eval_Eμ(zL,zU,ΔxL,ΔxU,c,∇L,μ,sd,sc,ρ,λ,y_al,c_al)
+function eval_Eμ(s,r,zL,zU,zS,ΔxL,ΔxU,ΔsL,cI,cE,cA,∇L,μ,sd,sc,mI,mA)
     return max(norm(∇L,Inf)/sd,
-               norm(c,Inf),
-               norm(c_al + 1.0/ρ*(λ - y_al),Inf),
+               mI != 0 ? norm(cI - s,Inf) : 0.0,
+               norm(cE,Inf),
+               mA != 0 ? norm(cA - r,Inf) : 0.0,
                norm(ΔxL.*zL .- μ,Inf)/sc,
-               norm(ΔxU.*zU .- μ,Inf)/sc)
+               norm(ΔxU.*zU .- μ,Inf)/sc,
+               mI != 0 ? norm(ΔsL.*zS .- μ,Inf)/sc : 0.0)
 end
 
-eval_Eμ(μ,s::Solver) = eval_Eμ(s.zL,s.zU,s.ΔxL,s.ΔxU,s.c[s.c_al_idx .== 0],s.∇L,μ,s.sd,s.sc,s.ρ,s.λ,s.y_al,s.c_al)
+eval_Eμ(μ,s::Solver) = eval_Eμ(s.s,s.r,s.zL,s.zU,s.zS,s.ΔxL,s.ΔxU,s.ΔsL,
+    s.cI,s.cE,s.cA,s.∇L,μ,s.sd,s.sc,s.mI,s.mA)
 
 """
     eval_bounds!(s::Solver)
@@ -553,6 +646,7 @@ Evaluate the bound constraints and their sigma values
 function eval_bounds!(s::Solver)
     s.ΔxL .= (s.x - s.xL)[s.xL_bool]
     s.ΔxU .= (s.xU - s.x)[s.xU_bool]
+    s.ΔsL .= s.s - s.sL
 
     s.σL .= s.zL./s.ΔxL
     s.σU .= s.zU./s.ΔxU
@@ -602,7 +696,10 @@ function eval_lagrangian!(s::Solver)
     s.∇L[s.xL_bool] -= s.zL
     s.∇L[s.xU_bool] += s.zU
 
-    s.∇²L .= s.∇²f + s.∇²cy
+    s.mI != 0 && (s.∇L[s.model.n .+ (1:s.mI)] .= -s.yI - s.zS)
+    s.mA != 0 && (s.∇L[s.model.n + s.mI .+ (1:s.mA)] .= s.r + 1/s.ρ*(s.λ - s.yA))
+
+    s.W .= s.∇²f + s.∇²cy
 
     # damping
     if s.opts.single_bnds_damping
@@ -610,6 +707,7 @@ function eval_lagrangian!(s::Solver)
         μ = s.μ
         s.∇L[s.xLs_bool] .+= κd*μ
         s.∇L[s.xUs_bool] .-= κd*μ
+        s.mI != 0 && (s.∇L[s.model.n .+ (1:s.mI)] .+= κd*μ)
     end
     return nothing
 end
@@ -624,13 +722,15 @@ function eval_barrier!(s::Solver)
     s.φ -= s.μ*sum(log.(s.ΔxL))
     s.φ -= s.μ*sum(log.(s.ΔxU))
 
-    s.φ += s.λ'*s.c_al + 0.5*s.ρ*s.c_al'*s.c_al
+    s.mI != 0 && (s.φ -= s.μ*sum(log.(s.ΔsL)))
+    s.mA != 0 && (s.φ += s.λ'*s.cA + 0.5*s.ρ*s.cA'*s.cA)
 
     s.∇φ .= s.∇f
     s.∇φ[s.xL_bool] -= s.μ./s.ΔxL
     s.∇φ[s.xU_bool] += s.μ./s.ΔxU
 
-    s.∇φ .+= s.∇c_al'*(s.λ + s.ρ*s.c_al)
+    s.mI != 0 && (s.∇φ[s.model.n .+ (1:s.mI)] -= s.μ./s.ΔsL)
+    s.mA != 0 && (s.∇φ .+= s.∇cA'*(s.λ + s.ρ*s.cA))
 
     # damping
     if s.opts.single_bnds_damping
@@ -638,8 +738,11 @@ function eval_barrier!(s::Solver)
         μ = s.μ
         s.φ += κd*μ*sum((s.x - s.xL)[s.xLs_bool])
         s.φ += κd*μ*sum((s.xU - s.x)[s.xUs_bool])
+        s.mI != 0 && (s.φ += κd*μ*sum(s.ΔsL))
+
         s.∇φ[s.xLs_bool] .+= κd*μ
         s.∇φ[s.xUs_bool] .-= κd*μ
+        s.mI != 0 && (s.∇φ[s.model.n .+ (1:s.mI)] .+= κd*μ)
     end
     return nothing
 end
@@ -712,6 +815,11 @@ function reset_z!(s::Solver)
     for i = 1:s.nU
         s.zU[i] = reset_z(s.zU[i],((s.xU - s.x)[s.xU_bool])[i],s.μ,s.opts.κΣ)
     end
+
+    for i = 1:s.mI
+        s.zS[i] = reset_z(s.zS[i],(s.s - s.sL)[i],s.μ,s.opts.κΣ)
+    end
+
     return nothing
 end
 
@@ -795,17 +903,18 @@ function θ(x,s::Solver)
 end
 
 """
-    barrier(x, xL, xU, xL_bool, xU_bool, xLs_bool xUs_bool, μ, κd, f, ρ, y_al, c_al)
+    barrier(x, xL, xU, xL_bool, xU_bool, xLs_bool xUs_bool, μ, κd, f, ρ, yA, cA)
     barrier(x, s::Solver)
 
 Calculate the barrier objective function. When called using the solver, re-calculates the
     objective `f` and the constraints `c`.
 """
-function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f,ρ,y_al,c_al)
-    # QUESTION:
+function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,s,sL,μ,κd,f,ρ,λ,r)
     return (f - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool]))
+        -μ*sum(log.(s - sL))
         + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool])
-        + y_al'*c_al + 0.5*ρ*c_al'*c_al)
+        + κd*μ*sum(s-sL)
+        + λ'*r + 0.5*ρ*r'*r)
 end
 
 function barrier(x,s::Solver)
@@ -817,9 +926,11 @@ function barrier(x,s::Solver)
     end
 
     return barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,
-        s.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,
+        s.xUs_bool,
+        s.s,s.sL,
+        s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,
         s.opts.nlp_scaling ? s.df*s.f : s.f,
-        s.ρ,s.λ,s.c_tmp[s.c_al_idx])
+        s.ρ,s.λ,s.r)
 end
 
 """
@@ -837,6 +948,11 @@ function accept_step!(s::Solver)
     s.y .= s.y + s.α*s.dy
     s.zL .= s.zL + s.αz*s.dzL
     s.zU .= s.zU + s.αz*s.dzU
+
+    s.s .= s.s + s.α*s.ds
+    s.zS .= s.zS + s.αz*s.dzS
+
+    s.r = s.r + s.α*s.dr
     return nothing
 end
 
@@ -846,7 +962,9 @@ end
 Check if the current step is small (Sec. 3.9).
 """
 function small_search_direction(s::Solver)
-    return (maximum(abs.(s.dx)./(1.0 .+ abs.(s.x))) < 10.0*s.opts.ϵ_mach)
+    return (max((s.mI != 0 ? maximum(abs.(s.ds)./(1.0 .+ abs.(s.s))) : 0.0),
+            (s.mA != 0 ? maximum(abs.(s.dr)./(1.0 .+ abs.(s.r))) : 0.0),
+            maximum(abs.(s.dx)./(1.0 .+ abs.(s.x)))) < 10.0*s.opts.ϵ_mach)
 end
 
 """
@@ -884,6 +1002,13 @@ function relax_bnds!(s::Solver)
             @warn "upper bound needs to be relaxed"
         end
     end
+
+    for i = 1:s.mI
+        if s.s[i] - s.sL[i] < s.opts.ϵ_mach*s.μ
+            s.sL[i] -= (s.opts.ϵ_mach^0.75)*max(1.0,s.sL[i])
+            @warn "lower bound needs to be relaxed"
+        end
+    end
 end
 
 """
@@ -900,8 +1025,8 @@ struct InteriorPointSolver{T}
     s̄::Solver{T}
 end
 
-function InteriorPointSolver(x0,model::AbstractModel; c_al_idx=zeros(Bool,model.m),opts=Options{Float64}()) where T
-    s = Solver(x0,model,c_al_idx=c_al_idx,opts=opts)
+function InteriorPointSolver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(Bool,model.m),opts=Options{Float64}()) where T
+    s = Solver(x0,model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
     s̄ = RestorationSolver(s)
 
     InteriorPointSolver(s,s̄)

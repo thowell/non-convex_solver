@@ -79,8 +79,8 @@ xU = Inf*ones(nx)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
-c_al_idx = ones(Bool,model.m)
-c_al_idx[1:nq+nβ+nc+nc] .= 0
+cA_idx = ones(Bool,model.m)
+cA_idx[1:nq+nβ+nc+nc] .= 0
 q0 = q1
 u0 = 1.0e-3*rand(nu)
 y0 = 1.0e-3*rand(1)[1]
@@ -98,18 +98,18 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         ϵ_tol=1.0e-8,
                         ϵ_al_tol=1.0e-8)
 
-s = InteriorPointSolver(x0,model,c_al_idx=c_al_idx,opts=opts)
+s = InteriorPointSolver(x0,model,cA_idx=cA_idx,opts=opts)
 @time solve!(s)
-norm(c_func(s.s.x)[c_al_idx .== 0],1)
-norm(c_func(s.s.x)[c_al_idx],1)
+norm(c_func(s.s.x)[cA_idx .== 0],1)
+norm(c_func(s.s.x)[cA_idx],1)
 
-# s_new = InteriorPointSolver(s.s.x,model,c_al_idx=c_al_idx,opts=opts)
+# s_new = InteriorPointSolver(s.s.x,model,cA_idx=cA_idx,opts=opts)
 # s_new.s.y .= s.s.y
-# s_new.s.λ .= s.s.λ + s.s.ρ*s.s.c[c_al_idx]
+# s_new.s.λ .= s.s.λ + s.s.ρ*s.s.c[cA_idx]
 # s_new.s.ρ = s.s.ρ*10.0
 # solve!(s_new,verbose=true)
 # s = s_new
-# norm(c_func(s.s.x)[c_al_idx .== 0],1)
-# norm(c_func(s.s.x)[c_al_idx],1)
+# norm(c_func(s.s.x)[cA_idx .== 0],1)
+# norm(c_func(s.s.x)[cA_idx],1)
 
 q,u,y,β,ψ,η,sϕ,sfc = unpack(s.s.x)

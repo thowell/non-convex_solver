@@ -177,12 +177,12 @@ end
 
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
-c_al_idx_t = ones(Bool,np)
-c_al_idx_t[1:nq+nβ+nc+nc] .= 0
-c_al_idx = ones(Bool,nlp_model.m)
+cA_idx_t = ones(Bool,np)
+cA_idx_t[1:nq+nβ+nc+nc] .= 0
+cA_idx = ones(Bool,nlp_model.m)
 
 for t = 1:T
-    c_al_idx[(t-1)*np .+ (1:np)] .= c_al_idx_t
+    cA_idx[(t-1)*np .+ (1:np)] .= cA_idx_t
 end
 
 u0 = 1.0e-3*rand(nu)
@@ -204,21 +204,21 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        max_iterative_refinement=100,
                        ϵ_tol=1.0e-6)
 
-s = InteriorPointSolver(x0,nlp_model,c_al_idx=c_al_idx,opts=opts)
+s = InteriorPointSolver(x0,nlp_model,cA_idx=cA_idx,opts=opts)
 
 # s.s.ρ = 1.0/s.μ
 @time solve!(s)
-norm(c_func(s.s.x)[c_al_idx .== 0],1)
-norm(c_func(s.s.x)[c_al_idx],1)
+norm(c_func(s.s.x)[cA_idx .== 0],1)
+norm(c_func(s.s.x)[cA_idx],1)
 
-# s_new = InteriorPointSolver(s.s.x,nlp_model,c_al_idx=c_al_idx,opts=opts)
+# s_new = InteriorPointSolver(s.s.x,nlp_model,cA_idx=cA_idx,opts=opts)
 # s_new.s.y .= s.s.y
-# s_new.s.λ .= s.s.λ + s.s.ρ*s.s.c[c_al_idx]
+# s_new.s.λ .= s.s.λ + s.s.ρ*s.s.c[cA_idx]
 # s_new.s.ρ = s.s.ρ*10.0
 # solve!(s_new,verbose=true)
 # s = s_new
-# norm(c_func(s.s.x)[c_al_idx .== 0],1)
-# norm(c_func(s.s.x)[c_al_idx],1)
+# norm(c_func(s.s.x)[cA_idx .== 0],1)
+# norm(c_func(s.s.x)[cA_idx],1)
 
 function get_q(z)
     Q = [qpp,qp]

@@ -14,7 +14,7 @@ status = Symbol[]
                                 max_iterative_refinement=1000,
                                 ϵ_tol = 1e-8,
                                 verbose=false)
-        solver = InteriorPointSolver(nlp.meta.x0, model, c_al_idx=zeros(Bool,nlp.meta.ncon),opts=opts)
+        solver = InteriorPointSolver(nlp.meta.x0, model, cA_idx=zeros(Bool,nlp.meta.ncon),opts=opts)
         try
             solve!(solver)
             eval_step!(solver.s)

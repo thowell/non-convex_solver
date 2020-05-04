@@ -129,7 +129,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         y_init_ls=true,
                         max_iterative_refinement=1000)
 
-s = InteriorPointSolver(x0,model,c_al_idx=zeros(Bool,m),opts=opts)
+s = InteriorPointSolver(x0,model,cA_idx=zeros(Bool,m),opts=opts)
 @time solve!(s)
 
 finalize(nlp)

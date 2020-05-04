@@ -16,7 +16,7 @@ function search_direction!(s::Solver)
 end
 
 function kkt_hessian_unreduced!(s::Solver)
-    update!(s.Hv.xx,s.∇²L)
+    update!(s.Hv.xx,s.W)
     update!(s.Hv.xy,s.∇c')
     update!(s.Hv.yx,s.∇c)
     update!(s.Hv.xLzL,-1.0)
@@ -32,7 +32,7 @@ end
 function kkt_gradient_unreduced!(s::Solver)
     s.h[s.idx.x] = s.∇L
     s.h[s.idx.y] = s.c
-    s.h[s.idx.y_al] += 1.0/s.ρ*(s.λ - s.y_al)
+    s.h[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
     s.h[s.idx.zL] = s.zL.*s.ΔxL .- s.μ
     s.h[s.idx.zU] = s.zU.*s.ΔxU .- s.μ
     return nothing
@@ -53,7 +53,7 @@ end
 
 # symmetric KKT system
 function kkt_hessian_symmetric!(s::Solver)
-    update!(s.Hv_sym.xx, s.∇²L)
+    update!(s.Hv_sym.xx, s.W)
     add_update!(s.Hv_sym.xLxL, s.σL)
     add_update!(s.Hv_sym.xUxU, s.σU)
     update!(s.Hv_sym.xy, s.∇c')
@@ -63,9 +63,9 @@ function kkt_hessian_symmetric!(s::Solver)
 end
 
 function kkt_gradient_symmetric!(s::Solver)
-    s.h_sym[s.idx.x] = s.∇φ + s.∇c'*s.y - s.∇c_al'*(s.λ + s.ρ*s.c_al)
+    s.h_sym[s.idx.x] = s.∇φ + s.∇c'*s.y - s.∇cA'*(s.λ + s.ρ*s.cA)
     s.h_sym[s.idx.y] = s.c
-    s.h_sym[s.idx.y_al] += 1.0/s.ρ*(s.λ - s.y_al)
+    s.h_sym[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
 
     return nothing
 end

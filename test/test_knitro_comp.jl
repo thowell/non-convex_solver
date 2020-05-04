@@ -24,8 +24,8 @@ c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
-c_al_idx = ones(Bool,model.m)
-c_al_idx[1:4] .= 0
+cA_idx = ones(Bool,model.m)
+cA_idx[1:4] .= 0
 opts = Options{Float64}(kkt_solve=:symmetric,
                         relax_bnds=true,
                         single_bnds_damping=true,
@@ -33,7 +33,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=100,
                         ϵ_tol=1.0e-8,
                         nlp_scaling=true)
-s = InteriorPointSolver(x0,model,c_al_idx=c_al_idx,opts=opts)
+s = InteriorPointSolver(x0,model,cA_idx=cA_idx,opts=opts)
 
 @time solve!(s)
 

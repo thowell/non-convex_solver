@@ -26,7 +26,7 @@ function H_unreduced_views(H::SparseMatrixCSC,idx::Indices)
     zUxU = view(H,CartesianIndex.(idx.zU,idx.xU))
     zLzL = view(H,CartesianIndex.(idx.zL,idx.zL))
     zUzU = view(H,CartesianIndex.(idx.zU,idx.zU))
-    yalyal = view(H,CartesianIndex.(idx.y_al,idx.y_al))
+    yalyal = view(H,CartesianIndex.(idx.yA,idx.yA))
 
     H_unreduced_views(xx,xy,yx,xLzL,zLxL,xUzU,zUxU,zLzL,zUzU,yalyal)
 end
@@ -53,7 +53,7 @@ function H_symmetric_views(H::SparseMatrixCSC,idx::Indices)
     xy = view(H,idx.x,idx.y)
     yx = view(H,idx.y,idx.x)
     yy = view(H,CartesianIndex.(idx.y,idx.y))
-    yalyal = view(H,CartesianIndex.(idx.y_al,idx.y_al))
+    yalyal = view(H,CartesianIndex.(idx.yA,idx.yA))
 
     H_symmetric_views(xx,xLxL,xUxU,xy,yx,yy,yalyal)
 end

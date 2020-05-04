@@ -94,7 +94,7 @@ function solve!(solver::InteriorPointSolver)
         end  # inner while loop
 
 
-        if eval_Eμ(0.0,s) <= s.opts.ϵ_tol && norm(s.c_al,1) <= s.opts.ϵ_al_tol
+        if eval_Eμ(0.0,s) <= s.opts.ϵ_tol && norm(s.cA,1) <= s.opts.ϵ_al_tol
             break
         else
             barrier_update!(s)
@@ -117,8 +117,8 @@ function solve!(solver::InteriorPointSolver)
     println("   f: $(s.f)")
     println("   θ: $(s.θ), φ: $(s.φ)")
     println("   E0: $(eval_Eμ(0.0,s))")
-    println("   norm(c): $(norm(s.c[s.c_al_idx .== 0]))")
-    println("   norm(c_al): $(norm(s.c_al))")
+    println("   norm(c): $(norm(s.c[s.cA_idx .== 0]))")
+    println("   norm(cA): $(norm(s.cA))")
     end # logger
 end
 
