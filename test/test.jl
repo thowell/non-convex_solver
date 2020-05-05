@@ -24,22 +24,5 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         verbose=false)
 
 s = InteriorPointSolver(x0,model,opts=opts)
-eval_Eμ(0.1,s.s)
-eval_bounds!(s.s)
-eval_objective!(s.s)
-eval_constraints!(s.s)
-eval_lagrangian!(s.s)
-eval_barrier!(s.s)
-eval_step!(s.s)
-reset_z!(s.s)
-barrier(s.s.x,s.s)
-s.s.φ
-accept_step!(s.s)
-relax_bnds!(s.s)
-
 
 @time solve!(s)
-
-eval_step!(s.s)
-
-Vector((s.s.xL_bool + s.s.xL_bool) .== 0)

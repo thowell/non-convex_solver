@@ -85,7 +85,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                 end
             end
 
-            if check_filter(θ(view(s̄.x,s.idx.x),s),barrier(view(s̄.x,s.idx.x),s),s.filter) && θ(view(s̄.x,s.idx.x),s) <= s̄.opts.κ_resto*s.θ
+            if check_filter(θ(view(s̄.x,s.idx.x),s),barrier(view(s̄.x,s.idx.x),s̄.s,s̄.r,s),s.filter) && θ(view(s̄.x,s.idx.x),s) <= s̄.opts.κ_resto*s.θ
                 s̄.opts.verbose ? println("-restoration phase: success\n") : nothing
                 return true
             end
@@ -102,7 +102,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
             if s̄.opts.verbose
                 println("   restoration iteration ($(s̄.j),$(s̄.k)):")
                 s.model.n < 5 ? println("   x: $(s̄.x[s.idx.x])") : nothing
-                println("   θ: $(θ(s̄.x,s̄)), φ: $(barrier(s̄.x,s̄))")
+                println("   θ: $(θ(s̄.x,s̄)), φ: $(barrier(s̄.x,s̄.s,s̄.r,s̄))")
                 println("   Eμ: $(eval_Eμ(s̄.μ,s̄))")
                 println("   α: $(s̄.α)\n")
             end

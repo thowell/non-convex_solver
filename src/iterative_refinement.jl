@@ -20,6 +20,13 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
             s.Δ_xy .= ma57_solve(s.LBL,s.res[s.idx.xy])
             s.Δ_zL .= -s.σL.*s.Δ_xL + s.res_zL./s.ΔxL
             s.Δ_zU .= s.σU.*s.Δ_xU + s.res_zU./s.ΔxU
+
+            if s.mI != 0
+                s.Δ_zS .= -s.Δ[s.idx.yI] + s.res[s.idx.s]
+                s.Δ_s .= -s.ΔsL./s.zS.*s.Δ_zS - s.res[s.idx.zS]./s.zS
+            end
+
+            s.mA != 0 && (s.Δ_r .= 1.0/s.ρ*s.Δ[s.idx.yA] - s.res[s.idx.r])
         end
 
         d .+= s.Δ

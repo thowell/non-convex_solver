@@ -28,5 +28,5 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=100,
                         verbose=false)
 
-s = InteriorPointSolver(x0,model,c_I_idx=ones(Bool,m),opts=opts)
-@time solve!(s)
+s = InteriorPointSolver(x0,model,cI_idx=ones(Bool,m),opts=opts)
+# @time solve!(s)

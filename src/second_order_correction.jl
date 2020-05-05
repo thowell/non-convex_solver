@@ -82,8 +82,11 @@ objective values
 """
 function trial_step_soc!(s::Solver)
     s.x⁺ .= s.x + s.α_soc*s.d_soc[s.idx.x]
+    s.s⁺ .= s.s + s.α_soc*s.d_soc[s.idx.s]
+    s.r⁺ .= s.r + s.α_soc*s.d_soc[s.idx.r]
+
     s.θ⁺ = θ(s.x⁺,s)
-    s.φ⁺ = barrier(s.x⁺,s)
+    s.φ⁺ = barrier(s.x⁺,s.s⁺,s.r⁺,s)
     return nothing
 end
 
@@ -97,6 +100,12 @@ function α_soc_max!(s::Solver)
     while !fraction_to_boundary_bnds(s.x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.d_soc[s.idx.x],s.α_soc,s.τ)
         s.α_soc *= 0.5  # QUESTION: is there a smarter way to find the approximate minimizer? Binary search? -maybe, no one does that
     end
+    if s.mI != 0
+        while !fraction_to_boundary_slack_bnds(s.s,s.sL,s.d_soc[s.idx.s],s.α_soc,s.τ)
+            s.α_max *= 0.5
+        end
+    end
+
     return nothing
 end
 

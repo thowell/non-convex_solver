@@ -8,6 +8,10 @@ function watch_dog!(s::Solver)
     s.zU_copy .= s.zU
     s.d_copy .= s.d
 
+    s.s_copy .= s.s
+    s.zS_copy .= s.zS
+    s.r_copy .= s.r
+
     # new trial point
     eval_step!(s)
     search_direction!(s)
@@ -54,6 +58,9 @@ function watch_dog!(s::Solver)
         s.zL .= s.zL_copy
         s.zU .= s.zU_copy
         s.d .= s.d_copy
+        s.s = s.s_copy
+        s.zS .= s.zS_copy
+        s.r .= s.r_copy
         eval_step!(s)
         @warn "watch dog -failure-:"
         return false

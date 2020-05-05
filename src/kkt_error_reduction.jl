@@ -6,11 +6,15 @@ function kkt_error_reduction(s::Solver)
     s.zL_copy .= s.zL
     s.zU_copy .= s.zU
 
-    Fμ_norm = norm(eval_Fμ(s.x,s.y,s.zL,s.zU,s),1)
+    s.s_copy = s.s
+    s.zS_copy = s.zS_copy
+    s.r_copy = s.r
+
+    Fμ_norm = norm(eval_Fμ(s.x,s.y,s.zL,s.zU,s.s,s.zS,s.r,s),1)
 
     β_max!(s)
 
-    while norm(eval_Fμ(s.x+s.β*s.dx,s.y+s.β*s.dy,s.zL+s.β*s.dzL,s.zU+s.β*s.dzU,s),1) <= s.opts.κF*Fμ_norm
+    while norm(eval_Fμ(s.x+s.β*s.dx,s.y+s.β*s.dy,s.zL+s.β*s.dzL,s.zU+s.β*s.dzU,s.s+s.β*s.ds,s.zS+s.β*s.dzS,s.r+s.β*s.dr,s),1) <= s.opts.κF*Fμ_norm
         s.x .+= s.β*s.dx
         if s.opts.nlp_scaling
             s.x .= s.Dx*s.x
@@ -20,7 +24,11 @@ function kkt_error_reduction(s::Solver)
         s.zL .+= s.β*s.dzL
         s.zU .+= s.β*s.dzU
 
-        if check_filter(θ(s.x,s),barrier(s.x,s),s.filter)
+        s.s .+= s.β*s.ds
+        s.zS .+= s.β*s.dzS
+        s.r .+= s.β*s.dr
+
+        if check_filter(θ(s.x,s),barrier(s.x,s.s,s.r,s),s.filter)
             status = true
             break
         else
@@ -41,11 +49,15 @@ function kkt_error_reduction(s::Solver)
         s.y .= s.y_copy
         s.zL .= s.zL_copy
         s.zU .= s.zU_copy
+
+        s.s .= s.s_copy
+        s.zS .= s.zS_copy
+        s.r .= s.r_copy
         return false
     end
 end
 
-function eval_Fμ(x,y,zL,zU,s)
+function eval_Fμ(x,y,zL,zU,_s,zS,r,s)
     s.model.∇f_func!(s.∇f,x,s.model)
     s.model.c_func!(s.c,x,s.model)
     if s.opts.nlp_scaling
@@ -53,25 +65,33 @@ function eval_Fμ(x,y,zL,zU,s)
     end
     s.model.∇c_func!(s.∇c,x,s.model)
     s.∇L .= s.∇f + s.∇c'*y
-    s.∇L[s.xL_bool] -= zL
-    s.∇L[s.xU_bool] += zU
+    s.∇L[s.idx.xL] -= zL
+    s.∇L[s.idx.xU] += zU
+
+    s.mI != 0 && (s.∇L[s.model.n .+ (1:s.mI)] = -y[s.cI_idx] - zS)
+    s.mA != 0 && (s.∇L[s.model.n + s.mI .+ (1:s.mA)] = r + 1/s.ρ*(s.λ - y[s.cA_idx]))
 
     # damping
     if s.opts.single_bnds_damping
         κd = s.opts.κd
         μ = s.μ
-        s.∇L[s.xLs_bool] .+= κd*μ
-        s.∇L[s.xUs_bool] .-= κd*μ
+        s.∇L[s.idx.xLs] .+= κd*μ
+        s.∇L[s.idx.xUs] .-= κd*μ
+        s.mI != 0 && (s.∇L[s.model.n .+ (1:s.mI)] .+= κd*μ)
     end
 
     s.ΔxL .= (s.x - s.xL)[s.xL_bool]
     s.ΔxU .= (s.xU - s.x)[s.xU_bool]
+    s.ΔsL .= s.s - s.sL
 
-    s.Fμ[s.idx.x] = s.∇L
+    s.Fμ[s.idx.primals] = s.∇L
     s.Fμ[s.idx.y] = s.c
-    s.Fμ[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
+    s.Fμ[s.idx.yI] -= s.s
+    s.Fμ[s.idx.yA] -= s.r
     s.Fμ[s.idx.zL] = zL.*s.ΔxL .- s.μ
     s.Fμ[s.idx.zU] = zU.*s.ΔxU .- s.μ
+    s.Fμ[s.idx.zS] = zS.*s.ΔsL .- s.μ
+
     return s.Fμ
 end
 
