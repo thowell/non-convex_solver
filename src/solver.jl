@@ -172,7 +172,6 @@ mutable struct Solver{T}
 end
 
 function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(Bool,model.m), opts=Options{Float64}())
-
     mI = convert(Int,sum(cI_idx))
     n = model.n + mI
     m = model.m
@@ -268,10 +267,11 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
     for i = 1:model.n
         x[i] = init_x0(x0[i],xL[i],xU[i],opts.κ1,opts.κ2)
     end
-    #TODO init slacks
 
-    for i = model.n .+ (1:mI)
-        x[i] = init_x0(1.0,xL[i],xU[i],opts.κ1,opts.κ2)
+    cI_tmp = zeros(model.m)
+    model.c_func!(cI_tmp,x[1:model.n],model)
+    for (k,i) = enumerate(model.n .+ (1:mI))
+        x[i] = init_x0(cI_tmp[cI_idx][k],xL[i],xU[i],opts.κ1,opts.κ2)
     end
 
     Dx = init_Dx(n)
