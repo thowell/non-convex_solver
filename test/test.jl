@@ -25,5 +25,3 @@ opts = Options{Float64}(kkt_solve=:symmetric,
 
 s = InteriorPointSolver(x0,model,opts=opts)
 @time solve!(s)
-
-eval_step!(s.s)

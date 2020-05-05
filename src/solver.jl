@@ -173,38 +173,61 @@ mutable struct Solver{T}
     opts::Options{T}
 end
 
-function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(Bool,model.m), opts=Options{Float64}())
+function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(Bool,model.m),reformulate=true,opts=Options{Float64}())
+
     mI = convert(Int,sum(cI_idx))
     mA = convert(Int,sum(cA_idx))
+    if reformulate
 
-    n = model.n + mI
-    m = model.m
+        n = model.n + mI + mA
+        m = model.m + mA
 
-    # solver methods
-    function f_func(x,_model)
-         model.f_func(view(x,1:model.n),model)
-    end
-    function ∇f_func!(∇f,x,_model)
-        model.∇f_func!(view(∇f,1:model.n),view(x,1:model.n),model)
-        return nothing
-    end
-    function ∇²f_func!(∇²f,x,_model)
-        model.∇²f_func!(view(∇²f,1:model.n,1:model.n),view(x,1:model.n),model)
-        return nothing
-    end
-    function c_func!(c,x,_model)
-        model.c_func!(view(c,1:model.m),view(x,1:model.n),model)
-        c[cI_idx] .-= view(x,model.n .+ (1:mI))
-        return nothing
-    end
-    function ∇c_func!(∇c,x,_model)
-        model.∇c_func!(view(∇c,1:model.m,1:model.n),view(x,1:model.n),model)
-        ∇c[CartesianIndex.((1:model.m)[cI_idx],model.n .+ (1:mI))] .= -1.0
-        return nothing
-    end
-    function ∇²cy_func!(∇²cy,x,y,_model)
-         model.∇²cy_func!(view(∇²cy,1:model.n,1:model.n),view(x,1:model.n),y,model)
-         return nothing
+        cI_idx_solver = vcat(cI_idx,zeros(Bool,mA))
+        cA_idx_solver = vcat(zeros(Bool,model.m),ones(Bool,mA))
+
+        # solver methods
+        function f_func(x,_model)
+             model.f_func(view(x,1:model.n),model)
+        end
+        function ∇f_func!(∇f,x,_model)
+            model.∇f_func!(view(∇f,1:model.n),view(x,1:model.n),model)
+            return nothing
+        end
+        function ∇²f_func!(∇²f,x,_model)
+            model.∇²f_func!(view(∇²f,1:model.n,1:model.n),view(x,1:model.n),model)
+            return nothing
+        end
+        function c_func!(c,x,_model)
+            model.c_func!(view(c,1:model.m),view(x,1:model.n),model)
+            c[(1:model.m)[cI_idx]] .-= view(x,model.n .+ (1:mI))
+            c[(1:model.m)[cA_idx]] .-= view(x,model.n+mI .+ (1:mA))
+            c[model.m .+ (1:mA)] .= view(x,model.n+mI .+ (1:mA))
+
+            return nothing
+        end
+        function ∇c_func!(∇c,x,_model)
+            model.∇c_func!(view(∇c,1:model.m,1:model.n),view(x,1:model.n),model)
+            ∇c[CartesianIndex.((1:model.m)[cI_idx],model.n .+ (1:mI))] .= -1.0
+            ∇c[CartesianIndex.((1:model.m)[cA_idx],model.n+mI .+ (1:mA))] .= -1.0
+            ∇c[CartesianIndex.(model.m .+ (1:mA),model.n+mI .+ (1:mA))] .= 1.0
+            return nothing
+        end
+        function ∇²cy_func!(∇²cy,x,y,_model)
+             model.∇²cy_func!(view(∇²cy,1:model.n,1:model.n),view(x,1:model.n),view(y,1:model.m),model)
+             return nothing
+        end
+    else
+        n = model.n
+        m = model.m
+        f_func = model.f_func
+        ∇f_func! = model.∇f_func!
+        ∇²f_func! = model.∇²f_func!
+        c_func! = model.c_func!
+        ∇c_func! = model.∇c_func!
+        ∇²cy_func! = model.∇²cy_func!
+
+        cI_idx_solver = cI_idx
+        cA_idx_solver = cA_idx
     end
 
     # initialize primals
@@ -370,7 +393,7 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
 
     Fμ = zeros(n+m+nL+nU)
 
-    idx = indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,cA_idx)
+    idx = indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,cA_idx_solver)
     idx_r = restoration_indices()
 
     fail_cnt = 0
@@ -379,10 +402,10 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
     Hv_sym = H_symmetric_views(H_sym,idx)
 
     ρ = 1.0/μ
-    λ = zeros(sum(cA_idx))
-    yA = view(y,cA_idx)
-    cA = view(c,cA_idx)
-    ∇cA = view(∇c,cA_idx,idx.x)
+    λ = zeros(mA)
+    yA = view(y,cA_idx_solver)
+    cA = view(c,cA_idx_solver)
+    ∇cA = view(∇c,cA_idx_solver,idx.x)
 
     θ = norm(c,1)
     θ⁺ = copy(θ)
@@ -452,8 +475,8 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
            idx,idx_r,
            fail_cnt,
            Dx,df,Dc,
-           cI_idx,
-           ρ,λ,yA,cA,∇cA,cA_idx,
+           cI_idx_solver,
+           ρ,λ,yA,cA,∇cA,cA_idx_solver,
            f_func,∇f_func!,∇²f_func!,
            c_func!,∇c_func!,∇²cy_func!,
            opts)
@@ -960,9 +983,9 @@ struct InteriorPointSolver{T}
     s̄::Solver{T}
 end
 
-function InteriorPointSolver(x0,model::AbstractModel; cI_idx=zeros(Bool,model.m),cA_idx=zeros(Bool,model.m),opts=Options{Float64}()) where T
-    s = Solver(x0,model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
-    s̄ = RestorationSolver(s)
+function InteriorPointSolver(x0,model::AbstractModel; cI_idx=zeros(Bool,model.m),cA_idx=zeros(Bool,model.m),reformulate=true,opts=Options{Float64}()) where T
+    s = Solver(x0,model,cI_idx=cI_idx,cA_idx=cA_idx,reformulate=reformulate,opts=opts)
+    s̄ = RestorationSolver(s,reformulate=false)
 
     InteriorPointSolver(s,s̄)
 end
