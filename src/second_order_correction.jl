@@ -82,8 +82,9 @@ objective values
 """
 function trial_step_soc!(s::Solver)
     s.x⁺ .= s.x + s.α_soc*s.d_soc[s.idx.x]
+    s.s⁺ .= s.s + s.α_soc*s.d_soc[s.idx.s]
     s.θ⁺ = θ(s.x⁺,s)
-    s.φ⁺ = barrier(s.x⁺,s)
+    s.φ⁺ = barrier(s.x⁺,s.s⁺,s)
     return nothing
 end
 
@@ -95,6 +96,9 @@ Compute the approximate result of Eq. 28, the step size for the second order cor
 function α_soc_max!(s::Solver)
     s.α_soc = 1.0
     while !fraction_to_boundary_bnds(s.x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.d_soc[s.idx.x],s.α_soc,s.τ)
+        s.α_soc *= 0.5  # QUESTION: is there a smarter way to find the approximate minimizer? Binary search? -maybe, no one does that
+    end
+    while !fraction_to_boundary_single_bnds(s.s,s.sL,s.d_soc[s.idx.s],s.α_soc,s.τ)
         s.α_soc *= 0.5  # QUESTION: is there a smarter way to find the approximate minimizer? Binary search? -maybe, no one does that
     end
     return nothing
@@ -118,6 +122,7 @@ function search_direction_soc_unreduced!(s::Solver)
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
     s.h[s.idx.y] = s.c_soc
+    s.h[s.idx.y[s.cI_idx]] -= s.s
     s.h[s.idx.y_al] += 1.0/s.ρ*(s.λ - s.y_al)
 
     s.d_soc .= lu(s.H + Diagonal(s.δ))\(-s.h)

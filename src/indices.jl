@@ -15,9 +15,13 @@ struct Indices
     zL::UnitRange{Int}   # duals for slack lower bounds?
     zU::UnitRange{Int}   # duals for slack upper bounds?
     xy::UnitRange{Int}   # entire primal-dual vector
+    s
+    zS
+    yI
+    primals
 end
 
-function indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,c_al_idx)
+function indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,c_al_idx,cI_idx,mI)
     x = 1:n
     xL = x[xL_bool]
     xU = x[xU_bool]
@@ -28,8 +32,12 @@ function indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,c_al_idx)
     zL = n + m .+ (1:nL)
     zU = n + m + nL .+ (1:nU)
     xy = 1:(n+m)
+    s = n + m + nL + nU .+ (1:mI)
+    zS = n + m + nL + nU + mI .+ (1:mI)
+    yI = y[cI_idx]
+    primals = [x...,s...]
 
-    Indices(x,xL,xU,xLs,xUs,y,y_al,zL,zU,xy)
+    Indices(x,xL,xU,xLs,xUs,y,y_al,zL,zU,xy,s,zS,yI,primals)
 end
 
 struct RestorationIndices

@@ -1,7 +1,7 @@
 include("../src/interior_point.jl")
 
-n = 500
-m = 100
+n = 50
+m = 10
 
 x0 = ones(n)
 
@@ -19,11 +19,13 @@ c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
-opts = Options{Float64}(kkt_solve=:symmetric,
-                        iterative_refinement=true,
+opts = Options{Float64}(kkt_solve=:unreduced,
+                        iterative_refinement=false,
                         verbose=false)
 
-s = InteriorPointSolver(x0,model,opts=opts)
+s = InteriorPointSolver(x0,model,cI_idx=zeros(Bool,model.m),opts=opts)
 @time solve!(s)
 
-eval_step!(s.s)
+s.s.idx.s
+
+s.s.∇L

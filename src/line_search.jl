@@ -83,8 +83,9 @@ Evaluate the constraint norm and the barrier objective at the new candidate.
 """
 function trial_step!(s::Solver)
     s.x⁺ .= s.x + s.α*s.dx
+    s.s⁺ .= s.s + s.α*s.d[s.idx.s]
     s.θ⁺ = θ(s.x⁺,s)
-    s.φ⁺ = barrier(s.x⁺,s)
+    s.φ⁺ = barrier(s.x⁺,s.s⁺,s)
     return nothing
 end
 
@@ -105,7 +106,7 @@ end
 Compute the minimum step length (Eq. 23)
 """
 function α_min!(s::Solver)
-    s.α_min = α_min(s.dx,s.θ,s.∇φ,s.θ_min,s.opts.δ,s.opts.γα,s.opts.γθ,s.opts.γφ,s.opts.sθ,s.opts.sφ)
+    s.α_min = α_min(s.d[s.idx.primals],s.θ,s.∇φ,s.θ_min,s.opts.δ,s.opts.γα,s.opts.γθ,s.opts.γφ,s.opts.sθ,s.opts.sφ)
     return nothing
 end
 
@@ -117,6 +118,10 @@ Compute the maximum step length (Eq. 15)
 function α_max!(s::Solver)
     s.α_max = 1.0
     while !fraction_to_boundary_bnds(s.x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.dx,s.α_max,s.τ)
+        s.α_max *= 0.5
+    end
+
+    while !fraction_to_boundary_single_bnds(s.s,s.sL,s.d[s.idx.s],s.α_max,s.τ)
         s.α_max *= 0.5
     end
     s.α = copy(s.α_max)
@@ -135,12 +140,16 @@ function αz_max!(s::Solver)
         s.αz *= 0.5
     end
 
+    while !fraction_to_boundary(s.zS,s.d[s.idx.zS],s.αz,s.τ)
+        s.αz *= 0.5
+    end
+
     return nothing
 end
 
 switching_condition(∇φ,d,α,sφ,δ,θ,sθ) = (∇φ'*d < 0. && α*(-∇φ'*d)^sφ > δ*θ^sθ)
 function switching_condition(s::Solver)
-    return switching_condition(s.∇φ,s.dx,s.α,s.opts.sφ,s.opts.δ,s.θ,s.opts.sθ)
+    return switching_condition(s.∇φ,s.d[s.idx.primals],s.α,s.opts.sφ,s.opts.δ,s.θ,s.opts.sθ)
 end
 
 sufficient_progress(θ⁺,θ,φ⁺,φ,γθ,γφ,ϵ_mach) = (θ⁺ - 10.0*ϵ_mach*abs(θ) <= (1-γθ)*θ || φ⁺ - 10.0*ϵ_mach*abs(φ) <= φ - γφ*θ)
@@ -150,5 +159,5 @@ function sufficient_progress(s::Solver)
 end
 
 armijo(φ⁺,φ,η,α,∇φ,d,ϵ_mach) = (φ⁺ - φ - 10.0*ϵ_mach*abs(φ) <= η*α*∇φ'*d)
-armijo(s::Solver) = armijo(s.φ⁺,s.φ,s.opts.ηφ,s.α,s.∇φ,s.dx,
+armijo(s::Solver) = armijo(s.φ⁺,s.φ,s.opts.ηφ,s.α,s.∇φ,s.d[s.idx.primals],
     s.opts.ϵ_mach)
