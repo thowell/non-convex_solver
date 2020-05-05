@@ -8,6 +8,8 @@ mutable struct Solver{T}
     model::AbstractModel
     n::Int
     m::Int
+    mI::Int
+    mA::Int
 
     x::Vector{T}            # primal variables (n,)
     x⁺::Vector{T}
@@ -173,32 +175,34 @@ end
 
 function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(Bool,model.m), opts=Options{Float64}())
     mI = convert(Int,sum(cI_idx))
+    mA = convert(Int,sum(cA_idx))
+
     n = model.n + mI
     m = model.m
 
     # solver methods
-    function f_func(x,model)
+    function f_func(x,_model)
          model.f_func(view(x,1:model.n),model)
     end
-    function ∇f_func!(∇f,x,model)
+    function ∇f_func!(∇f,x,_model)
         model.∇f_func!(view(∇f,1:model.n),view(x,1:model.n),model)
         return nothing
     end
-    function ∇²f_func!(∇²f,x,model)
+    function ∇²f_func!(∇²f,x,_model)
         model.∇²f_func!(view(∇²f,1:model.n,1:model.n),view(x,1:model.n),model)
         return nothing
     end
-    function c_func!(c,x,model)
+    function c_func!(c,x,_model)
         model.c_func!(view(c,1:model.m),view(x,1:model.n),model)
         c[cI_idx] .-= view(x,model.n .+ (1:mI))
         return nothing
     end
-    function ∇c_func!(∇c,x,model)
+    function ∇c_func!(∇c,x,_model)
         model.∇c_func!(view(∇c,1:model.m,1:model.n),view(x,1:model.n),model)
         ∇c[CartesianIndex.((1:model.m)[cI_idx],model.n .+ (1:mI))] .= -1.0
         return nothing
     end
-    function ∇²cy_func!(∇²cy,x,y,model)
+    function ∇²cy_func!(∇²cy,x,y,_model)
          model.∇²cy_func!(view(∇²cy,1:model.n,1:model.n),view(x,1:model.n),y,model)
          return nothing
     end
@@ -418,7 +422,7 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
     res_zU = view(res,idx.zU)
 
     Solver(model,
-           n,m,
+           n,m,mI,mA,
            x,x⁺,
            xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,ΔxL,ΔxU,
            y,
