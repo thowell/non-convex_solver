@@ -64,7 +64,7 @@ function eval_Fμ(x,y,zL,zU,_s,zS,r,s)
         s.c .= s.Dc*s.c
     end
     s.model.∇c_func!(s.∇c,x,s.model)
-    s.∇L .= s.∇f + s.∇c'*y
+    s.∇L[s.idx.x] = s.∇f + s.∇c'*y
     s.∇L[s.idx.xL] -= zL
     s.∇L[s.idx.xU] += zU
 

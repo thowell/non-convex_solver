@@ -421,10 +421,14 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
     res_zS = view(res,idx.zS)
     res_r = view(res,idx.r)
 
-    s = max.(1.0,copy(c[cI_idx]))
+    s =copy(c[cI_idx])
+    sL = zeros(mI)
+
+    for i = 1:mI
+        s[i] = init_x0(s[i],sL[i],Inf,opts.κ1,opts.κ2)
+    end
     s⁺ = zeros(mI)
 
-    sL = zeros(mI)
     if opts.relax_bnds
        # relax bounds
        for i = 1:mI
@@ -441,8 +445,8 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
     zS_copy = zeros(mI)
     r_copy = zeros(mA)
 
-    sd = init_sd(y,[zL;zU;zS],nL+nU+mI,model.m,opts.s_max)
-    sc = init_sc([zL;zU],nL+nU,opts.s_max)
+    sd = init_sd(y,[zL;zU;zS],model.n,model.m,opts.s_max) # TODO change n dim ?
+    sc = init_sc([zL;zU],model.n,opts.s_max) #TODO  change n dim ?
 
     yI = view(y,cI_idx)
     cI = view(c,cI_idx)
@@ -698,8 +702,8 @@ end
 Evaluate the first and second derivatives of the Lagrangian
 """
 function eval_lagrangian!(s::Solver)
-    s.∇L .= s.∇f
-    s.∇L .+= s.∇c'*s.y
+    s.∇L[s.idx.x] = s.∇f
+    s.∇L[s.idx.x] += s.∇c'*s.y
     s.∇L[s.idx.xL] -= s.zL
     s.∇L[s.idx.xU] += s.zU
 
@@ -732,7 +736,7 @@ function eval_barrier!(s::Solver)
     s.mI != 0 && (s.φ -= s.μ*sum(log.(s.ΔsL)))
     s.mA != 0 && (s.φ += s.λ'*s.r + 0.5*s.ρ*s.r'*s.r)
 
-    s.∇φ .= s.∇f
+    s.∇φ[s.idx.x] = s.∇f
     s.∇φ[s.idx.xL] -= s.μ./s.ΔxL
     s.∇φ[s.idx.xU] += s.μ./s.ΔxU
 
@@ -966,7 +970,7 @@ function accept_step!(s::Solver)
     s.s .= s.s⁺
     s.zS .= s.zS + s.αz*s.dzS
 
-    s.r = s.r⁺
+    s.r .= s.r⁺
     return nothing
 end
 
