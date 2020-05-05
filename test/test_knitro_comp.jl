@@ -20,6 +20,7 @@ c_func(x) = [2*(x[2] - 1) - 1.5*x[2] + x[3] - 0.5*x[4] + x[5];
              x[3]*x[6];
              x[4]*x[7];
              x[5]*x[8]]
+             
 c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)

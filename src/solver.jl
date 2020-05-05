@@ -216,6 +216,15 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
              model.∇²cy_func!(view(∇²cy,1:model.n,1:model.n),view(x,1:model.n),view(y,1:model.m),model)
              return nothing
         end
+
+        # primal bounds
+        xL = -Inf*ones(n)
+        xL[1:model.n] = copy(model.xL)
+        xL[model.n .+ (1:mI)] .= 0.
+
+        xU = Inf*ones(n)
+        xU[1:model.n] = copy(model.xU)
+
     else
         n = model.n
         m = model.m
@@ -228,19 +237,15 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
 
         cI_idx_solver = cI_idx
         cA_idx_solver = cA_idx
+
+        # primal bounds
+        xL = copy(model.xL)
+        xU = copy(model.xU)
     end
 
     # initialize primals
     x = zeros(n)
     x⁺ = zeros(n)
-
-    # primal bounds
-    xL = -Inf*ones(n)
-    xL[1:model.n] = copy(model.xL)
-    xL[model.n .+ (1:mI)] .= 0.
-
-    xU = Inf*ones(n)
-    xU[1:model.n] = copy(model.xU)
 
     xL_bool = zeros(Bool,n)
     xU_bool = zeros(Bool,n)
@@ -295,10 +300,19 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
         x[i] = init_x0(x0[i],xL[i],xU[i],opts.κ1,opts.κ2)
     end
 
-    cI_tmp = zeros(model.m)
-    model.c_func!(cI_tmp,x[1:model.n],model)
-    for (k,i) = enumerate(model.n .+ (1:mI))
-        x[i] = init_x0(cI_tmp[cI_idx][k],xL[i],xU[i],opts.κ1,opts.κ2)
+    if reformulate
+        ctmp = zeros(model.m)
+        model.c_func!(ctmp,x[1:model.n],model)
+        if mI != 0
+            for (k,i) = enumerate(model.n .+ (1:mI))
+                x[i] = init_x0(ctmp[cI_idx][k],xL[i],xU[i],opts.κ1,opts.κ2)
+            end
+        end
+        if mA != 0
+            for (k,i) = enumerate(model.n+mI .+ (1:mA))
+                x[i] = init_x0(ctmp[cA_idx][k],xL[i],xU[i],opts.κ1,opts.κ2)
+            end
+        end
     end
 
     Dx = init_Dx(n)

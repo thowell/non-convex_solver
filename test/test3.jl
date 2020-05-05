@@ -35,7 +35,6 @@ end
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c_func!,∇c_func!,∇²cy_func!)
 
-model.∇c_func!(spzeros(m,n),zeros(n),model)
 s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=true,
                         kkt_solve=:symmetric,
                         nlp_scaling=true,

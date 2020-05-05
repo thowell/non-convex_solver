@@ -131,7 +131,7 @@ function c_func(z)
         end
 
         c[(t-1)*np .+ (1:np)] .= [(ϕ(model,q));
-                                  (((model.μ*y)^2 - β'*β));
+                                  ((model.μ*y)^2 - β'*β);
                                   (1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*y + P(model,q)'*β);
                                   (P(model,q)*(q-_qp)/model.Δt + 2.0*β*ψ);
                                   y*ϕ(model,q);
@@ -172,11 +172,10 @@ for t = 1:T
     cA_idx[(t-1)*np .+ (1:np)] .= cA_idx_t
 end
 
-u0 = 1.0e-3*ones(nu)
-y0 = 1.0*ones(1)[1]
-β0 = 1.0*ones(nβ)[1]
-ψ0 = 1.0*ones(1)[1]
-s0 = 1.0*ones(1)[1]
+u0 = 1.0e-3*rand(nu)
+y0 = 1.0*rand(1)[1]
+β0 = 1.0*rand(nβ)[1]
+ψ0 = 1.0*rand(1)[1]
 
 x0 = zeros(T*nx)
 for t = 1:T
@@ -192,7 +191,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        verbose=false)
 
 s = InteriorPointSolver(x0,nlp_model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
-
+s.s.ρ = 100.
 @time solve!(s)
 norm(c_func(s.s.x)[cA_idx .== 0],1)
 norm(c_func(s.s.x)[cA_idx],1)

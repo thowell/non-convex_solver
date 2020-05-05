@@ -31,7 +31,10 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         verbose=false)
 
 s = InteriorPointSolver(x0,model,cA_idx=ones(Bool,m),opts=opts)
+s.s.ρ = 100.
 @time solve!(s)
+
+
 
 # ######
 # using Ipopt, MathOptInterface

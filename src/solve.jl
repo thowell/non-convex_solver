@@ -2,7 +2,7 @@ using Crayons
 function solve!(solver::InteriorPointSolver)
     # println("<augmented-Lagrangian interior-point solve>\n")
     title = "PRIMAL-DUAL AUGMENTED-LAGRANGIAN BARRIER SOLVER"
-    println(crayon"bold underline cyan", title)
+    println(crayon"bold underline red", title)
     println(crayon"reset","written and maintained by")
     println(crayon"reset","Taylor Howell and Brian Jackson")
 
@@ -12,14 +12,14 @@ function solve!(solver::InteriorPointSolver)
     s = solver.s
 
     # Problem summary
-    println(crayon"bold underline blue", "Problem Summary")
+    println(crayon"bold underline black", "Problem Summary")
     print(crayon"reset")
     println("   num vars = $(s.n)")
     println("   num cons = $(s.m)")
     println()
 
     logger = SolverLogger(s.opts.verbose ? Logging.Info : InnerLoop)
-    add_level!(logger, InnerLoop, print_color=:green)
+    add_level!(logger, InnerLoop, print_color=:red)
     # add_level!(logger, OuterLoop, print_color=:yellow)
     with_logger(logger) do
 
@@ -109,7 +109,7 @@ function solve!(solver::InteriorPointSolver)
         end
     end  # outer while loop
 
-    println(crayon"blue bold underline", "\nSolve Summary")
+    println(crayon"red bold underline", "\nSolve Summary")
     println(crayon"reset", "   status: complete")
     println("   iteration ($(s.j),$(s.k)):")
 
