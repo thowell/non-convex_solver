@@ -202,7 +202,7 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
     function ∇²cy_func!(∇²cy,x,y,model)
          model.∇²cy_func!(view(∇²cy,1:model.n,1:model.n),view(x,1:model.n),y,model)
          return nothing
-     end
+    end
 
     # initialize primals
     x = zeros(n)
@@ -303,7 +303,7 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
     opts.nlp_scaling ? f *= df : nothing
 
     ∇²f = spzeros(n,n)
-    
+
     φ = 0.
     φ⁺ = 0.
     ∇φ = zeros(n)
