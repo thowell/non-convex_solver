@@ -6,6 +6,8 @@ end
 
 mutable struct Solver{T}
     model::AbstractModel
+    n::Int
+    m::Int
 
     x::Vector{T}            # primal variables (n,)
     x⁺::Vector{T}
@@ -148,32 +150,78 @@ mutable struct Solver{T}
     df::T
     Dc::SparseMatrixCSC{T,Int}
 
+    cI_idx::Vector{Bool}
+
     ρ::T
     λ::Vector{T}
-    y_al::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
-    c_al::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
-    ∇c_al::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{Array{Int,1},UnitRange{Int}},false}
-    c_al_idx::Vector{Bool}
+    yA::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    cA::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
+    ∇cA::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{Array{Int,1},UnitRange{Int}},false}
+    cA_idx::Vector{Bool}
+
+    # solver methods
+    f_func::Function
+    ∇f_func!::Function
+    ∇²f_func!::Function
+
+    c_func!::Function
+    ∇c_func!::Function
+    ∇²cy_func!::Function
 
     opts::Options{T}
 end
 
-function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Options{Float64}())
+function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(Bool,model.m), opts=Options{Float64}())
+
+    mI = convert(Int,sum(cI_idx))
+    n = model.n + mI
+    m = model.m
+
+    # solver methods
+    function f_func(x,model)
+         model.f_func(view(x,1:model.n),model)
+    end
+    function ∇f_func!(∇f,x,model)
+        model.∇f_func!(view(∇f,1:model.n),view(x,1:model.n),model)
+        return nothing
+    end
+    function ∇²f_func!(∇²f,x,model)
+        model.∇²f_func!(view(∇²f,1:model.n,1:model.n),view(x,1:model.n),model)
+        return nothing
+    end
+    function c_func!(c,x,model)
+        model.c_func!(view(c,1:model.m),view(x,1:model.n),model)
+        c[cI_idx] .-= view(x,model.n .+ (1:mI))
+        return nothing
+    end
+    function ∇c_func!(∇c,x,model)
+        model.∇c_func!(view(∇c,1:model.m,1:model.n),view(x,1:model.n),model)
+        ∇c[CartesianIndex.((1:model.m)[cI_idx],model.n .+ (1:mI))] .= -1.0
+        return nothing
+    end
+    function ∇²cy_func!(∇²cy,x,y,model)
+         model.∇²cy_func!(view(∇²cy,1:model.n,1:model.n),view(x,1:model.n),y,model)
+         return nothing
+     end
 
     # initialize primals
-    x = zeros(model.n)
-    x⁺ = zeros(model.n)
+    x = zeros(n)
+    x⁺ = zeros(n)
 
     # primal bounds
-    xL = copy(model.xL)
-    xU = copy(model.xU)
+    xL = -Inf*ones(n)
+    xL[1:model.n] = copy(model.xL)
+    xL[model.n .+ (1:mI)] .= 0.
 
-    xL_bool = zeros(Bool,model.n)
-    xU_bool = zeros(Bool,model.n)
-    xLs_bool = zeros(Bool,model.n)
-    xUs_bool = zeros(Bool,model.n)
+    xU = Inf*ones(n)
+    xU[1:model.n] = copy(model.xU)
 
-    for i = 1:model.n
+    xL_bool = zeros(Bool,n)
+    xU_bool = zeros(Bool,n)
+    xLs_bool = zeros(Bool,n)
+    xUs_bool = zeros(Bool,n)
+
+    for i = 1:n
         # boolean bounds
         if xL[i] < -1.0*opts.bnd_tol
             xL_bool[i] = 0
@@ -209,10 +257,10 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
 
     if opts.relax_bnds
        # relax bounds
-       for i in (1:model.n)[xL_bool]
+       for i in (1:n)[xL_bool]
            xL[i] = relax_bnd(xL[i],opts.ϵ_tol,:L)
        end
-       for i in (1:model.n)[xU_bool]
+       for i in (1:n)[xU_bool]
            xU[i] = relax_bnd(xU[i],opts.ϵ_tol,:U)
        end
     end
@@ -220,54 +268,59 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     for i = 1:model.n
         x[i] = init_x0(x0[i],xL[i],xU[i],opts.κ1,opts.κ2)
     end
+    #TODO init slacks
 
-    Dx = init_Dx(model.n)
+    for i = model.n .+ (1:mI)
+        x[i] = init_x0(1.0,xL[i],xU[i],opts.κ1,opts.κ2)
+    end
+
+    Dx = init_Dx(n)
     opts.nlp_scaling ? x .= Dx*x : nothing
 
     zL = opts.zL0*ones(nL)
     zU = opts.zU0*ones(nU)
 
-    H = spzeros(model.n+model.m+nL+nU,model.n+model.m+nL+nU)
-    h = zeros(model.n+model.m+nL+nU)
+    H = spzeros(n+m+nL+nU,n+m+nL+nU)
+    h = zeros(n+m+nL+nU)
 
-    H_sym = spzeros(model.n+model.m,model.n+model.m)
-    h_sym = zeros(model.n+model.m)
+    H_sym = spzeros(n+m,n+m)
+    h_sym = zeros(n+m)
 
     LBL = Ma57(H_sym)
     inertia = Inertia(0,0,0)
 
-    ∇²L = spzeros(model.n,model.n)
+    ∇²L = spzeros(n,n)
     σL = zeros(nL)
     σU = zeros(nU)
-    ∇c = spzeros(model.m,model.n)
-    model.∇c_func!(∇c,x,model)
-    Dc = init_Dc(opts.g_max,∇c,model.m)
+    ∇c = spzeros(m,n)
+    ∇c_func!(∇c,x,model)
+    Dc = init_Dc(opts.g_max,∇c,m)
 
-    f = model.f_func(x,model)
-    ∇f = zeros(model.n)
-    model.∇f_func!(∇f,x,model)
+    f = f_func(x,model)
+    ∇f = zeros(n)
+    ∇f_func!(∇f,x,model)
     df = init_df(opts.g_max,∇f)
     opts.nlp_scaling ? f *= df : nothing
 
-    ∇²f = model.∇²f
-
+    ∇²f = spzeros(n,n)
+    
     φ = 0.
     φ⁺ = 0.
-    ∇φ = zeros(model.n)
+    ∇φ = zeros(n)
 
-    ∇L = zeros(model.n)
+    ∇L = zeros(n)
 
-    c = zeros(model.m)
-    model.c_func!(c,x,model)
+    c = zeros(m)
+    c_func!(c,x,model)
     opts.nlp_scaling ? c .= Dc*c : nothing
 
-    c_soc = zeros(model.m)
-    c_tmp = zeros(model.m)
+    c_soc = zeros(m)
+    c_tmp = zeros(m)
 
-    ∇²cy = spzeros(model.n,model.n)
+    ∇²cy = spzeros(n,n)
 
-    d = zeros(model.n+model.m+nL+nU)
-    d_soc = zeros(model.n+model.m+nL+nU)
+    d = zeros(n+m+nL+nU)
+    d_soc = zeros(n+m+nL+nU)
 
     μ = copy(opts.μ0)
 
@@ -285,12 +338,12 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     δw_last = 0.
     δc = 0.
 
-    y = zeros(model.m)
+    y = zeros(m)
 
-    opts.y_init_ls ? init_y!(y,H_sym,h_sym,d,zL,zU,∇f,∇c,model.n,model.m,xL_bool,xU_bool,opts.y_max) : zeros(model.m)
+    opts.y_init_ls ? init_y!(y,H_sym,h_sym,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,opts.y_max) : zeros(m)
 
-    sd = init_sd(y,[zL;zU],model.n,model.m,opts.s_max)
-    sc = init_sc([zL;zU],model.n,opts.s_max)
+    sd = init_sd(y,[zL;zU],n,m,opts.s_max)
+    sc = init_sc([zL;zU],n,opts.s_max)
 
     filter = Tuple[]
 
@@ -305,17 +358,16 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     restoration = false
     DR = spzeros(0,0)
 
-    x_copy = zeros(model.n)
-    y_copy = zeros(model.m)
+    x_copy = zeros(n)
+    y_copy = zeros(m)
     zL_copy = zeros(nL)
     zU_copy = zeros(nU)
     d_copy = zero(d)
 
-    Fμ = zeros(model.n+model.m+nL+nU)
+    Fμ = zeros(n+m+nL+nU)
 
-    idx = indices(model.n,model.m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,c_al_idx)
+    idx = indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,cA_idx)
     idx_r = restoration_indices()
-
 
     fail_cnt = 0
 
@@ -323,10 +375,10 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     Hv_sym = H_symmetric_views(H_sym,idx)
 
     ρ = 1.0/μ
-    λ = zeros(sum(c_al_idx))
-    y_al = view(y,c_al_idx)
-    c_al = view(c,c_al_idx)
-    ∇c_al = view(∇c,c_al_idx,idx.x)
+    λ = zeros(sum(cA_idx))
+    yA = view(y,cA_idx)
+    cA = view(c,cA_idx)
+    ∇cA = view(∇c,cA_idx,idx.x)
 
     θ = norm(c,1)
     θ⁺ = copy(θ)
@@ -366,6 +418,7 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
     res_zU = view(res,idx.zU)
 
     Solver(model,
+           n,m,
            x,x⁺,
            xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,ΔxL,ΔxU,
            y,
@@ -395,155 +448,158 @@ function Solver(x0,model::AbstractModel;c_al_idx=zeros(Bool,model.m), opts=Optio
            idx,idx_r,
            fail_cnt,
            Dx,df,Dc,
-           ρ,λ,y_al,c_al,∇c_al,c_al_idx,
+           cI_idx,
+           ρ,λ,yA,cA,∇cA,cA_idx,
+           f_func,∇f_func!,∇²f_func!,
+           c_func!,∇c_func!,∇²cy_func!,
            opts)
 end
 
-function reset_solver!(s::Solver, x0)
-    opts = s.opts
-    model = s.model
-
-    # Reset primals
-    s.x .= 0
-    s.x⁺ .= 0
-    s.xL .= model.xL
-    s.xU .= model.xU
-
-    s.ΔxL .= 0
-    s.ΔxU .= 0
-
-    if opts.relax_bnds
-       # relax bounds
-       for i in (1:model.n)[s.xL_bool]
-           s.xL[i] = relax_bnd(s.xL[i], opts.ϵ_tol, :L)
-       end
-       for i in (1:model.n)[s.xU_bool]
-           s.xU[i] = relax_bnd(s.xU[i], opts.ϵ_tol, :U)
-       end
-    end
-
-    for i = 1:model.n
-        s.x[i] = init_x0(x0[i], s.xL[i], s.xU[i], opts.κ1, opts.κ2)
-    end
-
-    s.Dx = init_Dx(model.n)
-    opts.nlp_scaling && s.x .= s.Dx * s.x
-
-    s.zL = opts.zL0*ones(s.nL)
-    s.zU = opts.zU0*ones(s.nU)
-
-    s.H .= 0
-    s.h .= 0
-    s.H_sym .= 0
-    s.h_sym .= 0
-    s.inertia = Inertia(0,0,0)
-
-    s.∇²L .= 0
-    s.σL .= 0
-    s.σU .= 0
-    s.∇c .= 0
-
-    model.∇c_func!(s.∇c, s.x, model)
-    Dc = init_Dc(opts.g_max, s.∇c, model.m)
-
-    s.f = model.f_func(x0, model)
-    s.∇f .= 0
-    s.df = init_df(opts.g_max, s.∇f)
-    opts.nlp_scaling && (s.f *= s.df)
-    s.∇²f = model.∇²f
-
-    s.φ = 0.
-    s.φ⁺ = 0.
-    s.∇φ .= 0.
-    s.∇L .= 0
-
-    s.c .= 0
-    model.c_func!(s.c, s.x, model)
-    opts.nlp_scaling && s.c .= s.Dc*s.c
-
-    s.c_soc .= 0
-    s.c_tmp .= 0
-    s.∇²cy .= 0
-
-    s.d .= 0
-    s.d_soc .= 0
-
-    s.Δ .= 0
-    s.res .= 0
-
-    # Reset penalies
-    s.μ = copy(opts.μ0)
-    s.τ = update_τ(s.μ, opts.τ_min)
-    s.ρ = 1/s.μ
-
-    # Reset line search
-    s.α = 1.0
-    s.αz = 1.0
-    s.α_max = 1.0
-    s.α_min = 1.0
-    s.α_soc = 1.0
-    s.β = 1.0
-
-    # Reset regularization
-    s.δ = zero(s.d)
-    s.δw = 0.
-    s.δw_last = 0.
-    s.δc = 0.
-
-    # Reset duals
-    s.y .= 0
-    opts.y_init_ls && init_y!(s.y, s.H_sym, s.h_sym, s.d, s.zL, s.zU, s.∇f, s.∇c,
-        model.n, model.m, s.xL_bool, s.xU_bool, opts.y_max)
-
-    s.sd = init_sd(s.y,[s.zL;s.zU], model.n, model.m, opts.s_max)
-    s.sc = init_sc([s.zL; s.zU], model.n, opts.s_max)
-
-    s.filter = Tuple[]
-
-    # Reset iteration counts
-    s.j = s.k = s.l = s.p = s.t = 0
-    s.small_search_direction_cnt = 0
-    s.restoration = false
-
-    s.DR .= 0
-
-    s.x_copy .= 0
-    s.y_copy .= 0
-    s.zL_copy .= 0
-    s.zL_copy .= 0
-    s.zU_copy .= 0
-    s.d_copy .= 0
-
-    s.Fμ .= 0
-
-    s.fail_cnt = 0
-
-    s.λ .= 0
-
-    s.θ = norm(s.c, 1)
-    s.θ⁺ = s.θ
-    s.θ_min = init_θ_min(s.θ)
-    s.θ_max = init_θ_max(s.θ)
-    s.θ_soc = 0.
-
-    return s
-end
+# function reset_solver!(s::Solver, x0)
+#     opts = s.opts
+#     model = s.model
+#
+#     # Reset primals
+#     s.x .= 0
+#     s.x⁺ .= 0
+#     s.xL .= model.xL
+#     s.xU .= model.xU
+#
+#     s.ΔxL .= 0
+#     s.ΔxU .= 0
+#
+#     if opts.relax_bnds
+#        # relax bounds
+#        for i in (1:model.n)[s.xL_bool]
+#            s.xL[i] = relax_bnd(s.xL[i], opts.ϵ_tol, :L)
+#        end
+#        for i in (1:model.n)[s.xU_bool]
+#            s.xU[i] = relax_bnd(s.xU[i], opts.ϵ_tol, :U)
+#        end
+#     end
+#
+#     for i = 1:model.n
+#         s.x[i] = init_x0(x0[i], s.xL[i], s.xU[i], opts.κ1, opts.κ2)
+#     end
+#
+#     s.Dx = init_Dx(model.n)
+#     opts.nlp_scaling && s.x .= s.Dx * s.x
+#
+#     s.zL = opts.zL0*ones(s.nL)
+#     s.zU = opts.zU0*ones(s.nU)
+#
+#     s.H .= 0
+#     s.h .= 0
+#     s.H_sym .= 0
+#     s.h_sym .= 0
+#     s.inertia = Inertia(0,0,0)
+#
+#     s.∇²L .= 0
+#     s.σL .= 0
+#     s.σU .= 0
+#     s.∇c .= 0
+#
+#     model.∇c_func!(s.∇c, s.x, model)
+#     Dc = init_Dc(opts.g_max, s.∇c, model.m)
+#
+#     s.f = model.f_func(x0, model)
+#     s.∇f .= 0
+#     s.df = init_df(opts.g_max, s.∇f)
+#     opts.nlp_scaling && (s.f *= s.df)
+#     s.∇²f = model.∇²f
+#
+#     s.φ = 0.
+#     s.φ⁺ = 0.
+#     s.∇φ .= 0.
+#     s.∇L .= 0
+#
+#     s.c .= 0
+#     model.c_func!(s.c, s.x, model)
+#     opts.nlp_scaling && s.c .= s.Dc*s.c
+#
+#     s.c_soc .= 0
+#     s.c_tmp .= 0
+#     s.∇²cy .= 0
+#
+#     s.d .= 0
+#     s.d_soc .= 0
+#
+#     s.Δ .= 0
+#     s.res .= 0
+#
+#     # Reset penalies
+#     s.μ = copy(opts.μ0)
+#     s.τ = update_τ(s.μ, opts.τ_min)
+#     s.ρ = 1/s.μ
+#
+#     # Reset line search
+#     s.α = 1.0
+#     s.αz = 1.0
+#     s.α_max = 1.0
+#     s.α_min = 1.0
+#     s.α_soc = 1.0
+#     s.β = 1.0
+#
+#     # Reset regularization
+#     s.δ = zero(s.d)
+#     s.δw = 0.
+#     s.δw_last = 0.
+#     s.δc = 0.
+#
+#     # Reset duals
+#     s.y .= 0
+#     opts.y_init_ls && init_y!(s.y, s.H_sym, s.h_sym, s.d, s.zL, s.zU, s.∇f, s.∇c,
+#         model.n, model.m, s.xL_bool, s.xU_bool, opts.y_max)
+#
+#     s.sd = init_sd(s.y,[s.zL;s.zU], model.n, model.m, opts.s_max)
+#     s.sc = init_sc([s.zL; s.zU], model.n, opts.s_max)
+#
+#     s.filter = Tuple[]
+#
+#     # Reset iteration counts
+#     s.j = s.k = s.l = s.p = s.t = 0
+#     s.small_search_direction_cnt = 0
+#     s.restoration = false
+#
+#     s.DR .= 0
+#
+#     s.x_copy .= 0
+#     s.y_copy .= 0
+#     s.zL_copy .= 0
+#     s.zL_copy .= 0
+#     s.zU_copy .= 0
+#     s.d_copy .= 0
+#
+#     s.Fμ .= 0
+#
+#     s.fail_cnt = 0
+#
+#     s.λ .= 0
+#
+#     s.θ = norm(s.c, 1)
+#     s.θ⁺ = s.θ
+#     s.θ_min = init_θ_min(s.θ)
+#     s.θ_max = init_θ_max(s.θ)
+#     s.θ_soc = 0.
+#
+#     return s
+# end
 
 """
-    eval_Eμ(x, y, zL, zU, ∇xL, ∇xU, c, ∇L, μ, sd, sc, ρ, λ, y_al, c_al)
+    eval_Eμ(x, y, zL, zU, ∇xL, ∇xU, c, ∇L, μ, sd, sc, ρ, λ, yA, cA)
     eval_Eμ(solver::Solver)
 
 Evaluate the optimality error.
 """
-function eval_Eμ(zL,zU,ΔxL,ΔxU,c,∇L,μ,sd,sc,ρ,λ,y_al,c_al)
+function eval_Eμ(zL,zU,ΔxL,ΔxU,c,∇L,μ,sd,sc,ρ,λ,yA,cA)
     return max(norm(∇L,Inf)/sd,
                norm(c,Inf),
-               norm(c_al + 1.0/ρ*(λ - y_al),Inf),
+               norm(cA + 1.0/ρ*(λ - yA),Inf),
                norm(ΔxL.*zL .- μ,Inf)/sc,
                norm(ΔxU.*zU .- μ,Inf)/sc)
 end
 
-eval_Eμ(μ,s::Solver) = eval_Eμ(s.zL,s.zU,s.ΔxL,s.ΔxU,s.c[s.c_al_idx .== 0],s.∇L,μ,s.sd,s.sc,s.ρ,s.λ,s.y_al,s.c_al)
+eval_Eμ(μ,s::Solver) = eval_Eμ(s.zL,s.zU,s.ΔxL,s.ΔxU,s.c[s.cA_idx .== 0],s.∇L,μ,s.sd,s.sc,s.ρ,s.λ,s.yA,s.cA)
 
 """
     eval_bounds!(s::Solver)
@@ -567,9 +623,9 @@ Evaluate the objective value and it's first and second-order derivatives
 function eval_objective!(s::Solver)
     # QUESTION: you don't apply scaling to the derivatives?
     # TODO: when applicable, evaluate all of these with a single call to ForwardDiff
-    s.f = s.opts.nlp_scaling ? s.df*s.model.f_func(s.x,s.model) : s.model.f_func(s.x,s.model)
-    s.model.∇f_func!(s.∇f,s.x,s.model)
-    s.model.∇²f_func!(s.∇²f,s.x,s.model)
+    s.f = s.opts.nlp_scaling ? s.df*s.f_func(s.x,s.model) : s.f_func(s.x,s.model)
+    s.∇f_func!(s.∇f,s.x,s.model)
+    s.∇²f_func!(s.∇²f,s.x,s.model)
     return nothing
 end
 
@@ -581,11 +637,11 @@ Evaluate the constraints and their first and second-order derivatives. Also comp
 constraint residual `θ`.
 """
 function eval_constraints!(s::Solver)
-    s.model.c_func!(s.c,s.x,s.model)
+    s.c_func!(s.c,s.x,s.model)
     s.opts.nlp_scaling ? (s.c .= s.Dc*s.c) : nothing
 
-    s.model.∇c_func!(s.∇c,s.x,s.model)
-    s.model.∇²cy_func!(s.∇²cy,s.x,s.y,s.model)
+    s.∇c_func!(s.∇c,s.x,s.model)
+    s.∇²cy_func!(s.∇²cy,s.x,s.y,s.model)
 
     s.θ = norm(s.c,1)
     return nothing
@@ -624,13 +680,13 @@ function eval_barrier!(s::Solver)
     s.φ -= s.μ*sum(log.(s.ΔxL))
     s.φ -= s.μ*sum(log.(s.ΔxU))
 
-    s.φ += s.λ'*s.c_al + 0.5*s.ρ*s.c_al'*s.c_al
+    s.φ += s.λ'*s.cA + 0.5*s.ρ*s.cA'*s.cA
 
     s.∇φ .= s.∇f
     s.∇φ[s.xL_bool] -= s.μ./s.ΔxL
     s.∇φ[s.xU_bool] += s.μ./s.ΔxU
 
-    s.∇φ .+= s.∇c_al'*(s.λ + s.ρ*s.c_al)
+    s.∇φ .+= s.∇cA'*(s.λ + s.ρ*s.cA)
 
     # damping
     if s.opts.single_bnds_damping
@@ -787,7 +843,7 @@ end
 Calculate the 1-norm of the constraints
 """
 function θ(x,s::Solver)
-    s.model.c_func!(s.c_tmp, x, s.model)
+    s.c_func!(s.c_tmp, x, s.model)
     if s.opts.nlp_scaling
         s.c_tmp .= s.Dc*s.c_tmp
     end
@@ -795,23 +851,23 @@ function θ(x,s::Solver)
 end
 
 """
-    barrier(x, xL, xU, xL_bool, xU_bool, xLs_bool xUs_bool, μ, κd, f, ρ, y_al, c_al)
+    barrier(x, xL, xU, xL_bool, xU_bool, xLs_bool xUs_bool, μ, κd, f, ρ, yA, cA)
     barrier(x, s::Solver)
 
 Calculate the barrier objective function. When called using the solver, re-calculates the
     objective `f` and the constraints `c`.
 """
-function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f,ρ,y_al,c_al)
+function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f,ρ,yA,cA)
     # QUESTION:
     return (f - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool]))
         + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool])
-        + y_al'*c_al + 0.5*ρ*c_al'*c_al)
+        + yA'*cA + 0.5*ρ*cA'*cA)
 end
 
 function barrier(x,s::Solver)
-    s.f = s.model.f_func(x,s.model)
+    s.f = s.f_func(x,s.model)
 
-    s.model.c_func!(s.c_tmp,x,s.model)
+    s.c_func!(s.c_tmp,x,s.model)
     if s.opts.nlp_scaling
         s.c_tmp .= s.Dc*s.c_tmp
     end
@@ -819,7 +875,7 @@ function barrier(x,s::Solver)
     return barrier(x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.xLs_bool,
         s.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,
         s.opts.nlp_scaling ? s.df*s.f : s.f,
-        s.ρ,s.λ,s.c_tmp[s.c_al_idx])
+        s.ρ,s.λ,s.c_tmp[s.cA_idx])
 end
 
 """
@@ -900,8 +956,8 @@ struct InteriorPointSolver{T}
     s̄::Solver{T}
 end
 
-function InteriorPointSolver(x0,model::AbstractModel; c_al_idx=zeros(Bool,model.m),opts=Options{Float64}()) where T
-    s = Solver(x0,model,c_al_idx=c_al_idx,opts=opts)
+function InteriorPointSolver(x0,model::AbstractModel; cI_idx=zeros(Bool,model.m),cA_idx=zeros(Bool,model.m),opts=Options{Float64}()) where T
+    s = Solver(x0,model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
     s̄ = RestorationSolver(s)
 
     InteriorPointSolver(s,s̄)

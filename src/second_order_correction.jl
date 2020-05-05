@@ -13,7 +13,7 @@ function second_order_correction(s::Solver)
     s.θ_soc = copy(s.θ)
 
     # Compute c_soc (Eq. 27)
-    s.model.c_func!(s.c_soc, s.x⁺, s.model)   # evaluate the constraints at the current step
+    s.c_func!(s.c_soc, s.x⁺, s.model)   # evaluate the constraints at the current step
     if s.opts.nlp_scaling
         s.c_soc .= s.Dc*s.c_soc
     end
@@ -60,7 +60,7 @@ function second_order_correction(s::Solver)
         else  # A-5.9 Next second-order correction
             s.p += 1
 
-            s.model.c_func!(s.c,s.x⁺,s.model)
+            s.c_func!(s.c,s.x⁺,s.model)
             s.c_soc .= s.α_soc*s.c_soc + (s.opts.nlp_scaling ? s.Dc*s.c : s.c)
             s.θ_soc = s.θ⁺
 
@@ -118,7 +118,7 @@ function search_direction_soc_unreduced!(s::Solver)
     kkt_hessian_unreduced!(s)
     kkt_gradient_unreduced!(s)
     s.h[s.idx.y] = s.c_soc
-    s.h[s.idx.y_al] += 1.0/s.ρ*(s.λ - s.y_al)
+    s.h[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
 
     s.d_soc .= lu(s.H + Diagonal(s.δ))\(-s.h)
 
@@ -141,7 +141,7 @@ function search_direction_soc_symmetric!(s::Solver)
     kkt_hessian_symmetric!(s)
     kkt_gradient_symmetric!(s)
     s.h_sym[s.idx.y] = s.c_soc
-    s.h_sym[s.idx.y_al] += 1.0/s.ρ*(s.λ - s.y_al)
+    s.h_sym[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
 
     inertia_correction!(s)
 
@@ -154,7 +154,7 @@ function search_direction_soc_symmetric!(s::Solver)
         kkt_hessian_unreduced!(s)
         kkt_gradient_unreduced!(s)
         s.h[s.idx.y] = s.c_soc
-        s.h[s.idx.y_al] += 1.0/s.ρ*(s.λ - s.y_al)
+        s.h[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
         iterative_refinement(s.d_soc,s)
     end
 

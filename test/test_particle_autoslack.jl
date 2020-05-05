@@ -7,7 +7,7 @@ nq = 3
 nu = 2
 nβ = nc*nf
 
-nx = nq+nu+nc+nβ+nc+nc+nc
+nx = nq+nu+nc+nβ+nc
 np = nq+nβ+4nc
 
 dt = 0.1
@@ -48,24 +48,22 @@ function unpack(x)
     y = x[nq+nu+nc]
     β = x[nq+nu+nc .+ (1:nβ)]
     ψ = x[nq+nu+nc+nβ+nc]
-    sϕ = x[nq+nu+nc+nβ+nc+nc]
-    sfc = x[nq+nu+nc+nβ+nc+nc+nc]
 
-    return q,u,y,β,ψ,sϕ,sfc
+    return q,u,y,β,ψ
 end
 
 function f_func(x)
-    q,u,y,β,ψ,sϕ,sfc = unpack(x)
+    q,u,y,β,ψ = unpack(x)
     return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + r'*u + obj_c
 end
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
 function c_func(x)
-    q,u,y,β,ψ,sϕ,sfc = unpack(x)
-    [(M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + P(q)'*β + N(q)*y);
+    q,u,y,β,ψ = unpack(x)
+    [(N(q)'*q);
+     (((0.5*y)^2 - β'*β));
+     (M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + P(q)'*β + N(q)*y);
      (P(q)*(q-qp)/dt + 2.0*β*ψ);
-     (sϕ - N(q)'*q);
-     (sfc - ((0.5*y)^2 - β'*β));
      y*(N(q)'*q);
      ψ*((0.5*y)^2 - β'*β)]
 end
@@ -80,6 +78,9 @@ xU = Inf*ones(nx)
 
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
+cI_idx = zeros(Bool,nlp_model.m)
+cI_idx[1:nc+nc] .= 1
+
 cA_idx = ones(Bool,nlp_model.m)
 cA_idx[1:nq+nβ+nc+nc] .= 0
 q0 = q1
@@ -87,7 +88,7 @@ u0 = 1.0e-3*rand(nu)
 y0 = 1.0*rand(1)[1]
 β0 = 1.0*rand(nβ)
 ψ0 = 1.0*rand(1)[1]
-x0 = [q0;u0;y0;β0;ψ0; N(q0)'*q0;(0.5*y0)^2 - β0'*β0]
+x0 = [q0;u0;y0;β0;ψ0]
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,
@@ -97,7 +98,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         ϵ_tol=1.0e-6,
                         verbose=false)
 
-s = InteriorPointSolver(x0,nlp_model,cA_idx=cA_idx,opts=opts)
+s = InteriorPointSolver(x0,nlp_model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
 @time solve!(s)
 norm(c_func(s.s.x)[cA_idx .== 0],1)
 norm(c_func(s.s.x)[cA_idx],1)

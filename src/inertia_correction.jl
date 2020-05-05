@@ -77,7 +77,7 @@ function factorize_kkt!(s::Solver)
 
     s.inertia.m = s.LBL.info.num_negative_eigs
     s.inertia.n = s.LBL.info.rank - s.inertia.m
-    s.inertia.z = s.model.n+s.model.m - s.LBL.info.rank
+    s.inertia.z = s.n+s.m - s.LBL.info.rank
 
     return nothing
 end
@@ -91,6 +91,6 @@ Check if the inertia of the symmetric KKT system is correct. The inertia is defi
 - `m` is the number of negative eignvalues. Should be equal to the number of dual variables
 - `z` is the number of zero eigenvalues. Should be 0.
 """
-inertia(s::Solver) = (s.inertia.n == s.model.n
-                        && s.inertia.m == s.model.m
+inertia(s::Solver) = (s.inertia.n == s.n
+                        && s.inertia.m == s.m
                         && s.inertia.z == 0)
