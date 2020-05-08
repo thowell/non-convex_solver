@@ -2,6 +2,35 @@ abstract type AbstractModel end
 abstract type AbstractModelInfo end
 struct EmptyModelInfo <: AbstractModelInfo end
 
+function eval_f(model::AbstractModel, x)
+    throw(TO.NotImplemented(:eval_f, model))
+end
+
+function grad_f!(model::AbstractModel, x, ∇f)
+    f(x) = eval_f(model, x)
+    ForwardDiff.gradient!(∇f, f, x)
+end
+
+function hess_f!(model::AbstractModel, x, ∇²f)
+    f(x) = eval_f(model, x)
+    ForwardDiff.hessian!(∇²f, f, x)
+end
+
+function eval_c!(model::AbstractModel, x, c)
+    throw(TO.NotImplemented(:eval_c, model))
+end
+
+function jac_c!(model::AbstractModel, x, c, ∇c)
+    c!(c, x) = eval_c!(model, x, c)
+    ForwardDiff.jacobian!(∇c, c!, c, x)
+end
+
+function hess_cy!(model::AbstractModel, x, y, ∇²cy)
+    n,m = size(model)
+    jvp(x) = jac_c!(model, x, zeros(eltype(x), m), spzeros(eltype(x), m, n))'y
+    ForwardDiff.jacobian!(∇²cy, jvp, x)
+end
+
 """
     Model{T}
 

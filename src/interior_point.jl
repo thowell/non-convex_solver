@@ -1,6 +1,8 @@
 using LinearAlgebra, ForwardDiff, SparseArrays, Parameters
 using SolverLogging, Logging
 using HSL
+using TrajectoryOptimization
+const TO = TrajectoryOptimization
 
 include("options.jl")
 include("indices.jl")
