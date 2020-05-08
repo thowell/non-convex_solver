@@ -191,7 +191,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        verbose=false)
 
 s = InteriorPointSolver(x0,nlp_model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
-s.s.ρ = 100.
+s.s.ρ = 1.
 @time solve!(s)
 norm(c_func(s.s.x)[cA_idx .== 0],1)
 norm(c_func(s.s.x)[cA_idx],1)

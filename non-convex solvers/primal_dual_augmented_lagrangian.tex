@@ -99,15 +99,15 @@
 		\addConstraint{c_{\mathcal I}(x) - s = 0}
 		\addConstraint{c_{\mathcal E}(x) = 0}
 		\addConstraint{c_{\mathcal A}(x) - r = 0}
-		\addConstraint{(x_L \leq x \leq x_U,\, s \geq 0)}
+		\addConstraint{(x_L \leq x \leq x_U,\, s \geq s_L)}
 	\end{mini*}
 
 	\begin{equation}
 		\begin{aligned}
-		\varphi_{\mathcal A}(x,s,r; \mu,\lambda,\rho) \coloneqq f(x) &- \mu \sum_{i \in I_L} \text{log}(x^{(i)} - x^{(i)}_L) - \mu \sum_{i \in I_U} \text{log}(x^{(i)}_U - x^{(i)}) -\mu \sum_{i \in \mathcal I} \text{log}(s^{(i)}) \\
+		\varphi_{\mathcal A}(x,s,r; \mu,\lambda,\rho) \coloneqq f(x) &- \mu \sum_{i \in I_L} \text{log}(x^{(i)} - x^{(i)}_L) - \mu \sum_{i \in I_U} \text{log}(x^{(i)}_U - x^{(i)}) -\mu \sum_{i \in \mathcal I} \text{log}(s^{(i)} - s_L^{(i)}) \\
 		& + \mu\kappa_D \sum_{i \in I_L \backslash I_U} (x^{(i)} - x^{(i)}_L)
 		+ \mu\kappa_D \sum_{i \in I_U \backslash I_L} (x_U^{(i)} - x^{(i)})
-		+ \mu\kappa_D \sum_{i \in \mathcal I} s^{(i)}\\
+		+ \mu\kappa_D \sum_{i \in \mathcal I} (s^{(i)} - s_L^{(i)})\\
 		& + \lambda^T r + \frac{\rho}{2}r^T r \notag
 		\end{aligned}
 	\end{equation}
@@ -115,16 +115,16 @@
 \subsection*{Primal-dual equations}
 	\begin{equation}
 		\begin{aligned}
-			\nabla f(x) + \nabla c_{\mathcal I}(x)^T y_{\mathcal I} + \nabla c_{\mathcal E}(x)^T y_{\mathcal E} + \nabla c_{\mathcal A}(x)^T y_{\mathcal A} - z_L + z_U + \kappa_D \mu e_{L} - \kappa_D \mu e_{U} &= r_x = 0 \\
-			-y_{\mathcal I} - z_s + \kappa_D \mu e_s &= r_s = 0\\
-			r + \frac{1}{\rho}(\lambda - y_{\mathcal A}) &= r_r = 0 \\
-			c_{\mathcal I}(x) - s &= r_{y_{\mathcal I}} = 0 \\
-			c_{\mathcal E}(x) &= r_{y_{\mathcal E}} = 0 \\
-			c_{\mathcal A}(x) -r &= r_{y_{\mathcal A}} = 0 \\
-			X_L z_L - \mu e &= r_{z_L} = 0 \\
-			X_U z_U - \mu e &= r_{z_U} = 0 \\
-			Sz_s - \mu e &= r_{z_s} = 0 \\
-			(x-x_L \geq 0,\, x_U - x \geq 0,\,s \geq 0,\, z_L \geq 0,\, z_U \geq 0)
+			\nabla f(x) + \nabla c_{\mathcal I}(x)^T y_{\mathcal I} + \nabla c_{\mathcal E}(x)^T y_{\mathcal E} + \nabla c_{\mathcal A}(x)^T y_{\mathcal A} - z_L + z_U + \kappa_D \mu e_{L} - \kappa_D \mu e_{U} &= h_x = 0 \\
+			-y_{\mathcal I} - z_s + \kappa_D \mu e_s &= h_s = 0\\
+			r + \frac{1}{\rho}(\lambda - y_{\mathcal A}) &= h_r = 0 \\
+			c_{\mathcal I}(x) - s &= h_{y_{\mathcal I}} = 0 \\
+			c_{\mathcal E}(x) &= h_{y_{\mathcal E}} = 0 \\
+			c_{\mathcal A}(x) -r &= h_{y_{\mathcal A}} = 0 \\
+			X_L z_L - \mu e &= h_{z_L} = 0 \\
+			S_Lz_s - \mu e &= h_{z_s} = 0 \\
+			X_U z_U - \mu e &= h_{z_U} = 0 \\
+			(x-x_L \geq 0,\,s -s_L \geq 0,\, x_U - x \geq 0,\, z_L \geq 0,\, z_U \geq 0)
 		\end{aligned} \notag
 	\end{equation}
 
@@ -133,38 +133,38 @@
 	\begin{equation}
 		\begin{aligned}
 			\begin{bmatrix}
-				W & \nabla c_{\mathcal I}^T & \nabla c_{\mathcal E}^T & \nabla c_{\mathcal A}^T & -I & I & 0 & 0 & 0\\
-				\nabla c_{\mathcal I} & 0 & 0 & 0 & 0 & 0 & -I & 0 & 0\\
+				W & 0 & 0 & \nabla c_{\mathcal I}^T & \nabla c_{\mathcal E}^T & \nabla c_{\mathcal A}^T & -I & 0 & I \\
+				0 & 0 & 0 & -I & 0 & 0 & 0 & -I & 0 \\
+				0 & 0 & I & 0 & 0 & -\frac{1}{\rho} I & 0 & 0 & 0\\
+				\nabla c_{\mathcal I} & -I & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
 				\nabla c_{\mathcal E} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & 0\\
-				\nabla c_{\mathcal A} & 0 & 0 & 0 & 0 & 0 & 0 & 0 & -I\\
-				Z_L & 0 & 0 & 0 & X_L & 0 & 0 & 0 & 0\\
-				-Z_U & 0 & 0 & 0 & 0 & X_U & 0 & 0 & 0\\
-				0 & -I & 0 & 0 & 0 & 0 & 0 & -I & 0\\
-				0 & 0 & 0 & 0 & 0 & 0 & Zs & S & 0\\
-				0 & 0 & 0 & -\frac{1}{\rho}I & 0 & 0 & 0 & 0 & I\\
+				\nabla c_{\mathcal A} & 0 & -I & 0 & 0 & 0 & 0 & 0 & 0\\
+				Z_L & 0 & 0 & 0 & 0 & 0 & X_L & 0 & 0 \\
+				0 & Z_S & 0 & 0 & 0 & 0 & 0 & S_L & 0 \\
+				-Z_U & 0 & 0 & 0 & 0 & 0 & 0 & 0 & X_U\\
 			\end{bmatrix}
 			\begin{bmatrix}
 				dx \\
+				ds \\
+				dr \\
 				dy_{\mathcal I} \\
 				dy_{\mathcal E} \\
 				dy_{\mathcal A} \\
 				dz_L \\
-				dz_U \\
-				ds \\
 				dz_s \\
-				dr \\
+				dz_U \\
 			\end{bmatrix}
 			=
 			-\begin{bmatrix}
-				r_x \\
-				r_{y_{\mathcal I}} \\
-				r_{y_{\mathcal E}} \\
-				r_{y_{\mathcal A}} \\
-				r_{z_L} \\
-				r_{z_U} \\
-				r_s \\
-				r_{z_s} \\
-				r_r \\
+				h_x \\
+				h_s \\
+				h_r \\
+				h_{y_{\mathcal I}} \\
+				h_{y_{\mathcal E}} \\
+				h_{y_{\mathcal A}} \\
+				h_{z_L} \\
+				h_{z_s} \\
+				h_{z_U} \\
 			\end{bmatrix}
 		\end{aligned} \notag
 	\end{equation}
@@ -176,7 +176,7 @@
 	\begin{aligned}
 		\begin{bmatrix}
 		\bar{W} & \nabla c_{\mathcal I}^T & \nabla c_{\mathcal E}^T & \nabla c_{\mathcal A}^T \\
-		\nabla c_{\mathcal I} & -Z_s^{-1}S & 0 & 0 \\
+		\nabla c_{\mathcal I} & -Z_s^{-1}S_L & 0 & 0 \\
 		\nabla c_{\mathcal E} & 0 & 0 & 0 \\
 		\nabla c_{\mathcal A} & 0 & 0 &-\frac{1}{\rho}I \\
 		\end{bmatrix}
@@ -188,10 +188,10 @@
 		\end{bmatrix}
 		=
 		-\begin{bmatrix}
-		r_x + X_L^{-1}r_{z_L} - X_U^{-1} r_{z_U}\\
-		r_{y_{\mathcal I}} + Z_s^{-1}(Sr_s + r_{z_s})\\
-		r_{y_{\mathcal E}} \\
-		r_{y_{\mathcal A}} + r_r\\
+		h_x + X_L^{-1}h_{z_L} - X_U^{-1} h_{z_U}\\
+		h_{y_{\mathcal I}} + Z_s^{-1}(S_L h_s + h_{z_s})\\
+		h_{y_{\mathcal E}} \\
+		h_{y_{\mathcal A}} + h_r\\
 		\end{bmatrix}
 	\end{aligned} \notag
 	\end{equation}
@@ -200,11 +200,11 @@
 	\\
 	\begin{equation}
 	\begin{aligned}
-		dr &= \frac{1}{\rho} dy_{\mathcal A} - r_r\\
-		dz_L &= -X_L^{-1}Z_L dx - X_L^{-1} r_{z_L}\\
-		dz_U &= X_U^{-1}Z_U dx - X_U^{-1} r_{z_U}\\
-		dz_s &= -dy_{\mathcal I} + r_s\\
-		ds &= -Z_s^{-1}S dz_s - Z_s^{-1} r_{z_s}\\ \notag
+		dr &= \frac{1}{\rho} dy_{\mathcal A} - h_r\\
+		dz_L &= -X_L^{-1}Z_L dx - X_L^{-1} h_{z_L}\\
+		dz_U &= X_U^{-1}Z_U dx - X_U^{-1} h_{z_U}\\
+		dz_s &= -dy_{\mathcal I} + h_s\\
+		ds &= -Z_s^{-1}S_L dz_s - Z_s^{-1} h_{z_s}\\ \notag
 	\end{aligned}
 	\end{equation}
 	

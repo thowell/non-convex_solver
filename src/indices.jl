@@ -11,25 +11,29 @@ struct Indices
     xLs::Vector{Int}     # set of lower bounds on slacks
     xUs::Vector{Int}     # set of upper bounds on slacks
     y::UnitRange{Int}    # dual variables
-    yA::Vector{Int}    # augmented Lagrangian dual variable estimates
+    yI::Vector{Int}
+    yE::Vector{Int}
+    yA::Vector{Int}
     zL::UnitRange{Int}   # duals for slack lower bounds?
     zU::UnitRange{Int}   # duals for slack upper bounds?
     xy::UnitRange{Int}   # entire primal-dual vector
 end
 
-function indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,cA_idx)
+function indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,n_model,m_model,mI,mE,mA,cI_idx,cE_idx,cA_idx)
     x = 1:n
     xL = x[xL_bool]
     xU = x[xU_bool]
     xLs = x[xLs_bool]
     xUs = x[xUs_bool]
     y = n .+ (1:m)
+    yI = y[cI_idx]
+    yE = y[cE_idx]
     yA = y[cA_idx]
     zL = n + m .+ (1:nL)
     zU = n + m + nL .+ (1:nU)
     xy = 1:(n+m)
 
-    Indices(x,xL,xU,xLs,xUs,y,yA,zL,zU,xy)
+    Indices(x,xL,xU,xLs,xUs,y,yI,yE,yA,zL,zU,xy)
 end
 
 struct RestorationIndices

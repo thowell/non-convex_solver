@@ -20,11 +20,12 @@ c_func(x) = [2*(x[2] - 1) - 1.5*x[2] + x[3] - 0.5*x[4] + x[5];
              x[3]*x[6];
              x[4]*x[7];
              x[5]*x[8]]
-             
+
 c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
+cI_idx = zeros(Bool,model.m)
 cA_idx = ones(Bool,model.m)
 cA_idx[1:4] .= 0
 opts = Options{Float64}(kkt_solve=:symmetric,
@@ -34,16 +35,18 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=100,
                         ϵ_tol=1.0e-6,
                         nlp_scaling=true)
-s = InteriorPointSolver(x0,model,cA_idx=cA_idx,opts=opts)
+s = InteriorPointSolver(x0,model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
+
+
 
 @time solve!(s)
 
-x = s.s.x
-x[3]
-x[6]
-
-x[4]
-x[7]
-
-x[5]
-x[8]
+# x = s.s.x
+# x[3]
+# x[6]
+#
+# x[4]
+# x[7]
+#
+# x[5]
+# x[8]

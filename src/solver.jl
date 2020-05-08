@@ -9,6 +9,7 @@ mutable struct Solver{T}
     n::Int
     m::Int
     mI::Int
+    mE::Int
     mA::Int
 
     x::Vector{T}            # primal variables (n,)
@@ -154,6 +155,8 @@ mutable struct Solver{T}
 
     cI_idx::Vector{Bool}
 
+    cE_idx::Vector{Bool}
+
     ρ::T
     λ::Vector{T}
     yA::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
@@ -177,6 +180,9 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
 
     mI = convert(Int,sum(cI_idx))
     mA = convert(Int,sum(cA_idx))
+    cE_idx = Vector((cI_idx + cA_idx) .== 0)
+    mE = sum(cE_idx)
+
     if reformulate
 
         n = model.n + mI + mA
@@ -184,6 +190,8 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
 
         cI_idx_solver = vcat(cI_idx,zeros(Bool,mA))
         cA_idx_solver = vcat(zeros(Bool,model.m),ones(Bool,mA))
+        cE_idx_solver = Vector((cI_idx_solver + cA_idx_solver) .== 0)
+        mE = sum(cE_idx_solver)
 
         # solver methods
         function f_func(x,_model)
@@ -195,6 +203,7 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
         end
         function ∇²f_func!(∇²f,x,_model)
             model.∇²f_func!(view(∇²f,1:model.n,1:model.n),view(x,1:model.n),model)
+            view(∇²f,CartesianIndex.(model.n+mI .+ (1:mA),model.n+mI .+ (1:mA))) .= 1.0
             return nothing
         end
         function c_func!(c,x,_model)
@@ -236,6 +245,7 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
         ∇²cy_func! = model.∇²cy_func!
 
         cI_idx_solver = cI_idx
+        cE_idx_solver = cE_idx
         cA_idx_solver = cA_idx
 
         # primal bounds
@@ -407,7 +417,7 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
 
     Fμ = zeros(n+m+nL+nU)
 
-    idx = indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,cA_idx_solver)
+    idx = indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,model.n,model.m,mI,mE,mA,cI_idx_solver,cE_idx_solver,cA_idx_solver)
     idx_r = restoration_indices()
 
     fail_cnt = 0
@@ -459,7 +469,7 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
     res_zU = view(res,idx.zU)
 
     Solver(model,
-           n,m,mI,mA,
+           n,m,mI,mE,mA,
            x,x⁺,
            xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,ΔxL,ΔxU,
            y,
@@ -490,6 +500,7 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
            fail_cnt,
            Dx,df,Dc,
            cI_idx_solver,
+           cE_idx_solver,
            ρ,λ,yA,cA,∇cA,cA_idx_solver,
            f_func,∇f_func!,∇²f_func!,
            c_func!,∇c_func!,∇²cy_func!,

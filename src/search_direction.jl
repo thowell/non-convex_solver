@@ -25,7 +25,8 @@ function kkt_hessian_unreduced!(s::Solver)
     update!(s.Hv.zUxU,-1.0*s.zU)
     update!(s.Hv.zLzL,s.ΔxL)
     update!(s.Hv.zUzU,s.ΔxU)
-    update!(s.Hv.yalyal,-1.0/s.ρ)
+    # update!(s.Hv.yAyA,-1.0/s.ρ)
+    view(s.H,CartesianIndex.(s.model.n+s.mI .+ (1:s.mA),s.idx.yA)) .= -1.0/s.ρ
     return nothing
 end
 
@@ -58,7 +59,7 @@ function kkt_hessian_symmetric!(s::Solver)
     add_update!(s.Hv_sym.xUxU, s.σU)
     update!(s.Hv_sym.xy, s.∇c')
     update!(s.Hv_sym.yx, s.∇c)
-    update!(s.Hv_sym.yalyal, -1.0/s.ρ)
+    update!(s.Hv_sym.yAyA, -1.0/s.ρ)
     return nothing
 end
 

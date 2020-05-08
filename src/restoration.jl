@@ -179,7 +179,6 @@ function RestorationSolver(s::Solver;reformulate=false)
     end
 
     _model = Model(n̄,m̄,x̄L,x̄U,f̄_func,∇f̄_func!,∇²f̄_func!,c̄_func!,∇c̄_func!,∇²c̄y_func!)
-
     s̄ = Solver(x̄,_model,cI_idx=s.cI_idx,cA_idx=s.cA_idx,reformulate=reformulate,opts=opts)
     s̄.DR = spzeros(s.n,s.n)
     s̄.idx_r = restoration_indices(s)
@@ -367,7 +366,7 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     update!(s.Hv_sym.xy,s.∇c')
     update!(s.Hv_sym.yx,s.∇c)
     update!(s.Hv_sym.yy,-1.0*p./zp - n./zn)
-    add_update!(s.Hv_sym.yalyal,-1.0/s̄.ρ)
+    add_update!(s.Hv_sym.yAyA,-1.0/s̄.ρ)
 
     return nothing
 end

@@ -3,21 +3,19 @@
 
 include("../src/interior_point.jl")
 
-n = 3
+n = 2
 m = 2
 
-x0 = [-2.0;3.0;1.0]
+x0 = rand(n)
 
 xL = -Inf*ones(n)
-xL[2] = 0.
-xL[3] = 0.
 xU = Inf*ones(n)
 
-f_func(x) = x[1]
+f_func(x) = -x[1]*x[2] + 2/(3*sqrt(3))
 f, ∇f!, ∇²f! = objective_functions(f_func)
 
-c_func(x) = [x[1]^2 - x[2] - 1.0;
-             x[1] - x[3] - 0.5]
+c_func(x) = [-x[1] - x[2]^2 + 1.0;
+             x[1] + x[2]]
 c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
@@ -30,8 +28,8 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=100,
                         verbose=false)
 
-s = InteriorPointSolver(x0,model,cA_idx=ones(Bool,m),opts=opts)
-s.s.ρ = 1.
+s = InteriorPointSolver(x0,model,cI_idx=ones(Bool,m),opts=opts)
+s.s.ρ = 100.
 @time solve!(s)
 
 
