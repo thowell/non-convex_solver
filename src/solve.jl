@@ -1,27 +1,11 @@
 using Crayons
 function solve!(solver::InteriorPointSolver)
     # println("<augmented-Lagrangian interior-point solve>\n")
-    title = "PRIMAL-DUAL AUGMENTED-LAGRANGIAN BARRIER SOLVER"
-    println(crayon"bold underline cyan", title)
-    println(crayon"reset","written and maintained by")
-    println(crayon"reset","Taylor Howell and Brian Jackson")
 
-    println("Robotic Exploration Lab")
-    println("Stanford University\n")
 
     s = solver.s
 
-    # Problem summary
-    println(crayon"bold underline blue", "Problem Summary")
-    print(crayon"reset")
-    println("   num vars = $(s.model.n)")
-    println("   num cons = $(s.model.m)")
-    println()
-
-    logger = SolverLogger(s.opts.verbose ? Logging.Info : InnerLoop)
-    add_level!(logger, InnerLoop, print_color=:green)
-    # add_level!(logger, OuterLoop, print_color=:yellow)
-    with_logger(logger) do
+    # Problem summar
 
     # evaluate problem
     eval_step!(s)
@@ -30,8 +14,6 @@ function solve!(solver::InteriorPointSolver)
     push!(s.filter,(s.θ_max,Inf))
 
     # Print initial stats
-    log_stats(s)
-    print_level(InnerLoop)
 
     while eval_Eμ(0.0,s) > s.opts.ϵ_tol
 
@@ -80,6 +62,14 @@ function solve!(solver::InteriorPointSolver)
             # Calculate everything at the new trial point
             eval_step!(s)
 
+            if s.opts.verbose
+                println("j: $(s.j), k: $(s.k)")
+                s.model.n < 5 ? println("   x: $(s.x)") : nothing
+                println("")
+                println("θ: $(s.θ), φ: $(s.φ)")
+                println("Eμ: $(eval_Eμ(s.μ,s))")
+            end
+
 
             s.k += 1
             if s.k > s.opts.max_iter
@@ -87,10 +77,6 @@ function solve!(solver::InteriorPointSolver)
                 @warn "max iterations"
                 return
             end
-
-            log_stats(s)
-            print_level(InnerLoop)
-
         end  # inner while loop
 
 
@@ -109,17 +95,17 @@ function solve!(solver::InteriorPointSolver)
         end
     end  # outer while loop
 
-    println(crayon"blue bold underline", "\nSolve Summary")
-    println(crayon"reset", "   status: complete")
-    println("   iteration ($(s.j),$(s.k)):")
 
-    s.model.n < 5 ? println("   x: $(s.x)") : nothing
-    println("   f: $(s.f)")
-    println("   θ: $(s.θ), φ: $(s.φ)")
-    println("   E0: $(eval_Eμ(0.0,s))")
-    println("   norm(c): $(norm(s.c[s.c_al_idx .== 0]))")
-    println("   norm(c_al): $(norm(s.c_al))")
-    end # logger
+
+    if s.opts.verbose
+        println("<augmented-Lagrangian interior-point solve>:complete\n")
+        s.model.n < 5 ? println("   x: $(s.x)") : nothing
+        println("   f: $(s.f)")
+        println("   θ: $(s.θ), φ: $(s.φ)")
+        println("   E0: $(eval_Eμ(0.0,s))")
+        println("   norm(c): $(norm(s.c[s.c_al_idx .== 0]))")
+        println("   norm(c_al): $(norm(s.c_al))")
+    end
 end
 
 function barrier_update!(s::Solver)

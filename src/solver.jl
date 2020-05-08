@@ -771,7 +771,7 @@ function init_y!(y,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,y_max)
 
 
         if norm(y,Inf) > y_max || any(isnan.(y))
-            @warn "least-squares y init failure:\n y_max = $(norm(y,Inf))"
+            # @warn "least-squares y init failure:\n y_max = $(norm(y,Inf))"
             y .= 0.
         end
     else

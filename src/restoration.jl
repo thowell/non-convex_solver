@@ -41,7 +41,7 @@ end
 
 function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
     # evaluate problem
-    s̄.opts.verbose = true
+    # s̄.opts.verbose =
     eval_step!(s̄)
 
     # initialize filter
@@ -522,11 +522,11 @@ function iterative_refinement_restoration(d::Vector{T},s̄::Solver,s::Solver) wh
     end
 
     if res_norm < s̄.opts.ϵ_iterative_refinement# || res_norm < res_norm_init
-        println("iterative refinement success: $(res_norm), iter: $iter")# : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+        s̄.opts.verbose && println("iterative refinement success: $(res_norm), iter: $iter")# : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
         return true
     else
         d .= s̄.d_copy
-        println("iterative refinement failure: $(res_norm), iter: $iter")# : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
+        s̄.opts.verbose && println("iterative refinement failure: $(res_norm), iter: $iter")# : nothing#, cond: $(cond(Array(s̄.H+Diagonal(s̄.δ)))), rank: $(rank(Array(s̄.H+Diagonal(s̄.δ))))") : nothing
         return false
     end
 end
