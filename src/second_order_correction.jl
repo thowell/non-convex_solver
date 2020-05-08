@@ -81,7 +81,7 @@ Calculate the new trial primal variables, as well as the constraint norm and bar
 objective values
 """
 function trial_step_soc!(s::Solver)
-    s.x⁺ .= s.x + s.α_soc*s.d_soc[s.idx.x]
+    s.x⁺ .= s.x + s.α_soc*view(s.d_soc,s.idx.x)
     s.θ⁺ = θ(s.x⁺,s)
     s.φ⁺ = barrier(s.x⁺,s)
     return nothing

@@ -280,7 +280,7 @@ end
 
 function update_restoration_constraints!(s̄::Solver,s::Solver)
     function c_func!(c,x,model::AbstractModel)
-        s.c_func!(c,x[s.idx.x],s.model)
+        s.c_func!(c,view(xs.idx.x),s.model)
         c .-= view(x,s̄.idx_r.p)
         c .+= view(x,s̄.idx_r.n)
         return nothing
