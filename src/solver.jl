@@ -185,11 +185,11 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
 
     if reformulate
 
-        n = model.n + mI + mA
-        m = model.m + mA
+        n = model.n + mI
+        m = model.m
 
-        cI_idx_solver = vcat(cI_idx,zeros(Bool,mA))
-        cA_idx_solver = vcat(zeros(Bool,model.m),ones(Bool,mA))
+        cI_idx_solver = cI_idx
+        cA_idx_solver = cA_idx
         cE_idx_solver = Vector((cI_idx_solver + cA_idx_solver) .== 0)
         mE = sum(cE_idx_solver)
 
@@ -203,22 +203,16 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
         end
         function ∇²f_func!(∇²f,x,_model)
             model.∇²f_func!(view(∇²f,1:model.n,1:model.n),view(x,1:model.n),model)
-            view(∇²f,CartesianIndex.(model.n+mI .+ (1:mA),model.n+mI .+ (1:mA))) .= 1.0
             return nothing
         end
         function c_func!(c,x,_model)
             model.c_func!(view(c,1:model.m),view(x,1:model.n),model)
             c[(1:model.m)[cI_idx]] .-= view(x,model.n .+ (1:mI))
-            c[(1:model.m)[cA_idx]] .-= view(x,model.n+mI .+ (1:mA))
-            c[model.m .+ (1:mA)] .= view(x,model.n+mI .+ (1:mA))
-
             return nothing
         end
         function ∇c_func!(∇c,x,_model)
             model.∇c_func!(view(∇c,1:model.m,1:model.n),view(x,1:model.n),model)
             ∇c[CartesianIndex.((1:model.m)[cI_idx],model.n .+ (1:mI))] .= -1.0
-            ∇c[CartesianIndex.((1:model.m)[cA_idx],model.n+mI .+ (1:mA))] .= -1.0
-            ∇c[CartesianIndex.(model.m .+ (1:mA),model.n+mI .+ (1:mA))] .= 1.0
             return nothing
         end
         function ∇²cy_func!(∇²cy,x,y,_model)
@@ -316,11 +310,6 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
         if mI != 0
             for (k,i) = enumerate(model.n .+ (1:mI))
                 x[i] = init_x0(ctmp[cI_idx][k],xL[i],xU[i],opts.κ1,opts.κ2)
-            end
-        end
-        if mA != 0
-            for (k,i) = enumerate(model.n+mI .+ (1:mA))
-                x[i] = init_x0(ctmp[cA_idx][k],xL[i],xU[i],opts.κ1,opts.κ2)
             end
         end
     end
@@ -508,132 +497,6 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
 end
 
 # function reset_solver!(s::Solver, x0)
-#     opts = s.opts
-#     model = s.model
-#
-#     # Reset primals
-#     s.x .= 0
-#     s.x⁺ .= 0
-#     s.xL .= model.xL
-#     s.xU .= model.xU
-#
-#     s.ΔxL .= 0
-#     s.ΔxU .= 0
-#
-#     if opts.relax_bnds
-#        # relax bounds
-#        for i in (1:model.n)[s.xL_bool]
-#            s.xL[i] = relax_bnd(s.xL[i], opts.ϵ_tol, :L)
-#        end
-#        for i in (1:model.n)[s.xU_bool]
-#            s.xU[i] = relax_bnd(s.xU[i], opts.ϵ_tol, :U)
-#        end
-#     end
-#
-#     for i = 1:model.n
-#         s.x[i] = init_x0(x0[i], s.xL[i], s.xU[i], opts.κ1, opts.κ2)
-#     end
-#
-#     s.Dx = init_Dx(model.n)
-#     opts.nlp_scaling && s.x .= s.Dx * s.x
-#
-#     s.zL = opts.zL0*ones(s.nL)
-#     s.zU = opts.zU0*ones(s.nU)
-#
-#     s.H .= 0
-#     s.h .= 0
-#     s.H_sym .= 0
-#     s.h_sym .= 0
-#     s.inertia = Inertia(0,0,0)
-#
-#     s.∇²L .= 0
-#     s.σL .= 0
-#     s.σU .= 0
-#     s.∇c .= 0
-#
-#     model.∇c_func!(s.∇c, s.x, model)
-#     Dc = init_Dc(opts.g_max, s.∇c, model.m)
-#
-#     s.f = model.f_func(x0, model)
-#     s.∇f .= 0
-#     s.df = init_df(opts.g_max, s.∇f)
-#     opts.nlp_scaling && (s.f *= s.df)
-#     s.∇²f = model.∇²f
-#
-#     s.φ = 0.
-#     s.φ⁺ = 0.
-#     s.∇φ .= 0.
-#     s.∇L .= 0
-#
-#     s.c .= 0
-#     model.c_func!(s.c, s.x, model)
-#     opts.nlp_scaling && s.c .= s.Dc*s.c
-#
-#     s.c_soc .= 0
-#     s.c_tmp .= 0
-#     s.∇²cy .= 0
-#
-#     s.d .= 0
-#     s.d_soc .= 0
-#
-#     s.Δ .= 0
-#     s.res .= 0
-#
-#     # Reset penalies
-#     s.μ = copy(opts.μ0)
-#     s.τ = update_τ(s.μ, opts.τ_min)
-#     s.ρ = 1/s.μ
-#
-#     # Reset line search
-#     s.α = 1.0
-#     s.αz = 1.0
-#     s.α_max = 1.0
-#     s.α_min = 1.0
-#     s.α_soc = 1.0
-#     s.β = 1.0
-#
-#     # Reset regularization
-#     s.δ = zero(s.d)
-#     s.δw = 0.
-#     s.δw_last = 0.
-#     s.δc = 0.
-#
-#     # Reset duals
-#     s.y .= 0
-#     opts.y_init_ls && init_y!(s.y, s.H_sym, s.h_sym, s.d, s.zL, s.zU, s.∇f, s.∇c,
-#         model.n, model.m, s.xL_bool, s.xU_bool, opts.y_max)
-#
-#     s.sd = init_sd(s.y,[s.zL;s.zU], model.n, model.m, opts.s_max)
-#     s.sc = init_sc([s.zL; s.zU], model.n, opts.s_max)
-#
-#     s.filter = Tuple[]
-#
-#     # Reset iteration counts
-#     s.j = s.k = s.l = s.p = s.t = 0
-#     s.small_search_direction_cnt = 0
-#     s.restoration = false
-#
-#     s.DR .= 0
-#
-#     s.x_copy .= 0
-#     s.y_copy .= 0
-#     s.zL_copy .= 0
-#     s.zL_copy .= 0
-#     s.zU_copy .= 0
-#     s.d_copy .= 0
-#
-#     s.Fμ .= 0
-#
-#     s.fail_cnt = 0
-#
-#     s.λ .= 0
-#
-#     s.θ = norm(s.c, 1)
-#     s.θ⁺ = s.θ
-#     s.θ_min = init_θ_min(s.θ)
-#     s.θ_max = init_θ_max(s.θ)
-#     s.θ_soc = 0.
-#
 #     return s
 # end
 
