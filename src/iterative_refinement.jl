@@ -1,7 +1,7 @@
 """
     iterative_refinement(d, s::Solver)
 
-Use iterative refinement on the unreduced KKT system to improve the current step `d`.
+Use iterative refinement on the fullspace KKT system to improve the current step `d`.
 """
 function iterative_refinement(d::Vector{T},s::Solver) where T
     s.d_copy .= d
@@ -11,7 +11,7 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
     res_norm = norm(s.res,Inf)
 
     while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement) || iter < s.opts.min_iterative_refinement
-        if s.opts.kkt_solve == :unreduced
+        if s.opts.kkt_solve == :fullspace
             s.Δ .= (s.H+Diagonal(s.δ))\s.res
         elseif s.opts.kkt_solve == :symmetric
             s.res_xL .+= s.res_zL./s.ΔxL

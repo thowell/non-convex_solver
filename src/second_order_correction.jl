@@ -103,20 +103,20 @@ end
 function search_direction_soc!(s::Solver)
     if s.opts.kkt_solve == :symmetric
         search_direction_soc_symmetric!(s)
-    elseif s.opts.kkt_solve == :unreduced
-        search_direction_soc_unreduced!(s)
+    elseif s.opts.kkt_solve == :fullspace
+        search_direction_soc_fullspace!(s)
     else
         error("KKT solve (soc) not implemented")
     end
     return nothing
 end
 
-function search_direction_soc_unreduced!(s::Solver)
+function search_direction_soc_fullspace!(s::Solver)
     kkt_hessian_symmetric!(s)
     inertia_correction!(s)
 
-    kkt_hessian_unreduced!(s)
-    kkt_gradient_unreduced!(s)
+    kkt_hessian_fullspace!(s)
+    kkt_gradient_fullspace!(s)
     s.h[s.idx.y] = s.c_soc
     s.h[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
 
@@ -131,7 +131,7 @@ end
     search_direction_soc_symmetric!(s::Solver)
 
 Compute the search direction `s.d_soc` by solving the reduced, symmetric KKT system (Eq. 26).
-Can do iterative refinement based on the full unreduced KKT system if
+Can do iterative refinement based on the full fullspace KKT system if
     `s.opts.iterative_refinement = true`.
 
 Here `s.d_soc` is the full corrected step after applying the second-order correction, i.e.
@@ -151,8 +151,8 @@ function search_direction_soc_symmetric!(s::Solver)
     s.dzU_soc .= s.σU.*s.dxU_soc - s.zU + s.μ./s.ΔxU   # Eq. 12
 
     if s.opts.iterative_refinement
-        kkt_hessian_unreduced!(s)
-        kkt_gradient_unreduced!(s)
+        kkt_hessian_fullspace!(s)
+        kkt_gradient_fullspace!(s)
         s.h[s.idx.y] = s.c_soc
         s.h[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
         iterative_refinement(s.d_soc,s)

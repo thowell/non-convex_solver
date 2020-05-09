@@ -37,7 +37,7 @@ The following algorithms from Ipopt are implemented:
   -[ ] implemented for restoration mode
 - [X] automatic scaling of problem statement
 - [X] small search directions
-- [X] iterative refinement on unreduced system
+- [X] iterative refinement on fullspace system
   - [ ] tolerance
 - [X] round-off error acceptance criteria relaxation
 - [X] MA57

@@ -54,7 +54,7 @@ mutable struct Solver{T}
     H::SparseMatrixCSC{T,Int}       # KKT matrix
     H_sym::SparseMatrixCSC{T,Int}   # Symmetric KKT matrix
 
-    Hv::H_unreduced_views{T}
+    Hv::H_fullspace_views{T}
     Hv_sym::H_symmetric_views{T}
 
     h::Vector{T}                    # rhs of KKT system
@@ -422,7 +422,7 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
 
     fail_cnt = 0
 
-    Hv = H_unreduced_views(H,idx)
+    Hv = H_fullspace_views(H,idx)
     Hv_sym = H_symmetric_views(H_sym,idx)
 
     ρ = 1.0/μ

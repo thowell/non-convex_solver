@@ -46,7 +46,7 @@
     single_bnds_damping::Bool = true
     κd::T = 1.0e-4
 
-    kkt_solve::Symbol = :symmetric # :symmetric, :unreduced, custom
+    kkt_solve::Symbol = :symmetric # :symmetric, :fullspace, custom
 
     small_search_direction_max::Int = 2
 

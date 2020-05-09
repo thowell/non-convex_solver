@@ -7,15 +7,15 @@ correction and iterative refinement.
 function search_direction!(s::Solver)
     if s.opts.kkt_solve == :symmetric
         search_direction_symmetric!(s)
-    elseif s.opts.kkt_solve == :unreduced
-        search_direction_unreduced!(s)
+    elseif s.opts.kkt_solve == :fullspace
+        search_direction_fullspace!(s)
     else
         error("KKT solve not implemented")
     end
     return small_search_direction(s)
 end
 
-function kkt_hessian_unreduced!(s::Solver)
+function kkt_hessian_fullspace!(s::Solver)
     update!(s.Hv.xx,s.∇²L)
     update!(s.Hv.xy,s.∇c')
     update!(s.Hv.yx,s.∇c)
@@ -30,7 +30,7 @@ function kkt_hessian_unreduced!(s::Solver)
     return nothing
 end
 
-function kkt_gradient_unreduced!(s::Solver)
+function kkt_gradient_fullspace!(s::Solver)
     s.h[s.idx.x] = s.∇L
     s.h[s.idx.y] = s.c
     s.h[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
@@ -39,12 +39,12 @@ function kkt_gradient_unreduced!(s::Solver)
     return nothing
 end
 
-function search_direction_unreduced!(s::Solver)
+function search_direction_fullspace!(s::Solver)
     kkt_hessian_symmetric!(s)
     inertia_correction!(s,restoration=s.restoration)
 
-    kkt_hessian_unreduced!(s)
-    kkt_gradient_unreduced!(s)
+    kkt_hessian_fullspace!(s)
+    kkt_gradient_fullspace!(s)
     s.d .= lu(s.H + Diagonal(s.δ))\(-s.h)
 
     s.opts.iterative_refinement && iterative_refinement(s.d,s)
@@ -82,8 +82,8 @@ function search_direction_symmetric!(s::Solver)
     s.dzU .= s.σU.*s.dxU - s.zU + s.μ./s.ΔxU
 
     if s.opts.iterative_refinement
-        kkt_hessian_unreduced!(s)
-        kkt_gradient_unreduced!(s)
+        kkt_hessian_fullspace!(s)
+        kkt_gradient_fullspace!(s)
         iterative_refinement(s.d,s)
     end
 

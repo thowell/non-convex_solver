@@ -323,7 +323,7 @@ function init_p(n,c)
 end
 
 function search_direction_restoration!(s̄::Solver,s::Solver)
-    if s.opts.kkt_solve == :unreduced
+    if s.opts.kkt_solve == :fullspace
         search_direction_symmetric_restoration!(s̄,s)
     elseif s.opts.kkt_solve == :symmetric
         search_direction_symmetric_restoration!(s̄,s)
@@ -334,12 +334,12 @@ function search_direction_restoration!(s̄::Solver,s::Solver)
     return small_search_direction(s̄)
 end
 
-function search_direction_unreduced_restoration!(s̄::Solver,s::Solver)
+function search_direction_fullspace_restoration!(s̄::Solver,s::Solver)
     kkt_hessian_symmetric!(s̄)
     inertia_correction!(s̄,restoration=s̄.restoration)
 
-    kkt_hessian_unreduced!(s̄)
-    kkt_gradient_unreduced!(s̄)
+    kkt_hessian_fullspace!(s̄)
+    kkt_gradient_fullspace!(s̄)
 
     s̄.d .= lu(s̄.H + Diagonal(s̄.δ))\(-s̄.h)
 
@@ -455,8 +455,8 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
     dzn = view(s̄.d,zn_idx)
 
     if s̄.opts.iterative_refinement
-        kkt_hessian_unreduced!(s̄)
-        kkt_gradient_unreduced!(s̄)
+        kkt_hessian_fullspace!(s̄)
+        kkt_gradient_fullspace!(s̄)
         iterative_refinement_restoration(s̄.d,s̄,s)
     end
 

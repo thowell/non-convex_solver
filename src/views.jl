@@ -1,9 +1,9 @@
 """
     H_symmetric_views{T}
 
-Views into the unreduced KKT matrix
+Views into the fullspace KKT matrix
 """
-struct H_unreduced_views{T}
+struct H_fullspace_views{T}
     xx::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
     xy::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
     yx::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
@@ -16,7 +16,7 @@ struct H_unreduced_views{T}
     yAyA::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
 end
 
-function H_unreduced_views(H::SparseMatrixCSC,idx::Indices)
+function H_fullspace_views(H::SparseMatrixCSC,idx::Indices)
     xx = view(H,idx.x,idx.x)
     xy = view(H,idx.x,idx.y)
     yx = view(H,idx.y,idx.x)
@@ -28,7 +28,7 @@ function H_unreduced_views(H::SparseMatrixCSC,idx::Indices)
     zUzU = view(H,CartesianIndex.(idx.zU,idx.zU))
     yAyA = view(H,CartesianIndex.(idx.yA,idx.yA))
 
-    H_unreduced_views(xx,xy,yx,xLzL,zLxL,xUzU,zUxU,zLzL,zUzU,yAyA)
+    H_fullspace_views(xx,xy,yx,xLzL,zLxL,xUzU,zUxU,zLzL,zUzU,yAyA)
 end
 
 """

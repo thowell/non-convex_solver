@@ -105,7 +105,7 @@ s = InteriorPointSolver(x0,nlp_model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
 #
 #
 # eval_step!(s.s)
-# search_direction_unreduced!(s.s)
+# search_direction_fullspace!(s.s)
 # s.s.d
 #
 #
