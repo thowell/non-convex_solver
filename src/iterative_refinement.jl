@@ -29,7 +29,7 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
 
         iter += 1
     end
-
+    println("res: $res_norm")
     if res_norm < s.opts.ϵ_iterative_refinement
         return true
     else

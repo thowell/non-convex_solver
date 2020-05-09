@@ -25,6 +25,9 @@ end
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c_func!,∇c_func!,∇²cy_func!)
 opts = Options{Float64}(iterative_refinement=true,
                         kkt_solve=:symmetric,
+                        ϵ_tol=1.0e-5,
                         max_iter=500)
 s = InteriorPointSolver(x0,model,opts=opts)
 @time solve!(s)
+
+restoration!(s.s̄,s.s)

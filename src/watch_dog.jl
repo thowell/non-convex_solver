@@ -55,6 +55,8 @@ function watch_dog!(s::Solver)
         s.zU .= s.zU_copy
         s.d .= s.d_copy
         eval_step!(s)
+        α_max!(s)
+        αz_max!(s)
         @warn "watch dog -failure-:"
         return false
     end

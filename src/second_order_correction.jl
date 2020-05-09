@@ -101,6 +101,10 @@ function α_soc_max!(s::Solver)
 end
 
 function search_direction_soc!(s::Solver)
+    kkt_gradient_fullspace!(s)
+    s.h[s.idx.y] = s.c_soc
+    s.h[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
+
     if s.opts.kkt_solve == :symmetric
         search_direction_soc_symmetric!(s)
     elseif s.opts.kkt_solve == :fullspace
@@ -116,9 +120,6 @@ function search_direction_soc_fullspace!(s::Solver)
     inertia_correction!(s)
 
     kkt_hessian_fullspace!(s)
-    kkt_gradient_fullspace!(s)
-    s.h[s.idx.y] = s.c_soc
-    s.h[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
 
     s.d_soc .= lu(s.H + Diagonal(s.δ))\(-s.h)
 
@@ -140,8 +141,6 @@ Here `s.d_soc` is the full corrected step after applying the second-order correc
 function search_direction_soc_symmetric!(s::Solver)
     kkt_hessian_symmetric!(s)
     kkt_gradient_symmetric!(s)
-    s.h_sym[s.idx.y] = s.c_soc
-    s.h_sym[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
 
     inertia_correction!(s)
 
@@ -152,9 +151,6 @@ function search_direction_soc_symmetric!(s::Solver)
 
     if s.opts.iterative_refinement
         kkt_hessian_fullspace!(s)
-        kkt_gradient_fullspace!(s)
-        s.h[s.idx.y] = s.c_soc
-        s.h[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
         iterative_refinement(s.d_soc,s)
     end
 

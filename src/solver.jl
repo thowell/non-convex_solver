@@ -185,11 +185,11 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
 
     if reformulate
 
-        n = model.n + mI + mA
-        m = model.m + mA
+        n = model.n + mI
+        m = model.m
 
-        cI_idx_solver = vcat(cI_idx,zeros(Bool,mA))
-        cA_idx_solver = vcat(zeros(Bool,model.m),ones(Bool,mA))
+        cI_idx_solver = cI_idx
+        cA_idx_solver = cA_idx
         cE_idx_solver = Vector((cI_idx_solver + cA_idx_solver) .== 0)
         mE = sum(cE_idx_solver)
 
@@ -203,22 +203,16 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
         end
         function ∇²f_func!(∇²f,x,_model)
             model.∇²f_func!(view(∇²f,1:model.n,1:model.n),view(x,1:model.n),model)
-            view(∇²f,CartesianIndex.(model.n+mI .+ (1:mA),model.n+mI .+ (1:mA))) .= 1.0
             return nothing
         end
         function c_func!(c,x,_model)
             model.c_func!(view(c,1:model.m),view(x,1:model.n),model)
             c[(1:model.m)[cI_idx]] .-= view(x,model.n .+ (1:mI))
-            c[(1:model.m)[cA_idx]] .-= view(x,model.n+mI .+ (1:mA))
-            c[model.m .+ (1:mA)] .= view(x,model.n+mI .+ (1:mA))
-
             return nothing
         end
         function ∇c_func!(∇c,x,_model)
             model.∇c_func!(view(∇c,1:model.m,1:model.n),view(x,1:model.n),model)
             ∇c[CartesianIndex.((1:model.m)[cI_idx],model.n .+ (1:mI))] .= -1.0
-            ∇c[CartesianIndex.((1:model.m)[cA_idx],model.n+mI .+ (1:mA))] .= -1.0
-            ∇c[CartesianIndex.(model.m .+ (1:mA),model.n+mI .+ (1:mA))] .= 1.0
             return nothing
         end
         function ∇²cy_func!(∇²cy,x,y,_model)
@@ -316,11 +310,6 @@ function Solver(x0,model::AbstractModel;cI_idx=zeros(Bool,model.m),cA_idx=zeros(
         if mI != 0
             for (k,i) = enumerate(model.n .+ (1:mI))
                 x[i] = init_x0(ctmp[cI_idx][k],xL[i],xU[i],opts.κ1,opts.κ2)
-            end
-        end
-        if mA != 0
-            for (k,i) = enumerate(model.n+mI .+ (1:mA))
-                x[i] = init_x0(ctmp[cA_idx][k],xL[i],xU[i],opts.κ1,opts.κ2)
             end
         end
     end

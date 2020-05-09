@@ -31,3 +31,7 @@ cI_idx=ones(Bool,m)
 cA_idx=zeros(Bool,m)
 s = InteriorPointSolver(x0,model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
 @time solve!(s)
+
+eval_step!(s.s)
+restoration!(s.s̄,s.s)
+s.s.x

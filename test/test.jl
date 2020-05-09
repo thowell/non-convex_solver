@@ -1,7 +1,7 @@
 include("../src/interior_point.jl")
 
-n = 500
-m = 100
+n = 6
+m = 3
 
 x0 = ones(n)
 
@@ -21,7 +21,11 @@ model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,
+                        ϵ_tol=1.0e-5,
+                        max_iterative_refinement=10,
                         verbose=false)
 
 s = InteriorPointSolver(x0,model,opts=opts)
 @time solve!(s)
+
+restoration!(s.s̄,s.s)

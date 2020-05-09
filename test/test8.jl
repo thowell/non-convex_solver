@@ -25,9 +25,11 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,
                         max_iterative_refinement=100,
                         max_iter=100,
-                        verbose=false)
+                        verbose=true)
 
 s = InteriorPointSolver(x0,model,cI_idx=ones(Bool,m),opts=opts)
 s.s.ρ = 100.
 @time solve!(s)
 s.s.x
+
+restoration!(s.s̄,s.s)
