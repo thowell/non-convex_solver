@@ -267,13 +267,13 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
     end
 
     function ∇²f_func!(∇²f,x,model::AbstractModel)
-        ∇²f[s.idx.x,s.idx.x] .= ζ*DR'*DR
+        ∇²f[s.idx.x,s.idx.x] = ζ*DR'*DR
         return nothing
     end
 
-    s̄.model.f_func = f_func
-    s̄.model.∇f_func! = ∇f_func!
-    s̄.model.∇²f_func! = ∇²f_func!
+    s̄.f_func = f_func
+    s̄.∇f_func! = ∇f_func!
+    s̄.∇²f_func! = ∇²f_func!
 
     return nothing
 end
@@ -350,38 +350,21 @@ end
 
 # symmetric KKT system
 function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
-    s.∇²cy_func!(s.∇²cy,view(s̄.x,s.idx.x),s̄.y,s.model)
-    s.∇c_func!(s.∇c,view(s̄.x,s.idx.x),s.model)
-
-    p = view(s̄.x,s̄.idx_r.p)
-    n = view(s̄.x,s̄.idx_r.n)
-
-    zL = view(s̄.zL,1:s.nL)
-    zp = view(s̄.zL,s.nL .+ (1:s.m))
-    zn = view(s̄.zL,s.nL + s.m .+ (1:s.m))
-
-    update!(s.Hv_sym.xx,s.∇²cy + sqrt(s̄.μ)*s̄.DR'*s̄.DR)
+    update!(s.Hv_sym.xx,s̄.∇²L[s.idx.x,s.idx.x])
     add_update!(s.Hv_sym.xLxL,view(s̄.σL,1:s.nL))
     add_update!(s.Hv_sym.xUxU,view(s̄.σU,1:s.nU))
-    update!(s.Hv_sym.xy,s.∇c')
-    update!(s.Hv_sym.yx,s.∇c)
-    update!(s.Hv_sym.yy,-1.0*p./zp - n./zn)
+    s.Hv_sym.xy .= view(s̄.∇c,1:s.m,s.idx.x)'
+    s.Hv_sym.yx .= view(s.∇c,1:s.m,s.idx.x)
+    update!(s.Hv_sym.yy,-1.0./view(s̄.σL,s̄.idx_r.zp) - 1.0./view(s̄.σL,s̄.idx_r.zn))
     add_update!(s.Hv_sym.yAyA,-1.0/s̄.ρ)
-
     return nothing
 end
 
 function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
-    p = view(s̄.x,s̄.idx_r.p)
-    n = view(s̄.x,s̄.idx_r.n)
-    zL = view(s̄.zL,s̄.idx_r.zL)
-    zp = view(s̄.zL,s̄.idx_r.zp)
-    zn = view(s̄.zL,s̄.idx_r.zn)
-
-    s.h_sym[s.idx.x] = view(s̄.h,s.idx.x)
+    s.h_sym[s.idx.x] = s̄.h[s.idx.x]
     s.h_sym[s.idx.xL] += (view(s̄.h,s̄.idx.zL)./s̄.ΔxL)[1:s.nL]
     s.h_sym[s.idx.xU] -= (view(s̄.h,s̄.idx.zU)./s̄.ΔxU)[1:s.nU]
-    s.h_sym[s.idx.y] = view(s̄.h,s̄.idx.y) + p./zp.*view(s̄.h,s̄.idx_r.p) -n./zn.*view(s̄.h,s̄.idx_r.n) + view(s̄.h,s̄.n + s.m + s.nL .+ (1:s.m))./zp - view(s̄.h,s̄.n + s.m + s.nL + s.m .+ (1:s.m))./zn
+    s.h_sym[s.idx.y] = view(s̄.h,s̄.idx.y) + 1.0./view(s̄.σL,s̄.idx_r.zp).*view(s̄.h,s̄.idx_r.p) -1.0./view(s̄.σL,s̄.idx_r.zn).*view(s̄.h,s̄.idx_r.n) + view(s̄.h,s̄.n + s̄.m .+ s̄.idx_r.zp)./view(s̄.zL,s̄.idx_r.zp) - view(s̄.h,s̄.n + s̄.m .+ s̄.idx_r.zn)./view(s̄.zL,s̄.idx_r.zn)
     return nothing
 end
 
@@ -391,43 +374,26 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
 
     inertia_correction!(s)
 
-    x = view(s̄.x,s.idx.x)
-    p = view(s̄.x,s̄.idx_r.p)
-    n = view(s̄.x,s̄.idx_r.n)
-    y = s̄.y
-    zL = view(s̄.zL,s̄.idx_r.zL)
-    zp = view(s̄.zL,s̄.idx_r.zp)
-    zn = view(s̄.zL,s̄.idx_r.zn)
-    zU = view(s̄.zU,s̄.idx_r.zU)
-
-    xL = (x - s.xL)[s.xL_bool]
-    xU = (s.xU - x)[s.xU_bool]
-
-    r1 = view(s̄.res,s.idx.x)
-    r2 = view(s̄.res,s̄.idx_r.p)
-    r3 = view(s̄.res,s̄.idx_r.n)
-    r4 = view(s̄.res,s̄.idx.y)
-    r5 = view(s̄.res,s̄.n + s.m .+ (1:s.nL))
-    r6 = view(s̄.res,s̄.n + s.m + s.nL .+ (1:s.m))
-    r7 = view(s̄.res,s̄.n + s.m + s.nL + s.m .+ (1:s.m))
-    r8 = view(s̄.res,s̄.n + s.m + s.nL + s.m + s.m .+ (1:s.nU))
-
-    s.h_sym[s.idx.x] = r1
-    s.h_sym[s.idx.xL] += r5./xL
-    s.h_sym[s.idx.xU] -= r8./xU
-    s.h_sym[s.n .+ (1:s.m)] += p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
+    r1 = view(-s̄.h,s.idx.x)
+    r2 = view(-s̄.h,s̄.idx_r.p)
+    r3 = view(-s̄.h,s̄.idx_r.n)
+    r4 = view(-s̄.h,s̄.idx.y)
+    r5 = view(-s̄.h,s̄.n + s̄.m .+ s̄.idx_r.zL)
+    r6 = view(-s̄.h,s̄.n + s̄.m .+ s̄.idx_r.zp)
+    r7 = view(-s̄.h,s̄.n + s̄.m .+ s̄.idx_r.zn)
+    r8 = view(-s̄.h,s̄.n + s̄.m + s.nL + s.m + s.m .+ (1:s.nU))
 
     s̄.d[s̄.idx_r.xy] = ma57_solve(s.LBL,-s.h_sym)
 
     dx = view(s̄.d,s.idx.x)
     dy = view(s̄.d,s̄.idx.y)
 
-    s̄.d[s̄.idx_r.p] = -p.*(-dy - r2)./zp + r6./zp
-    s̄.d[s̄.idx_r.n] = -n.*(dy - r3)./zn + r7./zn
-    s̄.d[s.n + 3s.m .+ (1:s.nL)] = -zL./xL.*dx[s.xL_bool] + r5./xL
-    s̄.d[s.n + 3s.m + s.nL .+ (1:s.m)] = -dy - r2
-    s̄.d[s.n + 4s.m + s.nL .+ (1:s.m)] = dy - r3
-    s̄.d[s.n + 5s.m + s.nL .+ (1:s.nU)] = zU./xU.*dx[s.xU_bool] + r8./xU
+    s̄.d[s̄.idx_r.p] = -1.0./view(s̄.σL,s.nL .+ (1:s̄.m)).*(-dy - r2) + r6./view(s̄.zL,s.nL .+ (1:s̄.m))
+    s̄.d[s̄.idx_r.n] = -1.0./view(s̄.σL,s.nL+s̄.m .+ (1:s̄.m)).*(dy - r3) + r7./view(s̄.zL,s.nL+s̄.m .+ (1:s̄.m))
+    s̄.d[s̄.n + s̄.m .+ s̄.idx_r.zL] = -view(s̄.σL,1:s.nL).*view(dx,s.idx.xL) + r5./view(s̄.ΔxL,1:s.nL)
+    s̄.d[s̄.n + s̄.m .+ s̄.idx_r.zp] = -dy - r2
+    s̄.d[s̄.n + s̄.m .+ s̄.idx_r.zn] = dy - r3
+    s̄.d[s̄.n + s̄.m + s.nL + s.m + s.m .+ (1:s.nU)] = view(s̄.σU,1:s.nU).*view(dx,s.idx.xU) + r8./view(s̄.ΔxU,1:s.nU)
 
     if s̄.opts.iterative_refinement
         kkt_hessian_fullspace!(s̄)
@@ -447,18 +413,6 @@ function iterative_refinement_restoration(d::Vector{T},s̄::Solver,s::Solver) wh
 
     s̄.opts.verbose ? println("init res: $(res_norm), δw: $(s.δw), δc: $(s.δc)") : nothing
 
-    x = view(s̄.x,s.idx.x)
-    p = view(s̄.x,s̄.idx_r.p)
-    n = view(s̄.x,s̄.idx_r.n)
-    y = s̄.y
-    zL = view(s̄.zL,s̄.idx_r.zL)
-    zp = view(s̄.zL,s̄.idx_r.zp)
-    zn = view(s̄.zL,s̄.idx_r.zn)
-    zU = view(s̄.zU,s̄.idx_r.zU)
-
-    xL = (x - s.xL)[s.xL_bool]
-    xU = (s.xU - x)[s.xU_bool]
-
     while (iter < s̄.opts.max_iterative_refinement && res_norm > s̄.opts.ϵ_iterative_refinement) || iter < s̄.opts.min_iterative_refinement
 
         if s̄.opts.kkt_solve == :fullspace
@@ -468,27 +422,27 @@ function iterative_refinement_restoration(d::Vector{T},s̄::Solver,s::Solver) wh
             r2 = view(s̄.res,s̄.idx_r.p)
             r3 = view(s̄.res,s̄.idx_r.n)
             r4 = view(s̄.res,s̄.idx.y)
-            r5 = view(s̄.res,s̄.n + s.m .+ (1:s.nL))
-            r6 = view(s̄.res,s̄.n + s.m + s.nL .+ (1:s.m))
-            r7 = view(s̄.res,s̄.n + s.m + s.nL + s.m .+ (1:s.m))
+            r5 = view(s̄.res,s̄.n + s.m .+ s̄.idx_r.zL)
+            r6 = view(s̄.res,s̄.n + s.m .+ s̄.idx_r.zp)
+            r7 = view(s̄.res,s̄.n + s.m .+ s̄.idx_r.zn)
             r8 = view(s̄.res,s̄.n + s.m + s.nL + s.m + s.m .+ (1:s.nU))
 
             s.h_sym[s.idx.x] = r1
-            s.h_sym[s.idx.xL] += r5./xL
-            s.h_sym[s.idx.xU] -= r8./xU
-            s.h_sym[s.n .+ (1:s.m)] += p./zp.*r2 + r6./zp - n./zn.*r3 - r7./zn
+            s.h_sym[s.idx.xL] += r5./view(s̄.ΔxL,1:s.nL)
+            s.h_sym[s.idx.xU] -= r8./view(s̄.ΔxU,1:s.nU)
+            s.h_sym[s.n .+ (1:s.m)] += 1.0./view(s̄.σL,s.nL .+ (1:s̄.m)).*r2 + r6./view(s̄.zL,s.nL .+ (1:s̄.m)) - 1.0./view(s̄.σL,s.nL+s̄.m .+ (1:s̄.m)).*r3 - r7./view(s̄.zL,s.nL+s̄.m .+ (1:s̄.m))
 
             s̄.Δ[s̄.idx_r.xy] = ma57_solve(s.LBL,s.h_sym)
 
             dx = view(s̄.Δ,s.idx.x)
             dy = view(s̄.Δ,s̄.idx.y)
 
-            s̄.Δ[s̄.idx_r.p] = -p.*(-dy - r2)./zp + r6./zp
-            s̄.Δ[s̄.idx_r.n] = -n.*(dy - r3)./zn + r7./zn
-            s̄.Δ[s.n + 3s.m .+ (1:s.nL)] = -zL./xL.*dx[s.xL_bool] + r5./xL
-            s̄.Δ[s.n + 3s.m + s.nL .+ (1:s.m)] = -dy - r2
-            s̄.Δ[s.n + 4s.m + s.nL .+ (1:s.m)] = dy - r3
-            s̄.Δ[s.n + 5s.m + s.nL .+ (1:s.nU)] = zU./xU.*dx[s.xU_bool] + r8./xU
+            s̄.Δ[s̄.idx_r.p] = -1.0./view(s̄.σL,s.nL .+ (1:s̄.m)).*(-dy - r2) + r6./view(s̄.zL,s.nL .+ (1:s̄.m))
+            s̄.Δ[s̄.idx_r.n] = -1.0./view(s̄.σL,s.nL+s̄.m .+ (1:s̄.m)).*(dy - r3) + r7./view(s̄.zL,s.nL+s̄.m .+ (1:s̄.m))
+            s̄.Δ[s̄.n + s̄.m .+ s̄.idx_r.zL] = -view(s̄.σL,1:s.nL).*view(dx,s.idx.xL) + r5./view(s̄.ΔxL,1:s.nL)
+            s̄.Δ[s̄.n + s̄.m .+ s̄.idx_r.zp] = -dy - r2
+            s̄.Δ[s̄.n + s̄.m .+ s̄.idx_r.zn] = dy - r3
+            s̄.Δ[s̄.n + s̄.m + s.nL + s.m + s.m .+ (1:s.nU)] = view(s̄.σU,1:s.nU).*view(dx,s.idx.xU) + r8./view(s̄.ΔxU,1:s.nU)
         end
 
         d .+= s̄.Δ

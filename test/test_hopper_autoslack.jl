@@ -187,11 +187,13 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        iterative_refinement=true,
                        relax_bnds=true,
                        max_iterative_refinement=100,
-                       ϵ_tol=1.0e-6,
-                       verbose=false)
+                       ϵ_tol=1.0e-3,
+                       verbose=true)
 
 s = InteriorPointSolver(x0,nlp_model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
 s.s.ρ = 1.
 @time solve!(s)
 norm(c_func(s.s.x)[cA_idx .== 0],1)
 norm(c_func(s.s.x)[cA_idx],1)
+
+restoration!(s.s̄,s.s)

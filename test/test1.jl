@@ -35,7 +35,6 @@ s.s.ρ = 1.
 @time solve!(s)
 
 
-
 # ######
 # using Ipopt, MathOptInterface
 # const MOI = MathOptInterface
