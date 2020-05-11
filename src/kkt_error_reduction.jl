@@ -46,26 +46,26 @@ function kkt_error_reduction(s::Solver)
 end
 
 function eval_Fμ(x,y,zL,zU,s)
-    s.∇f_func!(s.∇f,x,s.model)
-    s.c_func!(s.c,x,s.model)
+    s.model.∇f_func!(s.∇f,x,s.model)
+    s.model.c_func!(s.c,x,s.model)
     if s.opts.nlp_scaling
         s.c .= s.Dc*s.c
     end
-    s.∇c_func!(s.∇c,x,s.model)
+    s.model.∇c_func!(s.∇c,x,s.model)
     s.∇L .= s.∇f + s.∇c'*y
-    s.∇L[s.xL_bool] -= zL
-    s.∇L[s.xU_bool] += zU
+    s.∇L[s.idx.xL] -= zL
+    s.∇L[s.idx.xU] += zU
 
     # damping
     if s.opts.single_bnds_damping
         κd = s.opts.κd
         μ = s.μ
-        s.∇L[s.xLs_bool] .+= κd*μ
-        s.∇L[s.xUs_bool] .-= κd*μ
+        s.∇L[s.idx.xLs] .+= κd*μ
+        s.∇L[s.idx.xUs] .-= κd*μ
     end
 
-    s.ΔxL .= (s.x - s.xL)[s.xL_bool]
-    s.ΔxU .= (s.xU - s.x)[s.xU_bool]
+    s.ΔxL .= (s.x - s.model.xL)[s.idx.xL]
+    s.ΔxU .= (s.model.xU - s.x)[s.idx.xU]
 
     s.Fμ[s.idx.x] = s.∇L
     s.Fμ[s.idx.y] = s.c

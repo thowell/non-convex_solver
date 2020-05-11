@@ -70,13 +70,15 @@ xL = zeros(nx)
 xL[1:(nq+nu)] .= -Inf
 xL[nq+nu+nc .+ (1:nβ)] .= -Inf
 xU = Inf*ones(nx)
-nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
-cI_idx = zeros(Bool,nlp_model.m)
+cI_idx = zeros(Bool,m)
 cI_idx[1:nc+nc] .= 1
 
-cA_idx = ones(Bool,nlp_model.m)
+cA_idx = ones(Bool,m)
 cA_idx[1:nq+nβ+nc+nc] .= 0
+
+nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
+
 q0 = q1
 u0 = 1.0e-3*rand(nu)
 y0 = 1.0*rand(1)[1]
@@ -89,12 +91,8 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=500,
                         relax_bnds=true,
                         y_init_ls=true,
-                        ϵ_tol=1.0e-3,
+                        ϵ_tol=1.0e-6,
                         verbose=false)
 
-s = InteriorPointSolver(x0,nlp_model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
+s = InteriorPointSolver(x0,nlp_model,opts=opts)
 @time solve!(s)
-
-restoration!(s.s̄,s.s)
-
-s.s̄.opts.ϵ_tol

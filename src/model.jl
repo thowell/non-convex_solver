@@ -14,10 +14,21 @@ mutable struct Model{T} <: AbstractModel
     # dimensions
     n::Int
     m::Int
+    mI::Int
+    mE::Int
+    mA::Int
 
     # primal bounds
     xL::Vector{T}
     xU::Vector{T}
+
+    xL_bool::Vector{Bool}
+    xU_bool::Vector{Bool}
+    xLs_bool::Vector{Bool}
+    xUs_bool::Vector{Bool}
+
+    nL::Int
+    nU::Int
 
     # objective
     f_func::Function
@@ -29,35 +40,33 @@ mutable struct Model{T} <: AbstractModel
     ∇c_func!::Function
     ∇²cy_func!::Function
 
-    # data
-    x::Vector{T}
-    y::Vector{T}
-
-    f::T
-    ∇f::Vector{T}
-    ∇²f::SparseMatrixCSC{T,Int}
-
-    c::Vector{T}
-    ∇c::SparseMatrixCSC{T,Int}
-    ∇²cy::SparseMatrixCSC{T,Int}
+    cI_idx::Vector{Bool}
+    cE_idx::Vector{Bool}
+    cA_idx::Vector{Bool}
 
     info::AbstractModelInfo
 end
 
-function Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cy_func!)
-    x = zeros(n)
-    y = zeros(m)
+function Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cy_func!;
+        cI_idx=zeros(Bool,m),cA_idx=zeros(Bool,m))
 
-    f = 0.0
-    ∇f = zeros(n)
-    ∇²f = spzeros(n,n)
+    mI = convert(Int,sum(cI_idx))
+    cE_idx = Vector((cI_idx + cA_idx) .== 0)
+    mE = convert(Int,sum(cE_idx))
+    mA = convert(Int,sum(cA_idx))
 
-    c = zeros(m)
-    ∇c = spzeros(m,n)
-    ∇²cy = spzeros(n,n)
+    xL_bool, xU_bool, xLs_bool, xUs_bool = bool_bounds(xL,xU,1.0e8)
+
+    nL = convert(Int,sum(xL .> -Inf))
+    nU = convert(Int,sum(xU .< Inf))
 
     info = EmptyModelInfo()
-    Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cy_func!,x,y,f,∇f,∇²f,c,∇c,∇²cy,info)
+    Model(n,m,mI,mE,mA,
+          xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
+          f_func,∇f_func!,∇²f_func!,
+          c_func!,∇c_func!,∇²cy_func!,
+          cI_idx,cE_idx,cA_idx,
+          info)
 end
 
 """

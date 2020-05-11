@@ -5,6 +5,7 @@ using HSL
 include("options.jl")
 include("indices.jl")
 include("views.jl")
+include("bounds.jl")
 include("model.jl")
 include("scaling.jl")
 include("solver.jl")

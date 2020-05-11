@@ -13,7 +13,7 @@ function second_order_correction(s::Solver)
     s.θ_soc = copy(s.θ)
 
     # Compute c_soc (Eq. 27)
-    s.c_func!(s.c_soc, s.x⁺, s.model)   # evaluate the constraints at the current step
+    s.model.c_func!(s.c_soc, s.x⁺, s.model)   # evaluate the constraints at the current step
     if s.opts.nlp_scaling
         s.c_soc .= s.Dc*s.c_soc
     end
@@ -60,7 +60,7 @@ function second_order_correction(s::Solver)
         else  # A-5.9 Next second-order correction
             s.p += 1
 
-            s.c_func!(s.c,s.x⁺,s.model)
+            s.model.c_func!(s.c,s.x⁺,s.model)
             s.c_soc .= s.α_soc*s.c_soc + (s.opts.nlp_scaling ? s.Dc*s.c : s.c)
             s.θ_soc = s.θ⁺
 
@@ -94,7 +94,7 @@ Compute the approximate result of Eq. 28, the step size for the second order cor
 """
 function α_soc_max!(s::Solver)
     s.α_soc = 1.0
-    while !fraction_to_boundary_bnds(s.x,s.xL,s.xU,s.xL_bool,s.xU_bool,s.d_soc[s.idx.x],s.α_soc,s.τ)
+    while !fraction_to_boundary_bnds(s.x,s.model.xL,s.model.xU,s.model.xL_bool,s.model.xU_bool,s.d_soc[s.idx.x],s.α_soc,s.τ)
         s.α_soc *= 0.5  # QUESTION: is there a smarter way to find the approximate minimizer? Binary search? -maybe, no one does that
     end
     return nothing

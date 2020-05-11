@@ -14,8 +14,8 @@ function solve!(solver::InteriorPointSolver)
     # Problem summary
     println(crayon"bold underline black", "Problem Summary")
     print(crayon"reset")
-    println("   num vars = $(s.n)")
-    println("   num cons = $(s.m)")
+    println("   num vars = $(s.model.n)")
+    println("   num cons = $(s.model.m)")
     println()
 
     logger = SolverLogger(s.opts.verbose ? Logging.Info : InnerLoop)
@@ -38,7 +38,7 @@ function solve!(solver::InteriorPointSolver)
         # Converge the interior point sub-problem
         # s.k > 0 && print_header(logger, InnerLoop)
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
-            s.opts.relax_bnds && relax_bnds!(s)
+            s.opts.relax_bnds && relax_bounds!(s)
 
             # solve for the search direction and check if it's small
             if search_direction!(s)
@@ -113,11 +113,11 @@ function solve!(solver::InteriorPointSolver)
     println(crayon"reset", "   status: complete")
     println("   iteration ($(s.j),$(s.k)):")
 
-    s.n < 5 ? println("   x: $(s.x)") : nothing
+    s.model.n < 5 ? println("   x: $(s.x)") : nothing
     println("   f: $(s.f)")
     println("   θ: $(s.θ), φ: $(s.φ)")
     println("   E0: $(eval_Eμ(0.0,s))")
-    println("   norm(c): $(norm(s.c[s.cA_idx .== 0]))")
+    println("   norm(c): $(norm(s.c[s.model.cA_idx .== 0]))")
     println("   norm(cA): $(norm(s.cA))")
     end # logger
 end

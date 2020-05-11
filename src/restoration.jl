@@ -32,9 +32,9 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
     s.zL .+= s.αz*s.dzL
     s.zU .+= s.αz*s.dzU
 
-    s.∇f_func!(s.∇f,s.x,s.model)
-    s.∇c_func!(s.∇c,s.x,s.model)
-    init_y!(s.y,s.H_sym,s.h_sym,s.d,s.zL,s.zU,s.∇f,s.∇c,s.n,s.m,s.xL_bool,s.xU_bool,s.opts.y_max)
+    s.model.∇f_func!(s.∇f,s.x,s.model)
+    s.model.∇c_func!(s.∇c,s.x,s.model)
+    init_y!(s.y,s.H_sym,s.h_sym,s.d,s.zL,s.zU,s.∇f,s.∇c,s.model.n,s.model.m,s.model.xL_bool,s.model.xU_bool,s.opts.y_max)
 
     return nothing
 end
@@ -101,7 +101,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 
             if s̄.opts.verbose
                 println("   restoration iteration ($(s̄.j),$(s̄.k)):")
-                s.n < 5 ? println("   x: $(s̄.x[s.idx.x])") : nothing
+                s.model.n < 5 ? println("   x: $(s̄.x[s.idx.x])") : nothing
                 println("   θ: $(θ(s̄.x,s̄)), φ: $(barrier(s̄.x,s̄))")
                 println("   Eμ: $(eval_Eμ(s̄.μ,s̄))")
                 println("   α: $(s̄.α)\n")
@@ -125,37 +125,39 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 end
 
 function restoration_reset!(s̄::Solver,s::Solver)
-    s.c_func!(s.c,view(s̄.x,s.idx.x),s.model)
+    s.model.c_func!(s.c,view(s̄.x,s.idx.x),s.model)
     s.mA != 0 && (s.cA .+= 1.0/s̄.ρ*(s̄.λ - s̄.yA))
 
     # initialize p,n
-    for i = 1:s.m
-        s̄.x[s.n + s.m + i] = init_n(s.c[i],s̄.μ,s̄.opts.ρ_resto)
+    n = s.model.n
+    m = s.model.m
+    for i = 1:m
+        s̄.x[n + m + i] = init_n(s.c[i],s̄.μ,s̄.opts.ρ_resto)
     end
 
-    for i = 1:s.m
-        s̄.x[s.n + i] = init_p(s̄.x[s.n + s.m + i],s.c[i])
+    for i = 1:m
+        s̄.x[n + i] = init_p(s̄.x[n + m + i],s.c[i])
     end
     s̄.y .= 0
 
     return nothing
 end
 
-function RestorationSolver(s::Solver;reformulate=false)
+function RestorationSolver(s::Solver)
     opts = copy(s.opts)
     opts.y_init_ls = false
     opts.relax_bnds = false
 
-    n̄ = s.n + 2s.m
-    m̄ = s.m
+    n̄ = s.model.n + 2s.model.m
+    m̄ = s.model.m
 
     x̄ = zeros(n̄)
 
     x̄L = zeros(n̄)
-    x̄L[s.idx.x] = s.xL # maybe initialized with phase 1 relaxed bounds
+    x̄L[s.idx.x] = s.model.xL # maybe initialized with phase 1 relaxed bounds
 
     x̄U = Inf*ones(n̄)
-    x̄U[s.idx.x] = s.xU # maybe initialize with phase 1 relaxed bounds
+    x̄U[s.idx.x] = s.model.xU # maybe initialize with phase 1 relaxed bounds
 
     f̄_func(x,model::AbstractModel) = 0.
 
@@ -178,9 +180,14 @@ function RestorationSolver(s::Solver;reformulate=false)
         return nothing
     end
 
-    _model = Model(n̄,m̄,x̄L,x̄U,f̄_func,∇f̄_func!,∇²f̄_func!,c̄_func!,∇c̄_func!,∇²c̄y_func!)
-    s̄ = Solver(x̄,_model,cI_idx=s.cI_idx,cA_idx=s.cA_idx,reformulate=reformulate,opts=opts)
-    s̄.DR = spzeros(s.n,s.n)
+    _model = Model(n̄,m̄,
+                x̄L,x̄U,
+                f̄_func,∇f̄_func!,∇²f̄_func!,
+                c̄_func!,∇c̄_func!,∇²c̄y_func!,
+                cI_idx=s.model.cI_idx,cA_idx=s.model.cA_idx)
+
+    s̄ = Solver(x̄,_model,opts=opts)
+    s̄.DR = spzeros(s.model.n,s.model.n)
     s̄.idx_r = restoration_indices(s̄,s)
     return s̄
 end
@@ -189,7 +196,7 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     s̄.k = 0
     s̄.j = 0
 
-    s.c_func!(s.c,view(s̄.x,s.idx.x),s.model)
+    s.model.c_func!(s.c,view(s̄.x,s.idx.x),s.model)
 
     s̄.μ = max(s.μ,norm(s.c,Inf))
     s̄.τ = update_τ(s̄.μ,s̄.opts.τ_min)
@@ -200,12 +207,12 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     s̄.x[s.idx.x] = copy(s.x)
 
     # initialize p,n
-    for i = 1:s.m
-        s̄.x[s.n + s.m + i] = init_n(s.c[i],s̄.μ,s̄.opts.ρ_resto)
+    for i = 1:s.model.m
+        s̄.x[s.model.n + s.model.m + i] = init_n(s.c[i],s̄.μ,s̄.opts.ρ_resto)
     end
 
-    for i = 1:s.m
-        s̄.x[s.n + i] = init_p(s̄.x[s.n + s.m + i],s.c[i])
+    for i = 1:s.model.m
+        s̄.x[s.model.n + i] = init_p(s̄.x[s.model.n + s.model.m + i],s.c[i])
     end
 
     # # project
@@ -214,17 +221,17 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     # end
 
     # initialize zL, zU, zp, zn
-    for i = 1:s.nL
+    for i = 1:s.model.nL
         s̄.zL[i] = min(s̄.opts.ρ_resto,s.zL[i])
     end
 
-    for i = 1:s.nU
+    for i = 1:s.model.nU
         s̄.zU[i] = min(s̄.opts.ρ_resto,s.zU[i])
     end
 
-    s̄.zL[s.nL .+ (1:2s.m)] = s̄.μ./view(s̄.x,s.n .+ (1:2s.m))
+    s̄.zL[s.model.nL .+ (1:2s.model.m)] = s̄.μ./view(s̄.x,s.model.n .+ (1:2s.model.m))
 
-    init_DR!(s̄.DR,s.x,s.n)
+    init_DR!(s̄.DR,s.x,s.model.n)
 
     s̄.restoration = true
 
@@ -232,13 +239,13 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     update_restoration_constraints!(s̄,s)
     empty!(s̄.filter)
 
-    s̄.∇f_func!(s̄.∇f,s̄.x,s̄.model)
-    s̄.c_func!(s̄.c,s̄.x,s̄.model)
-    s̄.∇c_func!(s̄.∇c,s̄.x,s̄.model)
+    s̄.model.∇f_func!(s̄.∇f,s̄.x,s̄.model)
+    s̄.model.c_func!(s̄.c,s̄.x,s̄.model)
+    s̄.model.∇c_func!(s̄.∇c,s̄.x,s̄.model)
 
-    init_Dx!(s̄.Dx,s̄.n)
+    init_Dx!(s̄.Dx,s̄.model.n)
     s̄.df = init_df(s̄.opts.g_max,s̄.∇f)
-    init_Dc!(s̄.Dc,s̄.opts.g_max,s̄.∇c,s̄.m)
+    init_Dc!(s̄.Dc,s̄.opts.g_max,s̄.∇c,s̄.model.m)
 
     if s̄.opts.nlp_scaling
         s̄.c .= s̄.Dc*s̄.c
@@ -254,7 +261,7 @@ end
 function update_restoration_objective!(s̄::Solver,s::Solver)
     ζ = sqrt(s̄.μ)
     DR = s̄.DR
-    idx_pn = s.n .+ (1:2s.m)
+    idx_pn = s.model.n .+ (1:2s.model.m)
 
     function f_func(x,model::AbstractModel)
         s̄.opts.ρ_resto*sum(view(x,idx_pn)) + 0.5*ζ*(view(x,s.idx.x) - s.x)'*DR'*DR*(view(x,s.idx.x) - s.x)
@@ -271,36 +278,36 @@ function update_restoration_objective!(s̄::Solver,s::Solver)
         return nothing
     end
 
-    s̄.f_func = f_func
-    s̄.∇f_func! = ∇f_func!
-    s̄.∇²f_func! = ∇²f_func!
+    s̄.model.f_func = f_func
+    s̄.model.∇f_func! = ∇f_func!
+    s̄.model.∇²f_func! = ∇²f_func!
 
     return nothing
 end
 
 function update_restoration_constraints!(s̄::Solver,s::Solver)
     function c_func!(c,x,model::AbstractModel)
-        s.c_func!(c,view(x,s.idx.x),s.model)
+        s.model.c_func!(c,view(x,s.idx.x),s.model)
         c .-= view(x,s̄.idx_r.p)
         c .+= view(x,s̄.idx_r.n)
         return nothing
     end
 
     function ∇c_func!(∇c,x,model::AbstractModel)
-        s.∇c_func!(view(∇c,1:s.m,s.idx.x),view(x,s.idx.x),s.model)
-        ∇c[CartesianIndex.(1:s.m,s̄.idx_r.p)] .= -1.0
-        ∇c[CartesianIndex.(1:s.m,s̄.idx_r.n)] .= 1.0
+        s.model.∇c_func!(view(∇c,1:s.model.m,s.idx.x),view(x,s.idx.x),s.model)
+        ∇c[CartesianIndex.(1:s.model.m,s̄.idx_r.p)] .= -1.0
+        ∇c[CartesianIndex.(1:s.model.m,s̄.idx_r.n)] .= 1.0
         return nothing
     end
 
     function ∇²cy_func!(∇²cy,x,y,model::AbstractModel)
-        s.∇²cy_func!(view(∇²cy,s.idx.x,s.idx.x),view(x,s.idx.x),y,s.model)
+        s.model.∇²cy_func!(view(∇²cy,s.idx.x,s.idx.x),view(x,s.idx.x),y,s.model)
         return return nothing
     end
 
-    s̄.c_func! = c_func!
-    s̄.∇c_func! = ∇c_func!
-    s̄.∇²cy_func! = ∇²cy_func!
+    s̄.model.c_func! = c_func!
+    s̄.model.∇c_func! = ∇c_func!
+    s̄.model.∇²cy_func! = ∇²cy_func!
 
     return nothing
 end
@@ -353,8 +360,8 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     update!(s.Hv_sym.xx,s̄.∇²L[s.idx.x,s.idx.x])
     add_update!(s.Hv_sym.xLxL,view(s̄.σL,s̄.idx_r.zLL))
     add_update!(s.Hv_sym.xUxU,view(s̄.σU,s̄.idx_r.zUU))
-    s.Hv_sym.xy .= view(s̄.∇c,1:s.m,s.idx.x)'
-    s.Hv_sym.yx .= view(s.∇c,1:s.m,s.idx.x)
+    s.Hv_sym.xy .= view(s̄.∇c,1:s.model.m,s.idx.x)'
+    s.Hv_sym.yx .= view(s.∇c,1:s.model.m,s.idx.x)
     update!(s.Hv_sym.yy,-1.0./view(s̄.σL,s̄.idx_r.zLp) - 1.0./view(s̄.σL,s̄.idx_r.zLn))
     add_update!(s.Hv_sym.yAyA,-1.0/s̄.ρ)
     return nothing
@@ -362,8 +369,8 @@ end
 
 function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
     s.h_sym[s.idx.x] = s̄.h[s.idx.x]
-    s.h_sym[s.idx.xL] += (view(s̄.h,s̄.idx.zL)./s̄.ΔxL)[1:s.nL]
-    s.h_sym[s.idx.xU] -= (view(s̄.h,s̄.idx.zU)./s̄.ΔxU)[1:s.nU]
+    s.h_sym[s.idx.xL] += (view(s̄.h,s̄.idx.zL)./s̄.ΔxL)[s̄.idx_r.zLL]
+    s.h_sym[s.idx.xU] -= (view(s̄.h,s̄.idx.zU)./s̄.ΔxU)[s̄.idx_r.zUU]
     s.h_sym[s.idx.y] = view(s̄.h,s̄.idx.y) + 1.0./view(s̄.σL,s̄.idx_r.zLp).*view(s̄.h,s̄.idx_r.p) -1.0./view(s̄.σL,s̄.idx_r.zLn).*view(s̄.h,s̄.idx_r.n) + view(s̄.h,s̄.idx_r.zp)./view(s̄.zL,s̄.idx_r.zLp) - view(s̄.h,s̄.idx_r.zn)./view(s̄.zL,s̄.idx_r.zLn)
     s.h_sym[s.idx.yA] += 1.0/s̄.ρ*(s̄.λ - s̄.yA)
     return nothing
@@ -466,17 +473,17 @@ function iterative_refinement_restoration(d::Vector{T},s̄::Solver,s::Solver) wh
 end
 
 function restoration_indices(s̄::Solver,s::Solver)
-    p = s.n .+ (1:s.m)
-    n = s.n + s.m .+ (1:s.m)
-    zL = s̄.n + s̄.m .+ (1:s.nL)
-    zp = s̄.n + s̄.m + s.nL .+ (1:s.m)
-    zn = s̄.n + s̄.m + s.nL + s.m .+ (1:s.m)
-    zU = s̄.n + s̄.m + s.nL + s.m + s.m .+ (1:s.nU)
-    xy = [s.idx.x...,(s̄.n .+ (1:s̄.m))...]
+    p = s.model.n .+ (1:s.model.m)
+    n = s.model.n + s.model.m .+ (1:s.model.m)
+    zL = s̄.model.n + s̄.model.m .+ (1:s.model.nL)
+    zp = s̄.model.n + s̄.model.m + s.model.nL .+ (1:s.model.m)
+    zn = s̄.model.n + s̄.model.m + s.model.nL + s.model.m .+ (1:s.model.m)
+    zU = s̄.model.n + s̄.model.m + s.model.nL + s.model.m + s.model.m .+ (1:s.model.nU)
+    xy = [s.idx.x...,(s̄.model.n .+ (1:s̄.model.m))...]
 
-    zLL = 1:s.nL
-    zLp = s.nL .+ (1:s.m)
-    zLn = s.nL + s.m .+ (1:s.m)
-    zUU = 1:s.nU
+    zLL = 1:s.model.nL
+    zLp = s.model.nL .+ (1:s.model.m)
+    zLn = s.model.nL + s.model.m .+ (1:s.model.m)
+    zUU = 1:s.model.nU
     RestorationIndices(p,n,zL,zp,zn,zU,xy,zLL,zLp,zLn,zUU)
 end
