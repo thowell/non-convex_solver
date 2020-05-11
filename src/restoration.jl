@@ -32,9 +32,9 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
     s.zL .+= s.αz*s.dzL
     s.zU .+= s.αz*s.dzU
 
-    s.model.∇f_func!(s.∇f,s.x,s.model)
-    s.model.∇c_func!(s.∇c,s.x,s.model)
-    init_y!(s.y,s.H_sym,s.h_sym,s.d,s.zL,s.zU,s.∇f,s.∇c,s.model.n,s.model.m,s.model.xL_bool,s.model.xU_bool,s.opts.y_max)
+    eval_∇f!(s.model,s.x)
+    eval_∇c!(s.model,s.x)
+    init_y!(s.y,s.H_sym,s.h_sym,s.d,s.zL,s.zU,get_∇f(model),get_∇c(s.model),s.model.n,s.model.m,s.model.xL_bool,s.model.xU_bool,s.opts.y_max)
 
     return nothing
 end
@@ -125,8 +125,9 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
 end
 
 function restoration_reset!(s̄::Solver,s::Solver)
-    s.model.c_func!(s.c,view(s̄.x,s.idx.x),s.model)
-    s.mA != 0 && (s.cA .+= 1.0/s̄.ρ*(s̄.λ - s̄.yA))
+    eval_c!(s.model,view(s̄.x,s.idx.x))
+    get_c_scaled!(s.c,s)
+    s.model.mA != 0 && (s.cA .+= 1.0/s̄.ρ*(s̄.λ - s̄.yA))
 
     # initialize p,n
     n = s.model.n
@@ -196,7 +197,8 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     s̄.k = 0
     s̄.j = 0
 
-    s.model.c_func!(s.c,view(s̄.x,s.idx.x),s.model)
+    eval_c!(s.model,view(s̄.x,s.idx.x))
+    get_c_scaled!(s.c,s)
 
     s̄.μ = max(s.μ,norm(s.c,Inf))
     s̄.τ = update_τ(s̄.μ,s̄.opts.τ_min)
@@ -239,17 +241,18 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     update_restoration_constraints!(s̄,s)
     empty!(s̄.filter)
 
-    s̄.model.∇f_func!(s̄.∇f,s̄.x,s̄.model)
-    s̄.model.c_func!(s̄.c,s̄.x,s̄.model)
-    s̄.model.∇c_func!(s̄.∇c,s̄.x,s̄.model)
+    eval_∇f!(s̄.model,s̄.x)
+
+
+    eval_∇c!(s̄.model,s̄.x)
 
     init_Dx!(s̄.Dx,s̄.model.n)
-    s̄.df = init_df(s̄.opts.g_max,s̄.∇f)
-    init_Dc!(s̄.Dc,s̄.opts.g_max,s̄.∇c,s̄.model.m)
+    s̄.df = init_df(s̄.opts.g_max,get_∇f(s̄.model))
+    init_Dc!(s̄.Dc,s̄.opts.g_max,get_∇c(s̄.model),s̄.model.m)
 
-    if s̄.opts.nlp_scaling
-        s̄.c .= s̄.Dc*s̄.c
-    end
+    eval_c!(s̄.model,s̄.x)
+    get_c_scaled!(s̄.c,s̄)
+
 
     s̄.θ = norm(s̄.c,1)
     s̄.θ_min = init_θ_min(s̄.θ)
@@ -360,8 +363,8 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     update!(s.Hv_sym.xx,s̄.∇²L[s.idx.x,s.idx.x])
     add_update!(s.Hv_sym.xLxL,view(s̄.σL,s̄.idx_r.zLL))
     add_update!(s.Hv_sym.xUxU,view(s̄.σU,s̄.idx_r.zUU))
-    s.Hv_sym.xy .= view(s̄.∇c,1:s.model.m,s.idx.x)'
-    s.Hv_sym.yx .= view(s.∇c,1:s.model.m,s.idx.x)
+    s.Hv_sym.xy .= view(get_∇c(s̄.model),1:s.model.m,s.idx.x)'
+    s.Hv_sym.yx .= view(get_∇c(s̄.model),1:s.model.m,s.idx.x)
     update!(s.Hv_sym.yy,-1.0./view(s̄.σL,s̄.idx_r.zLp) - 1.0./view(s̄.σL,s̄.idx_r.zLn))
     add_update!(s.Hv_sym.yAyA,-1.0/s̄.ρ)
     return nothing

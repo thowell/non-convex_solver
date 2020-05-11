@@ -24,8 +24,8 @@ c_func(x) = [2*(x[2] - 1) - 1.5*x[2] + x[3] - 0.5*x[4] + x[5];
 c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 
-cI_idx = zeros(Bool,model.m)
-cA_idx = ones(Bool,model.m)
+cI_idx = zeros(Bool,m)
+cA_idx = ones(Bool,m)
 cA_idx[1:4] .= 0
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
 

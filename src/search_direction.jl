@@ -19,8 +19,8 @@ end
 
 function kkt_hessian_fullspace!(s::Solver)
     update!(s.Hv.xx,s.∇²L)
-    update!(s.Hv.xy,s.∇c')
-    update!(s.Hv.yx,s.∇c)
+    update!(s.Hv.xy,get_∇c(s.model)')
+    update!(s.Hv.yx,get_∇c(s.model))
     update!(s.Hv.xLzL,-1.0)
     update!(s.Hv.xUzU,1.0)
     update!(s.Hv.zLxL,s.zL)
@@ -57,8 +57,8 @@ function kkt_hessian_symmetric!(s::Solver)
     update!(s.Hv_sym.xx, s.∇²L)
     add_update!(s.Hv_sym.xLxL, s.σL)
     add_update!(s.Hv_sym.xUxU, s.σU)
-    update!(s.Hv_sym.xy, s.∇c')
-    update!(s.Hv_sym.yx, s.∇c)
+    update!(s.Hv_sym.xy, get_∇c(s.model)')
+    update!(s.Hv_sym.yx, get_∇c(s.model))
     update!(s.Hv_sym.yAyA, -1.0/s.ρ)
     return nothing
 end

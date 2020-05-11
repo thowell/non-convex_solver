@@ -13,10 +13,9 @@ function second_order_correction(s::Solver)
     s.θ_soc = copy(s.θ)
 
     # Compute c_soc (Eq. 27)
-    s.model.c_func!(s.c_soc, s.x⁺, s.model)   # evaluate the constraints at the current step
-    if s.opts.nlp_scaling
-        s.c_soc .= s.Dc*s.c_soc
-    end
+    eval_c!(s.model,s.x⁺)
+    get_c_scaled!(s.c_soc,s)
+
     s.c_soc .+= s.α*s.c
 
     # Compute the corrected search direction
@@ -60,8 +59,10 @@ function second_order_correction(s::Solver)
         else  # A-5.9 Next second-order correction
             s.p += 1
 
-            s.model.c_func!(s.c,s.x⁺,s.model)
-            s.c_soc .= s.α_soc*s.c_soc + (s.opts.nlp_scaling ? s.Dc*s.c : s.c)
+            eval_c!(s.model,s.x⁺)
+            get_c_scaled!(s.c,s)
+
+            s.c_soc .= s.α_soc*s.c_soc + s.c
             s.θ_soc = s.θ⁺
 
             search_direction_soc!(s)

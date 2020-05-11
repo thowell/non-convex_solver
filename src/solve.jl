@@ -114,7 +114,7 @@ function solve!(solver::InteriorPointSolver)
     println("   iteration ($(s.j),$(s.k)):")
 
     s.model.n < 5 ? println("   x: $(s.x)") : nothing
-    println("   f: $(s.f)")
+    println("   f: $(get_f_scaled(s.x,s))")
     println("   θ: $(s.θ), φ: $(s.φ)")
     println("   E0: $(eval_Eμ(0.0,s))")
     println("   norm(c): $(norm(s.c[s.model.cA_idx .== 0]))")
@@ -137,7 +137,7 @@ function log_stats(s)
     @logmsg InnerLoop :θ value=s.θ width=10
     @logmsg InnerLoop :φ value=s.φ width=10
     @logmsg InnerLoop :Eμ value=eval_Eμ(s.μ, s)
-    @logmsg InnerLoop :f value=s.f width=10
+    @logmsg InnerLoop :f value=get_f_scaled(s.x,s) width=10
     @logmsg InnerLoop :μ value=s.μ width=10
     @logmsg InnerLoop :α value=s.α
 end

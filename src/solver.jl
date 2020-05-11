@@ -21,22 +21,16 @@ mutable struct Solver{T}
     σL::Vector{T}
     σU::Vector{T}
 
-    f::T                            # objective value
-    ∇f::Vector{T}                   # objective gradient
-    ∇²f::SparseMatrixCSC{T,Int}     # objective hessian
-
     φ::T                            # barrier objective value
     φ⁺::T                           # next barrier objective value
     ∇φ::Vector{T}                   # gradient of barrier objective
 
-    ∇L::Vector{T}                   # gradient of the Lagrangian?
-    ∇²L::SparseMatrixCSC{T,Int}     # Hessian of the Lagrangian?
+    ∇L::Vector{T}                   # gradient of the Lagrangian
+    ∇²L::SparseMatrixCSC{T,Int}     # Hessian of the Lagrangian
 
     c::Vector{T}                    # constraint values
     c_soc::Vector{T}
     c_tmp::Vector{T}
-    ∇c::SparseMatrixCSC{T,Int}      # constraint Jacobian
-    ∇²cy::SparseMatrixCSC{T,Int}    # second-order constraint Jacobian. Jacobian of `∇c'y`
 
     H::SparseMatrixCSC{T,Int}       # KKT matrix
     H_sym::SparseMatrixCSC{T,Int}   # Symmetric KKT matrix
@@ -200,17 +194,16 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
     ∇²L = spzeros(n,n)
     σL = zeros(nL)
     σU = zeros(nU)
-    ∇c = spzeros(m,n)
-    model.∇c_func!(∇c,x,model)
-    Dc = init_Dc(opts.g_max,∇c,m)
+    eval_∇c!(model,x)
+    Dc = init_Dc(opts.g_max,get_∇c(model),m)
 
-    f = model.f_func(x,model)
-    ∇f = zeros(n)
-    model.∇f_func!(∇f,x,model)
-    df = init_df(opts.g_max,∇f)
-    opts.nlp_scaling ? f *= df : nothing
+    μ = copy(opts.μ0)
+    ρ = 1.0/μ
+    λ = zeros(mA)
+    τ = update_τ(μ,opts.τ_min)
 
-    ∇²f = spzeros(n,n)
+    eval_∇f!(model,x)
+    df = init_df(opts.g_max,get_∇f(model))
 
     φ = 0.
     φ⁺ = 0.
@@ -219,18 +212,15 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
     ∇L = zeros(n)
 
     c = zeros(m)
-    model.c_func!(c,x,model)
-    opts.nlp_scaling ? c .= Dc*c : nothing
-
     c_soc = zeros(m)
     c_tmp = zeros(m)
 
-    ∇²cy = spzeros(n,n)
+    eval_c!(model,x)
+    get_c_scaled!(c,model,Dc,opts.nlp_scaling)
+
 
     d = zeros(n+m+nL+nU)
     d_soc = zeros(n+m+nL+nU)
-
-    μ = copy(opts.μ0)
 
     α = 1.0
     αz = 1.0
@@ -239,8 +229,6 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
     α_soc = 1.0
     β = 1.0
 
-    τ = update_τ(μ,opts.τ_min)
-
     δ = zero(d)
     δw = 0.
     δw_last = 0.
@@ -248,7 +236,7 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
 
     y = zeros(m)
 
-    opts.y_init_ls ? init_y!(y,H_sym,h_sym,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,opts.y_max) : zeros(m)
+    opts.y_init_ls ? init_y!(y,H_sym,h_sym,d,zL,zU,get_∇f(model),get_∇c(model),n,m,xL_bool,xU_bool,opts.y_max) : zeros(m)
 
     sd = init_sd(y,[zL;zU],n,m,opts.s_max)
     sc = init_sc([zL;zU],n,opts.s_max)
@@ -279,7 +267,7 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
             n,
             m,mI,mE,mA,
             cI_idx,cE_idx,cA_idx)
-            
+
     idx_r = restoration_indices()
 
     fail_cnt = 0
@@ -287,11 +275,10 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
     Hv = H_fullspace_views(H,idx)
     Hv_sym = H_symmetric_views(H_sym,idx)
 
-    ρ = 1.0/μ
-    λ = zeros(mA)
+
     yA = view(y,cA_idx)
     cA = view(c,cA_idx)
-    ∇cA = view(∇c,cA_idx,idx.x)
+    ∇cA = view(model.∇c,cA_idx,idx.x)
 
     θ = norm(c,1)
     θ⁺ = copy(θ)
@@ -335,10 +322,9 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
            ΔxL,ΔxU,
            y,
            zL,zU,σL,σU,
-           f,∇f,∇²f,
            φ,φ⁺,∇φ,
            ∇L,∇²L,
-           c,c_soc,c_tmp,∇c,∇²cy,
+           c,c_soc,c_tmp,
            H,H_sym,
            Hv,Hv_sym,
            h,h_sym,
@@ -400,12 +386,13 @@ end
 Evaluate the objective value and it's first and second-order derivatives
 """
 function eval_objective!(s::Solver)
-    # QUESTION: you don't apply scaling to the derivatives?
-    # TODO: when applicable, evaluate all of these with a single call to ForwardDiff
-    s.f = s.opts.nlp_scaling ? s.df*s.model.f_func(s.x,s.model) : s.model.f_func(s.x,s.model)
-    s.model.∇f_func!(s.∇f,s.x,s.model)
-    s.model.∇²f_func!(s.∇²f,s.x,s.model)
+    eval_∇f!(s.model,s.x)
+    eval_∇²f!(s.model,s.x)
     return nothing
+end
+
+function get_f_scaled(x,s::Solver)
+    s.opts.nlp_scaling ? s.df*get_f(s.model,x) : get_f(s.model,x)
 end
 
 
@@ -416,14 +403,22 @@ Evaluate the constraints and their first and second-order derivatives. Also comp
 constraint residual `θ`.
 """
 function eval_constraints!(s::Solver)
-    s.model.c_func!(s.c,s.x,s.model)
-    s.opts.nlp_scaling ? (s.c .= s.Dc*s.c) : nothing
+    eval_c!(s.model,s.x)
+    get_c_scaled!(s.c,s)
 
-    s.model.∇c_func!(s.∇c,s.x,s.model)
-    s.model.∇²cy_func!(s.∇²cy,s.x,s.y,s.model)
+    eval_∇c!(s.model,s.x)
+    eval_∇²cy!(s.model,s.x,s.y)
 
     s.θ = norm(s.c,1)
     return nothing
+end
+
+function get_c_scaled!(c,model,Dc,nlp_scaling)
+    nlp_scaling && c .= Dc*get_c(model)
+    return nothing
+end
+function get_c_scaled!(c,s::Solver)
+    get_c_scaled!(c,s.model,s.Dc,s.opts.nlp_scaling)
 end
 
 """
@@ -432,12 +427,12 @@ end
 Evaluate the first and second derivatives of the Lagrangian
 """
 function eval_lagrangian!(s::Solver)
-    s.∇L .= s.∇f
-    s.∇L .+= s.∇c'*s.y
+    s.∇L .= get_∇f(s.model)
+    s.∇L .+= get_∇c(s.model)'*s.y
     s.∇L[s.idx.xL] -= s.zL
     s.∇L[s.idx.xU] += s.zU
 
-    s.∇²L .= s.∇²f + s.∇²cy
+    s.∇²L .= get_∇²f(s.model) + get_∇²cy(s.model)
 
     # damping
     if s.opts.single_bnds_damping
@@ -455,13 +450,13 @@ end
 Evaluate barrier objective and it's gradient
 """
 function eval_barrier!(s::Solver)
-    s.φ = s.f
+    s.φ = get_f_scaled(s.x,s)
     s.φ -= s.μ*sum(log.(s.ΔxL))
     s.φ -= s.μ*sum(log.(s.ΔxU))
 
     s.φ += s.λ'*s.cA + 0.5*s.ρ*s.cA'*s.cA
 
-    s.∇φ .= s.∇f
+    s.∇φ .= get_∇f(s.model)
     s.∇φ[s.idx.xL] -= s.μ./s.ΔxL
     s.∇φ[s.idx.xU] += s.μ./s.ΔxU
 
@@ -625,10 +620,8 @@ end
 Calculate the 1-norm of the constraints
 """
 function θ(x,s::Solver)
-    s.model.c_func!(s.c_tmp, x, s.model)
-    if s.opts.nlp_scaling
-        s.c_tmp .= s.Dc*s.c_tmp
-    end
+    eval_c!(s.model,x)
+    get_c_scaled!(s.c_tmp,s)
     return norm(s.c_tmp,1)
 end
 
@@ -647,16 +640,12 @@ function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f,ρ,yA,cA)
 end
 
 function barrier(x,s::Solver)
-    s.f = s.model.f_func(x,s.model)
-
-    s.model.c_func!(s.c_tmp,x,s.model)
-    if s.opts.nlp_scaling
-        s.c_tmp .= s.Dc*s.c_tmp
-    end
+    eval_c!(s.model,x)
+    get_c_scaled!(s.c_tmp,s)
 
     return barrier(x,s.model.xL,s.model.xU,s.model.xL_bool,s.model.xU_bool,s.model.xLs_bool,
         s.model.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,
-        s.opts.nlp_scaling ? s.df*s.f : s.f,
+        get_f_scaled(x,s),
         s.ρ,s.λ,s.c_tmp[s.model.cA_idx])
 end
 

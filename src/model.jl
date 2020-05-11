@@ -44,30 +44,103 @@ mutable struct Model{T} <: AbstractModel
     cE_idx::Vector{Bool}
     cA_idx::Vector{Bool}
 
+    # data
+    ∇f::Vector{T}
+    ∇²f::SparseMatrixCSC{T,Int}
+
+    c::Vector{T}
+    ∇c::SparseMatrixCSC{T,Int}
+    ∇²cy::SparseMatrixCSC{T,Int}
+
     info::AbstractModelInfo
 end
 
+
 function Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cy_func!;
-        cI_idx=zeros(Bool,m),cA_idx=zeros(Bool,m))
+        cI_idx=zeros(Bool,m),cA_idx=zeros(Bool,m),bnd_tol=1.0e8)
 
     mI = convert(Int,sum(cI_idx))
     cE_idx = Vector((cI_idx + cA_idx) .== 0)
     mE = convert(Int,sum(cE_idx))
     mA = convert(Int,sum(cA_idx))
 
-    xL_bool, xU_bool, xLs_bool, xUs_bool = bool_bounds(xL,xU,1.0e8)
+    xL_bool, xU_bool, xLs_bool, xUs_bool = bool_bounds(xL,xU,bnd_tol)
 
-    nL = convert(Int,sum(xL .> -Inf))
-    nU = convert(Int,sum(xU .< Inf))
+    nL = convert(Int,sum(xL_bool))
+    nU = convert(Int,sum(xU_bool))
+
+    # data
+    ∇f = zeros(n)
+    ∇²f = spzeros(n,n)
+
+    c = zeros(m)
+    ∇c = spzeros(m,n)
+    ∇²cy = spzeros(n,n)
 
     info = EmptyModelInfo()
+
     Model(n,m,mI,mE,mA,
           xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
           f_func,∇f_func!,∇²f_func!,
           c_func!,∇c_func!,∇²cy_func!,
           cI_idx,cE_idx,cA_idx,
+          ∇f,∇²f,
+          c,∇c,∇²cy,
           info)
 end
+
+function eval_∇f!(model::Model,x)
+    model.∇f_func!(model.∇f,x,model)
+    return nothing
+end
+
+function eval_∇²f!(model::Model,x)
+    model.∇²f_func!(model.∇²f,x,model)
+    return return nothing
+end
+
+function get_f(model::Model,x)
+    model.f_func(x,model)
+end
+
+function get_∇f(model::Model)
+    return model.∇f
+end
+
+function get_∇²f(model::Model)
+    return model.∇²f
+end
+
+function eval_c!(model::Model,x)
+    model.c_func!(model.c,x,model)
+    return nothing
+end
+
+function eval_∇c!(model::Model,x)
+    model.∇c_func!(model.∇c,x,model)
+    return nothing
+end
+
+function eval_∇²cy!(model::Model,x,y)
+    model.∇²cy_func!(model.∇²cy,x,y,model)
+    return nothing
+end
+
+function get_c(model::Model)
+    return model.c
+end
+
+function get_∇c(model::Model)
+    return model.∇c
+end
+
+function get_∇²cy(model::Model)
+    return model.∇²cy
+end
+
+
+
+
 
 """
     objective_functions(f::Function)

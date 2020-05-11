@@ -26,6 +26,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         verbose=false)
 
 s = InteriorPointSolver(x0,model,opts=opts)
+
 @time solve!(s)
 
 restoration!(s.s̄,s.s)
