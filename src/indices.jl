@@ -44,6 +44,10 @@ struct RestorationIndices
     zn::UnitRange{Int}
     zU::UnitRange{Int}
     xy::Vector{Int}
+    zLL::UnitRange{Int}
+    zLp::UnitRange{Int}
+    zLn::UnitRange{Int}
+    zUU::UnitRange{Int}
 end
 
 function restoration_indices()
@@ -55,5 +59,10 @@ function restoration_indices()
     zU = 0:0
     xy = [0]
 
-    RestorationIndices(p,n,zL,zp,zn,zU,xy)
+    zLL = 0:0
+    zLp = 0:0
+    zLn = 0:0
+    zUU = 0:0
+
+    RestorationIndices(p,n,zL,zp,zn,zU,xy,zLL,zLp,zLn,zUU)
 end
