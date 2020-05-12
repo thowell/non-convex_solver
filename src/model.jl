@@ -199,6 +199,12 @@ function constraint_functions(c::Function)
     return c_func!, ∇c_func!, ∇²cy_func!
 end
 
+mutable struct SlackModelInfo{T} <: AbstractModelInfo
+    model::Model
+    λ::Vector{T}
+    ρ::T
+end
+
 function slack_model(model::Model;bnd_tol=1.0e8)
     # slack bounds
     xL_slack = zeros(model.mI)
@@ -223,18 +229,21 @@ function slack_model(model::Model;bnd_tol=1.0e8)
 
     # modified constraint functions
     function c_func!(c,x,model)
-        model.info.c_func!(view(c,1:model.info.m),view(x,1:model.info.n),model.info)
-        c[(1:model.info.m)[model.info.cI_idx]] .-= view(x,model.info.n .+ (1:model.info.mI))
+        _model = model.info.model
+        _model.c_func!(view(c,1:_model.m),view(x,1:_model.n),_model)
+        c[(1:_model.m)[_model.cI_idx]] .-= view(x,_model.n .+ (1:_model.mI))
         return nothing
     end
     function ∇c_func!(∇c,x,model)
-        model.info.∇c_func!(view(∇c,1:model.info.m,1:model.info.n),view(x,1:model.info.n),model.info)
-        ∇c[CartesianIndex.((1:model.info.m)[model.info.cI_idx],model.info.n .+ (1:model.info.mI))] .= -1.0
+        _model = model.info.model
+        _model.∇c_func!(view(∇c,1:_model.m,1:_model.n),view(x,1:_model.n),_model)
+        ∇c[CartesianIndex.((1:_model.m)[_model.cI_idx],_model.n .+ (1:_model.mI))] .= -1.0
         return nothing
     end
     function ∇²cy_func!(∇²cy,x,y,model)
-         model.info.∇²cy_func!(view(∇²cy,1:model.info.n,1:model.info.n),view(x,1:model.info.n),view(y,1:model.info.m),model.info)
-         return nothing
+        _model = model.info.model
+        _model.∇²cy_func!(view(∇²cy,1:_model.n,1:_model.n),view(x,1:_model.n),view(y,1:_model.m),_model)
+        return nothing
     end
 
     # data
@@ -245,6 +254,8 @@ function slack_model(model::Model;bnd_tol=1.0e8)
     ∇c = spzeros(m,n)
     ∇²cy = spzeros(n,n)
 
+    info = SlackModelInfo(model,zeros(m),1.0)
+
     Model(n,m,model.mI,model.mE,model.mA,
           xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
           model.f_func,model.∇f_func!,model.∇²f_func!,
@@ -252,7 +263,7 @@ function slack_model(model::Model;bnd_tol=1.0e8)
           model.cI_idx,model.cE_idx,model.cA_idx,
           ∇f,∇²f,
           c,∇c,∇²cy,
-          model)
+          info)
 end
 
 mutable struct RestorationModelInfo{T} <: AbstractModelInfo

@@ -700,7 +700,7 @@ struct InteriorPointSolver{T}
 end
 
 function InteriorPointSolver(x0,model;opts=Options{Float64}()) where T
-    if model.mI > 0
+    if model.mI > 0 || model.mA > 0
         # slack model
         _model = slack_model(model,bnd_tol=opts.bnd_tol)
 
@@ -715,5 +715,19 @@ function InteriorPointSolver(x0,model;opts=Options{Float64}()) where T
     s = Solver(_x0,_model,opts=opts)
     s̄ = RestorationSolver(s)
 
+    update_slack_model_info!(s)
+    update_slack_model_info!(s̄)
+
     InteriorPointSolver(s,s̄)
+end
+
+function update_slack_model_info!(s::Solver)
+    if s.model.info isa SlackModelInfo
+        s.model.info.λ .= s.λ
+        s.model.info.ρ = s.ρ
+    elseif s.model.info.model.info isa SlackModelInfo # case where restoration model wraps
+        s.model.info.model.info.λ .= s.λ
+        s.model.info.model.info.ρ = s.ρ
+    end
+    return nothing
 end

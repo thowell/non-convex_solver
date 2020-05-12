@@ -8,8 +8,9 @@ function ρ_update!(s::Solver)
     return nothing
 end
 
-function augmented_lagrangian_update!(s)
+function augmented_lagrangian_update!(s::Solver)
     λ_update!(s)
     ρ_update!(s)
+    update_slack_model_info!(s)
     return nothing
 end

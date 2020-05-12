@@ -320,7 +320,7 @@ function RestorationSolver(s::Solver)
     opts_r.y_init_ls = false
     opts_r.relax_bnds = false
 
-    model_r = restoration_model(s.model)
+    model_r = restoration_model(s.model,bnd_tol=s.opts.bnd_tol)
 
     s̄ = Solver(zeros(model_r.n),model_r,opts=opts_r)
     s̄.idx_r = restoration_indices(s̄,s)
