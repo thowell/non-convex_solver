@@ -18,20 +18,9 @@ c_func(x) = [x[1]^2 - 1.0;
              x[1] - 0.5]
 c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
-model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
-opts = Options{Float64}(kkt_solve=:symmetric,
-                        relax_bnds=true,
-                        nlp_scaling=true,
-                        single_bnds_damping=true,
-                        iterative_refinement=true,
-                        max_iterative_refinement=100,
-                        max_iter=100,
-                        verbose=false)
 cI_idx=ones(Bool,m)
-cA_idx=zeros(Bool,m)
-s = InteriorPointSolver(x0,model,cI_idx=cI_idx,cA_idx=cA_idx,opts=opts)
-@time solve!(s)
+cA_idx=ones(Bool,m)
+model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
 
-eval_step!(s.s)
-restoration!(s.s̄,s.s)
-s.s.x
+s = InteriorPointSolver(x0,model)
+@time solve!(s)

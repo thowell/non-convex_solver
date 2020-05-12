@@ -55,8 +55,4 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iterative_refinement=100)
 
 s = InteriorPointSolver(x0,model,opts=opts)
-# @time solve!(s)
-
-# eval_step!(s.s)
-# initialize_restoration_solver!(s.s̄,s.s)
-# @time solve_restoration!(s.s̄,s.s,verbose=true)
+@time solve!(s)

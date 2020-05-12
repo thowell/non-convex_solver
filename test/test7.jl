@@ -18,19 +18,7 @@ c_func(x) = [-(x[1] -1)^3 + x[2] - 1;
              -x[1] - x[2] + 2]
 c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
-model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
-opts = Options{Float64}(kkt_solve=:symmetric,
-                        relax_bnds=true,
-                        nlp_scaling=true,
-                        single_bnds_damping=true,
-                        iterative_refinement=true,
-                        max_iterative_refinement=100,
-                        max_iter=100,
-                        verbose=true,
-                        ϵ_tol=1.0e-6)
+model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=ones(Bool,m))
 
-s = InteriorPointSolver(x0,model,cI_idx=ones(Bool,m),opts=opts)
-s.s.ρ = 100.
+s = InteriorPointSolver(x0,model)
 @time solve!(s)
-
-restoration!(s.s̄,s.s)

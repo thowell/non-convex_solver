@@ -20,21 +20,10 @@ c_func(x) = [x[1]^2 - x[2] - 1.0;
              x[1] - x[3] - 0.5]
 c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
-model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cA_idx=ones(Bool,m),)
-opts = Options{Float64}(kkt_solve=:symmetric,
-                        relax_bnds=true,
-                        nlp_scaling=true,
-                        single_bnds_damping=true,
-                        iterative_refinement=true,
-                        max_iterative_refinement=100,
-                        max_iter=100,
-                        verbose=false)
+model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cA_idx=ones(Bool,m))
 
-s = InteriorPointSolver(x0,model,opts=opts)
-s.s.ρ = 1.
+s = InteriorPointSolver(x0,model)
 @time solve!(s)
-
-
 # ######
 # using Ipopt, MathOptInterface
 # const MOI = MathOptInterface

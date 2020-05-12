@@ -19,19 +19,19 @@ struct Indices
     xy::UnitRange{Int}   # entire primal-dual vector
 end
 
-function indices(n,m,nL,nU,xL_bool,xU_bool,xLs_bool,xUs_bool,n_model,m_model,mI,mE,mA,cI_idx,cE_idx,cA_idx)
-    x = 1:n
-    xL = x[xL_bool]
-    xU = x[xU_bool]
-    xLs = x[xLs_bool]
-    xUs = x[xUs_bool]
-    y = n .+ (1:m)
-    yI = y[cI_idx]
-    yE = y[cE_idx]
-    yA = y[cA_idx]
-    zL = n + m .+ (1:nL)
-    zU = n + m + nL .+ (1:nU)
-    xy = 1:(n+m)
+function indices(model)
+    x = 1:model.n
+    xL = x[model.xL_bool]
+    xU = x[model.xU_bool]
+    xLs = x[model.xLs_bool]
+    xUs = x[model.xUs_bool]
+    y = model.n .+ (1:model.m)
+    yI = y[model.cI_idx]
+    yE = y[model.cE_idx]
+    yA = y[model.cA_idx]
+    zL = model.n + model.m .+ (1:model.nL)
+    zU = model.n + model.m + model.nL .+ (1:model.nU)
+    xy = 1:(model.n+model.m)
 
     Indices(x,xL,xU,xLs,xUs,y,yI,yE,yA,zL,zU,xy)
 end

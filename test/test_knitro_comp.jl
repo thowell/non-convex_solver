@@ -36,6 +36,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=100,
                         ϵ_tol=1.0e-6,
                         nlp_scaling=true)
+                        
 s = InteriorPointSolver(x0,model,opts=opts)
 
 @time solve!(s)

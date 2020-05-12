@@ -35,9 +35,5 @@ end
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c_func!,∇c_func!,∇²cy_func!)
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(iterative_refinement=true,
-                        kkt_solve=:symmetric,
-                        nlp_scaling=true,
-                        relax_bnds=true))
+s = InteriorPointSolver(x0,model)
 @time solve!(s)
-norm(c_func(s.s.x),1)

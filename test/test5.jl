@@ -17,11 +17,7 @@ c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n+m,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
 
-opts = Options{Float64}(kkt_solve=:symmetric,
-                        iterative_refinement=true,
-                        verbose=false)
-
-s = InteriorPointSolver(x0,model,opts=opts)
+s = InteriorPointSolver(x0,model)
 @time solve!(s)
 s.s.x
 
@@ -40,13 +36,9 @@ f, ∇f!, ∇²f! = objective_functions(f_func)
 c_func(x) = 5.0*x[1:m].^2 .- 3.0
 c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
-model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!)
+model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=ones(Bool,model.m))
 
-opts = Options{Float64}(kkt_solve=:symmetric,
-                        iterative_refinement=true,
-                        verbose=false)
-
-s = InteriorPointSolver(x0,model,cI_idx=ones(Bool,model.m),opts=opts)
+s = InteriorPointSolver(x0,model)
 @time solve!(s)
 
 s.s.x

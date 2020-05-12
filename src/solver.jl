@@ -168,16 +168,14 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
     ΔxL = zeros(nL)
     ΔxU = zeros(nU)
 
-    if opts.relax_bnds
-       relax_bounds_init!(xL,xU,xL_bool,xU_bool,n,opts.ϵ_tol)
-    end
+    opts.relax_bnds && relax_bounds_init!(xL,xU,xL_bool,xU_bool,n,opts.ϵ_tol)
 
     for i = 1:n
         x[i] = init_x0(x0[i],xL[i],xU[i],opts.κ1,opts.κ2)
     end
 
     Dx = init_Dx(n)
-    opts.nlp_scaling ? x .= Dx*x : nothing
+    opts.nlp_scaling && (x .= Dx*x)
 
     zL = opts.zL0*ones(nL)
     zU = opts.zU0*ones(nU)
@@ -194,6 +192,7 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
     ∇²L = spzeros(n,n)
     σL = zeros(nL)
     σU = zeros(nU)
+
     eval_∇c!(model,x)
     Dc = init_Dc(opts.g_max,get_∇c(model),m)
 
@@ -217,7 +216,6 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
 
     eval_c!(model,x)
     get_c_scaled!(c,model,Dc,opts.nlp_scaling)
-
 
     d = zeros(n+m+nL+nU)
     d_soc = zeros(n+m+nL+nU)
@@ -262,11 +260,7 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
 
     Fμ = zeros(n+m+nL+nU)
 
-    idx = indices(n,m,nL,nU,
-            xL_bool,xU_bool,xLs_bool,xUs_bool,
-            n,
-            m,mI,mE,mA,
-            cI_idx,cE_idx,cA_idx)
+    idx = indices(model)
 
     idx_r = restoration_indices()
 
@@ -274,7 +268,6 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
 
     Hv = H_fullspace_views(H,idx)
     Hv_sym = H_symmetric_views(H_sym,idx)
-
 
     yA = view(y,cA_idx)
     cA = view(c,cA_idx)
@@ -372,9 +365,8 @@ eval_Eμ(μ,s::Solver) = eval_Eμ(s.zL,s.zU,s.ΔxL,s.ΔxU,s.c[s.model.cA_idx .==
 Evaluate the bound constraints and their sigma values
 """
 function eval_bounds!(s::Solver)
-    s.ΔxL .= (s.x - s.model.xL)[s.model.xL_bool]
-    s.ΔxU .= (s.model.xU - s.x)[s.model.xU_bool]
-
+    s.ΔxL .= view(s.x,s.idx.xL) - view(s.model.xL,s.idx.xL)
+    s.ΔxU .= view(s.model.xU,s.idx.xU) - view(s.x,s.idx.xU)
     s.σL .= s.zL./s.ΔxL
     s.σU .= s.zU./s.ΔxU
     return nothing
@@ -466,8 +458,9 @@ function eval_barrier!(s::Solver)
     if s.opts.single_bnds_damping
         κd = s.opts.κd
         μ = s.μ
-        s.φ += κd*μ*sum((s.x - s.model.xL)[s.idx.xLs])
-        s.φ += κd*μ*sum((s.model.xU - s.x)[s.idx.xUs])
+
+        s.φ += κd*μ*sum(view(s.x,s.idx.xLs) - view(s.model.xL,s.idx.xLs))
+        s.φ += κd*μ*sum(view(s.model.xU,s.idx.xUs) - view(s.x,s.idx.xUs))
         s.∇φ[s.idx.xLs] .+= κd*μ
         s.∇φ[s.idx.xUs] .-= κd*μ
     end
@@ -535,8 +528,8 @@ some constant > 1, usually very large (e.g. 10^10).
 reset_z(z,x,μ,κΣ) = max(min(z,κΣ*μ/x),μ/(κΣ*x))
 
 function reset_z!(s::Solver)
-    s.ΔxL .= (s.x - s.model.xL)[s.model.xL_bool]
-    s.ΔxU .= (s.model.xU - s.x)[s.model.xU_bool]
+    s.ΔxL .= view(s.x,s.idx.xL) - view(s.model.xL,s.idx.xL)
+    s.ΔxU .= view(s.model.xU,s.idx.xU) - view(s.x,s.idx.xU)
 
     for i = 1:s.model.nL
         s.zL[i] = reset_z(s.zL[i],s.ΔxL[i],s.μ,s.opts.κΣ)
@@ -706,8 +699,20 @@ struct InteriorPointSolver{T}
     s̄::Solver{T}
 end
 
-function InteriorPointSolver(x0,model::AbstractModel;opts=Options{Float64}()) where T
-    s = Solver(x0,model,opts=opts)
+function InteriorPointSolver(x0,model;opts=Options{Float64}()) where T
+    if model.mI > 0
+        # slack model
+        _model = slack_model(model,bnd_tol=opts.bnd_tol)
+
+        # initialize slacks
+        eval_c!(model,x0)
+        s0 = get_c(model)[model.cI_idx]
+        _x0 = [x0;s0]
+    else
+        _model = model
+        _x0 = x0
+    end
+    s = Solver(_x0,_model,opts=opts)
     s̄ = RestorationSolver(s)
 
     InteriorPointSolver(s,s̄)

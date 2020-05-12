@@ -1,7 +1,6 @@
-abstract type AbstractModel end
 abstract type AbstractModelInfo end
+abstract type AbstractModel <: AbstractModelInfo end
 struct EmptyModelInfo <: AbstractModelInfo end
-
 """
     Model{T}
 
@@ -198,4 +197,160 @@ function constraint_functions(c::Function)
     end
 
     return c_func!, ∇c_func!, ∇²cy_func!
+end
+
+function slack_model(model::Model;bnd_tol=1.0e8)
+    # slack bounds
+    xL_slack = zeros(model.mI)
+    xU_slack = Inf*ones(model.mI)
+    xL_bool_slack, xU_bool_slack, xLs_bool_slack, xUs_bool_slack = bool_bounds(xL_slack,xU_slack,bnd_tol)
+
+    xL = [model.xL;xL_slack]
+    xU = [model.xU;xU_slack]
+
+    xL_bool = [model.xL_bool;xL_bool_slack]
+    xU_bool = [model.xU_bool;xU_bool_slack]
+
+    xLs_bool = [model.xLs_bool;xLs_bool_slack]
+    xUs_bool = [model.xUs_bool;xUs_bool_slack]
+
+    # dimensions
+    n = model.n + model.mI
+    m = model.m
+
+    nL = convert(Int,sum(xL_bool))
+    nU = convert(Int,sum(xU_bool))
+
+    # modified constraint functions
+    function c_func!(c,x,model)
+        model.info.c_func!(view(c,1:model.info.m),view(x,1:model.info.n),model.info)
+        c[(1:model.info.m)[model.info.cI_idx]] .-= view(x,model.info.n .+ (1:model.info.mI))
+        return nothing
+    end
+    function ∇c_func!(∇c,x,model)
+        model.info.∇c_func!(view(∇c,1:model.info.m,1:model.info.n),view(x,1:model.info.n),model.info)
+        ∇c[CartesianIndex.((1:model.info.m)[model.info.cI_idx],model.info.n .+ (1:model.info.mI))] .= -1.0
+        return nothing
+    end
+    function ∇²cy_func!(∇²cy,x,y,model)
+         model.info.∇²cy_func!(view(∇²cy,1:model.info.n,1:model.info.n),view(x,1:model.info.n),view(y,1:model.info.m),model.info)
+         return nothing
+    end
+
+    # data
+    ∇f = zeros(n)
+    ∇²f = spzeros(n,n)
+
+    c = zeros(m)
+    ∇c = spzeros(m,n)
+    ∇²cy = spzeros(n,n)
+
+    Model(n,m,model.mI,model.mE,model.mA,
+          xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
+          model.f_func,model.∇f_func!,model.∇²f_func!,
+          c_func!,∇c_func!,∇²cy_func!,
+          model.cI_idx,model.cE_idx,model.cA_idx,
+          ∇f,∇²f,
+          c,∇c,∇²cy,
+          model)
+end
+
+mutable struct RestorationModelInfo{T} <: AbstractModelInfo
+    model::Model
+    xR::Vector{T}
+    DR
+    ζ::T
+    ρ::T
+end
+
+function restoration_model(model::Model;bnd_tol=1.0e8)
+    # p,n bounds
+    xL_pn = zeros(2*model.m)
+    xU_pn = Inf*ones(2*model.m)
+    xL_bool_pn, xU_bool_pn, xLs_bool_pn, xUs_bool_pn = bool_bounds(xL_pn,xU_pn,bnd_tol)
+
+    xL = [model.xL;xL_pn]
+    xU = [model.xU;xU_pn]
+
+    xL_bool = [model.xL_bool;xL_bool_pn]
+    xU_bool = [model.xU_bool;xU_bool_pn]
+
+    xLs_bool = [model.xLs_bool;xLs_bool_pn]
+    xUs_bool = [model.xUs_bool;xUs_bool_pn]
+
+    # dimensions
+    n = model.n + 2*model.m
+    m = model.m
+
+    nL = convert(Int,sum(xL_bool))
+    nU = convert(Int,sum(xU_bool))
+
+    # restoration objective
+    function f_func(x,model)
+        _model = model.info.model
+        xR = model.info.xR
+        DR = model.info.DR
+        ζ = model.info.ζ
+        ρ = model.info.ρ
+        ρ*sum(view(x,_model.n .+ (1:2*_model.m))) + 0.5*ζ*(view(x,1:_model.n) - xR)'*DR'*DR*(view(x,1:_model.n) - xR)
+    end
+
+    function ∇f_func!(∇f,x,model)
+        _model = model.info.model
+        xR = model.info.xR
+        DR = model.info.DR
+        ζ = model.info.ζ
+        ρ = model.info.ρ
+        ∇f[1:_model.n] = ζ*DR'*DR*(view(x,1:_model.n) - xR)
+        ∇f[_model.n .+ (1:2*_model.m)] .= ρ
+        return nothing
+    end
+
+    function ∇²f_func!(∇²f,x,model)
+        _model = model.info.model
+        DR = model.info.DR
+        ζ = model.info.ζ
+        ∇²f[1:_model.n,1:_model.n] = ζ*DR'*DR
+        return nothing
+    end
+
+    # modified constraint functions
+    function c_func!(c,x,model)
+        _model = model.info.model
+        _model.c_func!(c,view(x,1:_model.n),_model)
+        c .-= view(x,_model.n .+ (1:_model.m))
+        c .+= view(x,_model.n+_model.m .+ (1:_model.m))
+        return nothing
+    end
+    function ∇c_func!(∇c,x,model)
+        _model = model.info.model
+        _model.∇c_func!(view(∇c,1:_model.m,1:_model.n),view(x,1:_model.n),_model)
+        view(∇c,CartesianIndex.(1:_model.m,_model.n .+ (1:_model.m))) .= -1.0
+        view(∇c,CartesianIndex.(1:_model.m,_model.n+_model.m .+ (1:_model.m))) .= 1.0
+        return nothing
+    end
+    function ∇²cy_func!(∇²cy,x,y,model)
+        _model = model.info.model
+        _model.∇²cy_func!(view(∇²cy,1:_model.n,1:_model.n),view(x,1:_model.n),view(y,1:_model.m),_model)
+        return nothing
+    end
+
+    # data
+    ∇f = zeros(n)
+    ∇²f = spzeros(n,n)
+
+    c = zeros(m)
+    ∇c = spzeros(m,n)
+    ∇²cy = spzeros(n,n)
+
+    info = RestorationModelInfo(model,zeros(model.n),spzeros(model.n,model.n),0.,0.)
+
+    Model(n,m,model.mI,model.mE,model.mA,
+          xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
+          f_func,∇f_func!,∇²f_func!,
+          c_func!,∇c_func!,∇²cy_func!,
+          model.cI_idx,model.cE_idx,model.cA_idx,
+          ∇f,∇²f,
+          c,∇c,∇²cy,
+          info)
 end
