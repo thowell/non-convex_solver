@@ -127,7 +127,6 @@ end
 function restoration_reset!(s̄::Solver,s::Solver)
     eval_c!(s.model,view(s̄.x,s.idx.x))
     get_c_scaled!(s.c,s)
-    s.model.mA != 0 && (s.cA .+= 1.0/s̄.ρ*(s̄.λ - s̄.yA))
 
     # initialize p,n
     n = s.model.n
@@ -143,177 +142,6 @@ function restoration_reset!(s̄::Solver,s::Solver)
 
     return nothing
 end
-
-# function RestorationSolver(s::Solver)
-#     opts = copy(s.opts)
-#     opts.y_init_ls = false
-#     opts.relax_bnds = false
-#
-#     n̄ = s.model.n + 2s.model.m
-#     m̄ = s.model.m
-#
-#     x̄ = zeros(n̄)
-#
-#     x̄L = zeros(n̄)
-#     x̄L[s.idx.x] = s.model.xL # maybe initialized with phase 1 relaxed bounds
-#
-#     x̄U = Inf*ones(n̄)
-#     x̄U[s.idx.x] = s.model.xU # maybe initialize with phase 1 relaxed bounds
-#
-#     f̄_func(x,model::AbstractModel) = 0.
-#
-#     function ∇f̄_func!(∇f,x,model::AbstractModel)
-#         return nothing
-#     end
-#     function ∇²f̄_func!(∇²f,x,model::AbstractModel)
-#         return nothing
-#     end
-#
-#     function c̄_func!(c,x,model::AbstractModel)
-#         return nothing
-#     end
-#
-#     function ∇c̄_func!(∇c,x,model::AbstractModel)
-#         return nothing
-#     end
-#
-#     function ∇²c̄y_func!(∇²c̄y,x,y,model::AbstractModel)
-#         return nothing
-#     end
-#
-#     _model = Model(n̄,m̄,
-#                 x̄L,x̄U,
-#                 f̄_func,∇f̄_func!,∇²f̄_func!,
-#                 c̄_func!,∇c̄_func!,∇²c̄y_func!,
-#                 cI_idx=s.model.cI_idx,cA_idx=s.model.cA_idx)
-#
-#     s̄ = Solver(x̄,_model,opts=opts)
-#     s̄.DR = spzeros(s.model.n,s.model.n)
-#     s̄.idx_r = restoration_indices(s̄,s)
-#     return s̄
-# end
-#
-# function initialize_restoration_solver!(s̄::Solver,s::Solver)
-#     s̄.k = 0
-#     s̄.j = 0
-#
-#     eval_c!(s.model,view(s̄.x,s.idx.x))
-#     get_c_scaled!(s.c,s)
-#
-#     s̄.μ = max(s.μ,norm(s.c,Inf))
-#     s̄.τ = update_τ(s̄.μ,s̄.opts.τ_min)
-#
-#     s̄.ρ = 1/s̄.μ
-#     s̄.λ .= 0.
-#
-#     s̄.x[s.idx.x] = copy(s.x)
-#
-#     # initialize p,n
-#     for i = 1:s.model.m
-#         s̄.x[s.model.n + s.model.m + i] = init_n(s.c[i],s̄.μ,s̄.opts.ρ_resto)
-#     end
-#
-#     for i = 1:s.model.m
-#         s̄.x[s.model.n + i] = init_p(s̄.x[s.model.n + s.model.m + i],s.c[i])
-#     end
-#
-#     # # project
-#     # for i = 1:s̄.n
-#     #     s̄.x[i] = init_x0(s̄.x[i],s̄.xL[i],s̄.xU[i],s̄.opts.κ1,s̄.opts.κ2)
-#     # end
-#
-#     # initialize zL, zU, zp, zn
-#     for i = 1:s.model.nL
-#         s̄.zL[i] = min(s̄.opts.ρ_resto,s.zL[i])
-#     end
-#
-#     for i = 1:s.model.nU
-#         s̄.zU[i] = min(s̄.opts.ρ_resto,s.zU[i])
-#     end
-#
-#     s̄.zL[s.model.nL .+ (1:2s.model.m)] = s̄.μ./view(s̄.x,s.model.n .+ (1:2s.model.m))
-#
-#     init_DR!(s̄.DR,s.x,s.model.n)
-#
-#     s̄.restoration = true
-#
-#     update_restoration_objective!(s̄,s)
-#     update_restoration_constraints!(s̄,s)
-#     empty!(s̄.filter)
-#
-#     eval_∇f!(s̄.model,s̄.x)
-#
-#
-#     eval_∇c!(s̄.model,s̄.x)
-#
-#     init_Dx!(s̄.Dx,s̄.model.n)
-#     s̄.df = init_df(s̄.opts.g_max,get_∇f(s̄.model))
-#     init_Dc!(s̄.Dc,s̄.opts.g_max,get_∇c(s̄.model),s̄.model.m)
-#
-#     eval_c!(s̄.model,s̄.x)
-#     get_c_scaled!(s̄.c,s̄)
-#
-#
-#     s̄.θ = norm(s̄.c,1)
-#     s̄.θ_min = init_θ_min(s̄.θ)
-#     s̄.θ_max = init_θ_max(s̄.θ)
-#
-#     return nothing
-# end
-#
-# function update_restoration_objective!(s̄::Solver,s::Solver)
-#     ζ = sqrt(s̄.μ)
-#     DR = s̄.DR
-#     idx_pn = s.model.n .+ (1:2s.model.m)
-#
-#     function f_func(x,model::AbstractModel)
-#         s̄.opts.ρ_resto*sum(view(x,idx_pn)) + 0.5*ζ*(view(x,s.idx.x) - s.x)'*DR'*DR*(view(x,s.idx.x) - s.x)
-#     end
-#
-#     function ∇f_func!(∇f,x,model::AbstractModel)
-#         ∇f[s.idx.x] = ζ*DR'*DR*(view(x,s.idx.x) - s.x)
-#         ∇f[idx_pn] .= s̄.opts.ρ_resto
-#         return nothing
-#     end
-#
-#     function ∇²f_func!(∇²f,x,model::AbstractModel)
-#         ∇²f[s.idx.x,s.idx.x] = ζ*DR'*DR
-#         return nothing
-#     end
-#
-#     s̄.model.f_func = f_func
-#     s̄.model.∇f_func! = ∇f_func!
-#     s̄.model.∇²f_func! = ∇²f_func!
-#
-#     return nothing
-# end
-#
-# function update_restoration_constraints!(s̄::Solver,s::Solver)
-#     function c_func!(c,x,model::AbstractModel)
-#         s.model.c_func!(c,view(x,s.idx.x),s.model)
-#         c .-= view(x,s̄.idx_r.p)
-#         c .+= view(x,s̄.idx_r.n)
-#         return nothing
-#     end
-#
-#     function ∇c_func!(∇c,x,model::AbstractModel)
-#         s.model.∇c_func!(view(∇c,1:s.model.m,s.idx.x),view(x,s.idx.x),s.model)
-#         ∇c[CartesianIndex.(1:s.model.m,s̄.idx_r.p)] .= -1.0
-#         ∇c[CartesianIndex.(1:s.model.m,s̄.idx_r.n)] .= 1.0
-#         return nothing
-#     end
-#
-#     function ∇²cy_func!(∇²cy,x,y,model::AbstractModel)
-#         s.model.∇²cy_func!(view(∇²cy,s.idx.x,s.idx.x),view(x,s.idx.x),y,s.model)
-#         return return nothing
-#     end
-#
-#     s̄.model.c_func! = c_func!
-#     s̄.model.∇c_func! = ∇c_func!
-#     s̄.model.∇²cy_func! = ∇²cy_func!
-#
-#     return nothing
-# end
 
 function RestorationSolver(s::Solver)
     opts_r = copy(s.opts)
@@ -456,7 +284,6 @@ function kkt_hessian_symmetric_restoration!(s̄::Solver,s::Solver)
     s.Hv_sym.xy .= view(get_∇c(s̄.model),1:s.model.m,s.idx.x)'
     s.Hv_sym.yx .= view(get_∇c(s̄.model),1:s.model.m,s.idx.x)
     update!(s.Hv_sym.yy,-1.0./view(s̄.σL,s̄.idx_r.zLp) - 1.0./view(s̄.σL,s̄.idx_r.zLn))
-    add_update!(s.Hv_sym.yAyA,-1.0/s̄.ρ)
     return nothing
 end
 
@@ -465,7 +292,6 @@ function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
     s.h_sym[s.idx.xL] += (view(s̄.h,s̄.idx.zL)./s̄.ΔxL)[s̄.idx_r.zLL]
     s.h_sym[s.idx.xU] -= (view(s̄.h,s̄.idx.zU)./s̄.ΔxU)[s̄.idx_r.zUU]
     s.h_sym[s.idx.y] = view(s̄.h,s̄.idx.y) + 1.0./view(s̄.σL,s̄.idx_r.zLp).*view(s̄.h,s̄.idx_r.p) -1.0./view(s̄.σL,s̄.idx_r.zLn).*view(s̄.h,s̄.idx_r.n) + view(s̄.h,s̄.idx_r.zp)./view(s̄.zL,s̄.idx_r.zLp) - view(s̄.h,s̄.idx_r.zn)./view(s̄.zL,s̄.idx_r.zLn)
-    s.h_sym[s.idx.yA] += 1.0/s̄.ρ*(s̄.λ - s̄.yA)
     return nothing
 end
 

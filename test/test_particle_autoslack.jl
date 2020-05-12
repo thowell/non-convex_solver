@@ -91,7 +91,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=500,
                         relax_bnds=true,
                         y_init_ls=true,
-                        ϵ_tol=1.0e-6,
+                        ϵ_tol=1.0e-8,
                         verbose=false)
 
 s = InteriorPointSolver(x0,nlp_model,opts=opts)

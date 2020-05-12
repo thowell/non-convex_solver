@@ -349,15 +349,14 @@ end
 
 Evaluate the optimality error.
 """
-function eval_Eμ(zL,zU,ΔxL,ΔxU,c,∇L,μ,sd,sc,ρ,λ,yA,cA)
+function eval_Eμ(zL,zU,ΔxL,ΔxU,c,∇L,μ,sd,sc)
     return max(norm(∇L,Inf)/sd,
                norm(c,Inf),
-               norm(cA + 1.0/ρ*(λ - yA),Inf),
                norm(ΔxL.*zL .- μ,Inf)/sc,
                norm(ΔxU.*zU .- μ,Inf)/sc)
 end
 
-eval_Eμ(μ,s::Solver) = eval_Eμ(s.zL,s.zU,s.ΔxL,s.ΔxU,s.c[s.model.cA_idx .== 0],s.∇L,μ,s.sd,s.sc,s.ρ,s.λ,s.yA,s.cA)
+eval_Eμ(μ,s::Solver) = eval_Eμ(s.zL,s.zU,s.ΔxL,s.ΔxU,s.c,s.∇L,μ,s.sd,s.sc)
 
 """
     eval_bounds!(s::Solver)
@@ -424,7 +423,10 @@ function eval_lagrangian!(s::Solver)
     s.∇L[s.idx.xL] -= s.zL
     s.∇L[s.idx.xU] += s.zU
 
+    s.model.mA > 0 && (s.∇L[get_r_idx(s)] = s.λ + s.ρ*view(s.x,get_r_idx(s)) - s.yA)
+
     s.∇²L .= get_∇²f(s.model) + get_∇²cy(s.model)
+    s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(get_r_idx(s),get_r_idx(s))) .= s.ρ)
 
     # damping
     if s.opts.single_bnds_damping
@@ -446,13 +448,13 @@ function eval_barrier!(s::Solver)
     s.φ -= s.μ*sum(log.(s.ΔxL))
     s.φ -= s.μ*sum(log.(s.ΔxU))
 
-    s.φ += s.λ'*s.cA + 0.5*s.ρ*s.cA'*s.cA
+    s.model.mA > 0 && (s.φ += s.λ'*view(s.x,get_r_idx(s)) + 0.5*s.ρ*view(s.x,get_r_idx(s))'*view(s.x,get_r_idx(s)))
 
     s.∇φ .= get_∇f(s.model)
     s.∇φ[s.idx.xL] -= s.μ./s.ΔxL
     s.∇φ[s.idx.xU] += s.μ./s.ΔxU
 
-    s.∇φ .+= s.∇cA'*(s.λ + s.ρ*s.cA)
+    s.model.mA > 0 && (s.∇φ[get_r_idx(s)] = s.λ + s.ρ*view(s.x,get_r_idx(s)))
 
     # damping
     if s.opts.single_bnds_damping
@@ -625,11 +627,11 @@ end
 Calculate the barrier objective function. When called using the solver, re-calculates the
     objective `f` and the constraints `c`.
 """
-function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f,ρ,yA,cA)
+function barrier(x,xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,μ,κd,f,ρ,λ,r)
     # QUESTION:
     return (f - μ*sum(log.((x - xL)[xL_bool])) - μ*sum(log.((xU - x)[xU_bool]))
         + κd*μ*sum((x - xL)[xLs_bool]) + κd*μ*sum((xU - x)[xUs_bool])
-        + yA'*cA + 0.5*ρ*cA'*cA)
+        + λ'*r + 0.5*ρ*r'*r)
 end
 
 function barrier(x,s::Solver)
@@ -639,7 +641,7 @@ function barrier(x,s::Solver)
     return barrier(x,s.model.xL,s.model.xU,s.model.xL_bool,s.model.xU_bool,s.model.xLs_bool,
         s.model.xUs_bool,s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,
         get_f_scaled(x,s),
-        s.ρ,s.λ,s.c_tmp[s.model.cA_idx])
+        s.ρ,s.λ,view(x,get_r_idx(s)))
 end
 
 """
@@ -707,7 +709,8 @@ function InteriorPointSolver(x0,model;opts=Options{Float64}()) where T
         # initialize slacks
         eval_c!(model,x0)
         s0 = get_c(model)[model.cI_idx]
-        _x0 = [x0;s0]
+        r0 = get_c(model)[model.cA_idx]
+        _x0 = [x0;s0;r0]
     else
         _model = model
         _x0 = x0
@@ -715,19 +718,24 @@ function InteriorPointSolver(x0,model;opts=Options{Float64}()) where T
     s = Solver(_x0,_model,opts=opts)
     s̄ = RestorationSolver(s)
 
-    update_slack_model_info!(s)
-    update_slack_model_info!(s̄)
-
     InteriorPointSolver(s,s̄)
 end
 
-function update_slack_model_info!(s::Solver)
-    if s.model.info isa SlackModelInfo
-        s.model.info.λ .= s.λ
-        s.model.info.ρ = s.ρ
-    elseif s.model.info.model.info isa SlackModelInfo # case where restoration model wraps
-        s.model.info.model.info.λ .= s.λ
-        s.model.info.model.info.ρ = s.ρ
+function get_r_idx(s::Solver)
+    if s.model.mA > 0
+        if s.model.info isa SlackModelInfo
+            n = s.model.info.model.n
+            mI = s.model.info.model.mI
+            mA = s.model.info.model.mA
+        elseif s.model.info.model.info isa SlackModelInfo
+            n = s.model.info.model.info.model.n
+            mI = s.model.info.model.info.model.mI
+            mA = s.model.info.model.info.model.mA
+        end
+    else
+        n = 0
+        mI = 0
+        mA = 0
     end
-    return nothing
+    return (n+mI .+ (1:mA))
 end

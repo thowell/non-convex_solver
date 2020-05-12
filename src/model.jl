@@ -199,16 +199,14 @@ function constraint_functions(c::Function)
     return c_func!, ∇c_func!, ∇²cy_func!
 end
 
-mutable struct SlackModelInfo{T} <: AbstractModelInfo
+mutable struct SlackModelInfo <: AbstractModelInfo
     model::Model
-    λ::Vector{T}
-    ρ::T
 end
 
 function slack_model(model::Model;bnd_tol=1.0e8)
     # slack bounds
-    xL_slack = zeros(model.mI)
-    xU_slack = Inf*ones(model.mI)
+    xL_slack = [zeros(model.mI);-Inf*ones(model.mA)]
+    xU_slack = Inf*ones(model.mI+model.mA)
     xL_bool_slack, xU_bool_slack, xLs_bool_slack, xUs_bool_slack = bool_bounds(xL_slack,xU_slack,bnd_tol)
 
     xL = [model.xL;xL_slack]
@@ -221,7 +219,7 @@ function slack_model(model::Model;bnd_tol=1.0e8)
     xUs_bool = [model.xUs_bool;xUs_bool_slack]
 
     # dimensions
-    n = model.n + model.mI
+    n = model.n + model.mI + model.mA
     m = model.m
 
     nL = convert(Int,sum(xL_bool))
@@ -232,12 +230,14 @@ function slack_model(model::Model;bnd_tol=1.0e8)
         _model = model.info.model
         _model.c_func!(view(c,1:_model.m),view(x,1:_model.n),_model)
         c[(1:_model.m)[_model.cI_idx]] .-= view(x,_model.n .+ (1:_model.mI))
+        c[(1:_model.m)[_model.cA_idx]] .-= view(x,_model.n+_model.mI .+ (1:_model.mA))
         return nothing
     end
     function ∇c_func!(∇c,x,model)
         _model = model.info.model
         _model.∇c_func!(view(∇c,1:_model.m,1:_model.n),view(x,1:_model.n),_model)
         ∇c[CartesianIndex.((1:_model.m)[_model.cI_idx],_model.n .+ (1:_model.mI))] .= -1.0
+        ∇c[CartesianIndex.((1:_model.m)[_model.cA_idx],_model.n+_model.mI .+ (1:_model.mA))] .= -1.0
         return nothing
     end
     function ∇²cy_func!(∇²cy,x,y,model)
@@ -254,7 +254,7 @@ function slack_model(model::Model;bnd_tol=1.0e8)
     ∇c = spzeros(m,n)
     ∇²cy = spzeros(n,n)
 
-    info = SlackModelInfo(model,zeros(m),1.0)
+    info = SlackModelInfo(model)
 
     Model(n,m,model.mI,model.mE,model.mA,
           xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,

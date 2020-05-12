@@ -24,6 +24,7 @@ model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cA_idx=ones(Bool,m))
 
 s = InteriorPointSolver(x0,model)
 @time solve!(s)
+
 # ######
 # using Ipopt, MathOptInterface
 # const MOI = MathOptInterface

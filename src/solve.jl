@@ -94,7 +94,7 @@ function solve!(solver::InteriorPointSolver)
         end  # inner while loop
 
 
-        if eval_Eμ(0.0,s) <= s.opts.ϵ_tol && norm(s.cA,1) <= s.opts.ϵ_al_tol
+        if eval_Eμ(0.0,s) <= s.opts.ϵ_tol && norm(view(s.x,get_r_idx(s)),1) <= s.opts.ϵ_al_tol
             break
         else
             barrier_update!(s)
@@ -113,12 +113,12 @@ function solve!(solver::InteriorPointSolver)
     println(crayon"reset", "   status: complete")
     println("   iteration ($(s.j),$(s.k)):")
 
-    s.model.n < 5 ? println("   x: $(s.x)") : nothing
+    s.model.n < 5 &&  println("   x: $(s.x)")
     println("   f: $(get_f_scaled(s.x,s))")
     println("   θ: $(s.θ), φ: $(s.φ)")
     println("   E0: $(eval_Eμ(0.0,s))")
-    println("   norm(c): $(norm(s.c[s.model.cA_idx .== 0]))")
-    println("   norm(cA): $(norm(s.cA))")
+    println("   norm(c): $(norm(s.c))")
+    s.model.mA > 0  && println("   norm(r): $(norm(view(s.x,get_r_idx(s))))")
     end # logger
 end
 

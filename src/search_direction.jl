@@ -27,14 +27,12 @@ function kkt_hessian_fullspace!(s::Solver)
     update!(s.Hv.zUxU,-1.0*s.zU)
     update!(s.Hv.zLzL,s.ΔxL)
     update!(s.Hv.zUzU,s.ΔxU)
-    update!(s.Hv.yAyA,-1.0/s.ρ)
     return nothing
 end
 
 function kkt_gradient_fullspace!(s::Solver)
     s.h[s.idx.x] = s.∇L
     s.h[s.idx.y] = s.c
-    s.h[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
     s.h[s.idx.zL] = s.zL.*s.ΔxL .- s.μ
     s.h[s.idx.zU] = s.zU.*s.ΔxU .- s.μ
     return nothing
@@ -59,7 +57,6 @@ function kkt_hessian_symmetric!(s::Solver)
     add_update!(s.Hv_sym.xUxU, s.σU)
     update!(s.Hv_sym.xy, get_∇c(s.model)')
     update!(s.Hv_sym.yx, get_∇c(s.model))
-    update!(s.Hv_sym.yAyA, -1.0/s.ρ)
     return nothing
 end
 

@@ -104,7 +104,6 @@ end
 function search_direction_soc!(s::Solver)
     kkt_gradient_fullspace!(s)
     s.h[s.idx.y] = s.c_soc
-    s.h[s.idx.yA] += 1.0/s.ρ*(s.λ - s.yA)
 
     if s.opts.kkt_solve == :symmetric
         search_direction_soc_symmetric!(s)

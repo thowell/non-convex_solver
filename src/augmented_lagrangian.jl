@@ -1,5 +1,5 @@
 function λ_update!(s::Solver)
-    s.λ .+= s.ρ*s.cA
+    s.λ .+= s.ρ*view(s.x,get_r_idx(s))
     return nothing
 end
 
@@ -11,6 +11,5 @@ end
 function augmented_lagrangian_update!(s::Solver)
     λ_update!(s)
     ρ_update!(s)
-    update_slack_model_info!(s)
     return nothing
 end
