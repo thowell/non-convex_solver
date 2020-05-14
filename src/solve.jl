@@ -95,6 +95,7 @@ function solve!(solver::InteriorPointSolver)
 
 
         if eval_Eμ(0.0,s) <= s.opts.ϵ_tol && norm(view(s.x,get_r_idx(s)),1) <= s.opts.ϵ_al_tol
+            @warn "augmented Lagrangian kick-out"
             break
         else
             barrier_update!(s)
