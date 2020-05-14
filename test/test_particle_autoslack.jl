@@ -75,7 +75,8 @@ cI_idx = zeros(Bool,m)
 cI_idx[1:nc+nc] .= 1
 
 cA_idx = ones(Bool,m)
-cA_idx[1:nq+nβ+nc+nc] .= 0
+# cA_idx[1:nq+nβ+nc+nc] .= 0
+cA_idx[1:nc+nc] .= 0
 
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
 

@@ -482,6 +482,7 @@ function eval_step!(s::Solver)
     eval_constraints!(s)
     eval_lagrangian!(s)
     eval_barrier!(s)
+    kkt_gradient_fullspace!(s)
     return nothing
 end
 

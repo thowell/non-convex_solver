@@ -251,7 +251,6 @@ function init_p(n,c)
 end
 
 function search_direction_restoration!(s̄::Solver,s::Solver)
-    kkt_gradient_fullspace!(s̄)
     if s.opts.kkt_solve == :fullspace
         search_direction_symmetric_restoration!(s̄,s)
     elseif s.opts.kkt_solve == :symmetric

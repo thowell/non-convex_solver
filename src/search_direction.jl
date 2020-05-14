@@ -5,8 +5,6 @@ Compute the search direction `s.d` by solving the KKT system. Includes both iner
 correction and iterative refinement.
 """
 function search_direction!(s::Solver)
-    kkt_gradient_fullspace!(s)
-
     if s.opts.kkt_solve == :symmetric
         search_direction_symmetric!(s)
     elseif s.opts.kkt_solve == :fullspace
@@ -62,8 +60,8 @@ end
 
 function kkt_gradient_symmetric!(s::Solver)
     s.h_sym[s.idx.x] .= s.h[s.idx.x]
-    s.h_sym[s.idx.xL] .+= s.h[s.idx.zL]./s.ΔxL
-    s.h_sym[s.idx.xU] .-= s.h[s.idx.zU]./s.ΔxU
+    s.h_sym[s.idx.xL] .+= view(s.h,s.idx.zL)./s.ΔxL
+    s.h_sym[s.idx.xU] .-= view(s.h,s.idx.zU)./s.ΔxU
     s.h_sym[s.idx.y] .= s.h[s.idx.y]
 
     return nothing

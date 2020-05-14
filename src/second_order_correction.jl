@@ -8,6 +8,7 @@ Returns `true` if the correction was successful and `false` otherwise.
 """
 function second_order_correction(s::Solver)
     status = false
+    s.d_copy .= s.d
 
     s.p = 1                                   # second-order correction iteration
     s.θ_soc = copy(s.θ)
@@ -82,7 +83,7 @@ Calculate the new trial primal variables, as well as the constraint norm and bar
 objective values
 """
 function trial_step_soc!(s::Solver)
-    s.x⁺ .= s.x + s.α_soc*s.d_soc[s.idx.x]
+    s.x⁺ .= s.x + s.α_soc*view(s.d_soc,s.idx.x)
     s.θ⁺ = θ(s.x⁺,s)
     s.φ⁺ = barrier(s.x⁺,s)
     return nothing
@@ -95,14 +96,13 @@ Compute the approximate result of Eq. 28, the step size for the second order cor
 """
 function α_soc_max!(s::Solver)
     s.α_soc = 1.0
-    while !fraction_to_boundary_bnds(s.x,s.model.xL,s.model.xU,s.model.xL_bool,s.model.xU_bool,s.d_soc[s.idx.x],s.α_soc,s.τ)
-        s.α_soc *= 0.5  # QUESTION: is there a smarter way to find the approximate minimizer? Binary search? -maybe, no one does that
+    while !fraction_to_boundary_bnds(s.x,s.model.xL,s.model.xU,s.model.xL_bool,s.model.xU_bool,view(s.d_soc,s.idx.x),s.α_soc,s.τ)
+        s.α_soc *= 0.5
     end
     return nothing
 end
 
 function search_direction_soc!(s::Solver)
-    kkt_gradient_fullspace!(s)
     s.h[s.idx.y] = s.c_soc
 
     if s.opts.kkt_solve == :symmetric
