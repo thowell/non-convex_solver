@@ -79,6 +79,9 @@ cA_idx = ones(Bool,m)
 cA_idx[1:nc+nc] .= 0
 
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
+#
+# eval_∇c!(nlp_model,x0)
+# rank(get_∇c(nlp_model))
 
 q0 = q1
 u0 = 1.0e-3*rand(nu)

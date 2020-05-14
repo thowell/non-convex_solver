@@ -226,6 +226,22 @@ function slack_model(model::Model;bnd_tol=1.0e8)
     nU = convert(Int,sum(xU_bool))
 
     # modified constraint functions
+    function f_func(x,model)
+        _model = model.info.model
+        return _model.f_func(view(x,1:_model.n),_model)
+    end
+    function ∇f_func!(∇f,x,model)
+        _model = model.info.model
+        _model.∇f_func!(view(∇f,1:_model.n),view(x,1:_model.n),_model)
+        return nothing
+    end
+    function ∇²f_func!(∇²f,x,model)
+        _model = model.info.model
+        _model.∇²f_func!(view(∇²f,1:_model.n,1:_model.n),view(x,1:_model.n),_model)
+        return nothing
+    end
+
+    # modified constraint functions
     function c_func!(c,x,model)
         _model = model.info.model
         _model.c_func!(view(c,1:_model.m),view(x,1:_model.n),_model)
@@ -258,7 +274,7 @@ function slack_model(model::Model;bnd_tol=1.0e8)
 
     Model(n,m,model.mI,model.mE,model.mA,
           xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
-          model.f_func,model.∇f_func!,model.∇²f_func!,
+          f_func,∇f_func!,∇²f_func!,
           c_func!,∇c_func!,∇²cy_func!,
           model.cI_idx,model.cE_idx,model.cA_idx,
           ∇f,∇²f,
