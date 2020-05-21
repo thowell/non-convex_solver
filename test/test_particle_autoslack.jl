@@ -90,7 +90,7 @@ y0 = 1.0*rand(1)[1]
 ψ0 = 1.0*rand(1)[1]
 x0 = [q0;u0;y0;β0;ψ0]
 
-opts = Options{Float64}(kkt_solve=:symmetric,
+opts = Options{Float64}(kkt_solve=:slack,
                         iterative_refinement=true,
                         max_iter=500,
                         relax_bnds=true,

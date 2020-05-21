@@ -6,6 +6,7 @@ end
 
 mutable struct Solver{T}
     model::AbstractModel
+    model_opt::AbstractModel # optimization model provided to the solver
 
     x::Vector{T}            # primal variables (n,)
     x⁺::Vector{T}
@@ -41,8 +42,13 @@ mutable struct Solver{T}
     h::Vector{T}                    # rhs of KKT system
     h_sym::Vector{T}                # rhs of symmetric KKT system
 
+    H_slack::SparseMatrixCSC{T,Int}
+    h_slack::Vector{T}
+
     LBL::Ma57{T} # ?
+    LBL_slack::Ma57{T}
     inertia::Inertia
+    inertia_slack::Inertia
 
     d::Vector{T}                    # current step
     dx::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}   # current step in the primals
@@ -52,15 +58,6 @@ mutable struct Solver{T}
     dxy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     dzL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
     dzU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
-
-    d_soc::Vector{T}
-    dx_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}   # current step in the primals
-    dxL_soc::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}   # current step in the primals with lower bounds
-    dxU_soc::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}   # current step in the primals with upper bounds
-    dy_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}   # current step in the duals
-    dxy_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
-    dzL_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
-    dzU_soc::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
 
     Δ::Vector{T}    # iterative refinement step
     Δ_xL::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
@@ -81,7 +78,6 @@ mutable struct Solver{T}
     αz::T
     α_max::T
     α_min::T
-    α_soc::T
     β::T
 
     # Regularization
@@ -143,7 +139,7 @@ mutable struct Solver{T}
     opts::Options{T}
 end
 
-function Solver(x0,model::AbstractModel;opts=Options{Float64}())
+function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Float64}())
     n = model.n
     m = model.m
     mI = model.mI
@@ -186,8 +182,14 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
     H_sym = spzeros(n+m,n+m)
     h_sym = zeros(n+m)
 
+    H_slack = spzeros(model_opt.n+model_opt.m,model_opt.n+model_opt.m)
+    h_slack = zeros(model_opt.n+model_opt.m)
+
     LBL = Ma57(H_sym)
+    LBL_slack = Ma57(H_slack)
+
     inertia = Inertia(0,0,0)
+    inertia_slack = Inertia(0,0,0)
 
     ∇²L = spzeros(n,n)
     σL = zeros(nL)
@@ -288,14 +290,6 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
     dzL = view(d,idx.zL)
     dzU = view(d,idx.zU)
 
-    dx_soc = view(d_soc,idx.x)
-    dxL_soc = view(d_soc,idx.xL)
-    dxU_soc = view(d_soc,idx.xU)
-    dy_soc = view(d_soc,idx.y)
-    dxy_soc = view(d_soc,idx.xy)
-    dzL_soc = view(d_soc,idx.zL)
-    dzU_soc = view(d_soc,idx.zU)
-
     Δ = zero(d)
     Δ_xL = view(Δ,idx.xL)
     Δ_xU = view(Δ,idx.xU)
@@ -310,7 +304,7 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
     res_zL = view(res,idx.zL)
     res_zU = view(res,idx.zU)
 
-    Solver(model,
+    Solver(model,model_opt,
            x,x⁺,
            ΔxL,ΔxU,
            y,
@@ -321,12 +315,13 @@ function Solver(x0,model::AbstractModel;opts=Options{Float64}())
            H,H_sym,
            Hv,Hv_sym,
            h,h_sym,
-           LBL,inertia,
+           H_slack,h_slack,
+           LBL,LBL_slack,
+           inertia,inertia_slack,
            d,dx,dxL,dxU,dy,dxy,dzL,dzU,
-           d_soc,dx_soc,dxL_soc,dxU_soc,dy_soc,dxy_soc,dzL_soc,dzU_soc,
            Δ,Δ_xL,Δ_xU,Δ_xy,Δ_zL,Δ_zU,
            res,res_xL,res_xU,res_xy,res_zL,res_zU,
-           α,αz,α_max,α_min,α_soc,β,
+           α,αz,α_max,α_min,β,
            δ,δw,δw_last,δc,
            θ,θ⁺,θ_min,θ_max,θ_soc,
            sd,sc,
@@ -705,7 +700,7 @@ end
 function InteriorPointSolver(x0,model;opts=Options{Float64}()) where T
     if model.mI > 0 || model.mA > 0
         # slack model
-        _model = slack_model(model,bnd_tol=opts.bnd_tol)
+        model_s = slack_model(model,bnd_tol=opts.bnd_tol)
 
         # initialize slacks
         eval_c!(model,x0)
@@ -713,13 +708,29 @@ function InteriorPointSolver(x0,model;opts=Options{Float64}()) where T
         r0 = get_c(model)[model.cA_idx]
         _x0 = [x0;s0;r0]
     else
-        _model = model
+        model_s = model
         _x0 = x0
     end
-    s = Solver(_x0,_model,opts=opts)
+    s = Solver(_x0,model_s,model,opts=opts)
     s̄ = RestorationSolver(s)
 
     InteriorPointSolver(s,s̄)
+end
+
+function get_s_idx(s::Solver)
+    if s.model.mI > 0
+        if s.model.info isa SlackModelInfo
+            n = s.model.info.model.n
+            mI = s.model.info.model.mI
+        elseif s.model.info.model.info isa SlackModelInfo
+            n = s.model.info.model.info.model.n
+            mI = s.model.info.model.info.model.mI
+        end
+    else
+        n = 0
+        mI = 0
+    end
+    return (n .+ (1:mI))
 end
 
 function get_r_idx(s::Solver)

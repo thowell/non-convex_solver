@@ -29,7 +29,7 @@ cA_idx = ones(Bool,m)
 cA_idx[1:4] .= 0
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
 
-opts = Options{Float64}(kkt_solve=:symmetric,
+opts = Options{Float64}(kkt_solve=:slack,
                         relax_bnds=true,
                         single_bnds_damping=true,
                         iterative_refinement=true,

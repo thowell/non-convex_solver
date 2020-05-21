@@ -3,9 +3,7 @@ function solve!(solver::InteriorPointSolver)
     # println("<augmented-Lagrangian interior-point solve>\n")
     title = "PRIMAL-DUAL AUGMENTED-LAGRANGIAN BARRIER SOLVER"
     println(crayon"bold underline red", title)
-    println(crayon"reset","written and maintained by")
-    println(crayon"reset","Taylor Howell and Brian Jackson")
-
+    println(crayon"reset","Taylor Howell")
     println("Robotic Exploration Lab")
     println("Stanford University\n")
 

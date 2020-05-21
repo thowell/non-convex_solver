@@ -134,7 +134,7 @@ function c_func(z)
                                   ((model.μ*y)^2 - β'*β);
                                   (1/model.Δt*(M(model,_qpp)*(_qp - _qpp) - M(model,_qp)*(q - _qp)) - model.Δt*∇V(model,_qp) + B(model,q)'*u +  N(model,q)'*y + P(model,q)'*β);
                                   (P(model,q)*(q-_qp)/model.Δt + 2.0*β*ψ);
-                                  y*ϕ(model,q);
+                                  ϕ(model,q)*y;
                                   ((model.μ*y)^2 - β'*β)*ψ]
      end
      return c
@@ -163,7 +163,7 @@ for t = 1:T
 end
 
 cA_idx_t = ones(Bool,np)
-cA_idx_t[1:nq+nβ+nc+nc] .= 0
+cA_idx_t[1:nc+nc+nq+nβ] .= 0
 cA_idx = ones(Bool,m)
 
 for t = 1:T

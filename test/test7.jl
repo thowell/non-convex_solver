@@ -1,6 +1,3 @@
-# NOTE: Ipopt fails to converge on this problem. This solver also fail, unless
-#    δc ≈ 0.1. or augmented Lagrangian is used for constraints
-
 include("../src/interior_point.jl")
 
 n = 2
