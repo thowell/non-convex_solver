@@ -12,7 +12,7 @@ include("../src/interior_point.jl")
 # nlp = CUTEstModel("GENHS28")
 
 # nlp = CUTEstModel("ARGLCLE") ## factorization issue -> reg fix init.
-nlp = CUTEstModel("BT1")
+# nlp = CUTEstModel("BT1")
 # nlp = CUTEstModel("BT2")
 # nlp = CUTEstModel("BT3")
 # nlp = CUTEstModel("BT4")
@@ -32,7 +32,7 @@ nlp = CUTEstModel("BT1")
 # nlp = CUTEstModel("EIGENB2") ##big
 # nlp = CUTEstModel("EIGENBCO") ##big
 # nlp = CUTEstModel("EIGENBC2")
-# nlp = CUTEstModel("ELEC") ## calls watchdog and restoration
+nlp = CUTEstModel("ELEC") ## calls watchdog and restoration
 # nlp = CUTEstModel("GRIDNETE") ##big
 # nlp = CUTEstModel("GRIDNETH") ## big
 # nlp = CUTEstModel("HS6")

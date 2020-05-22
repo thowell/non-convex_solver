@@ -6,7 +6,7 @@ function watch_dog!(s::Solver)
     s.y_copy .= s.y
     s.zL_copy .= s.zL
     s.zU_copy .= s.zU
-    s.d_copy .= s.d
+    d_copy = s.d
 
     # new trial point
     eval_step!(s)
@@ -53,7 +53,7 @@ function watch_dog!(s::Solver)
         s.y .= s.y_copy
         s.zL .= s.zL_copy
         s.zU .= s.zU_copy
-        s.d .= s.d_copy
+        s.d .= d_copy
         eval_step!(s)
         α_max!(s)
         αz_max!(s)

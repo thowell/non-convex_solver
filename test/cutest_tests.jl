@@ -1,27 +1,20 @@
 
 status = Symbol[]
-@testset "CUTEst Small Problems" begin
-    for prob in CUTEstProbs[:small] 
+@testset "CUTEst inter Problems" begin
+    for prob in CUTEstProbs[:small]
         println(prob)
         nlp = CUTEstModel(prob)
-        tol = 1e-8
         model = Model(nlp)
         opts = Options{Float64}(kkt_solve=:symmetric,
-                                iterative_refinement=true,
-                                relax_bnds=true,
-                                max_iter=100,
-                                y_init_ls=true,
-                                max_iterative_refinement=1000,
                                 ϵ_tol = 1e-8,
+                                ϵ_al_tol = 1e-8,
                                 verbose=false)
-        solver = InteriorPointSolver(nlp.meta.x0, model, cA_idx=zeros(Bool,nlp.meta.ncon),opts=opts)
+        solver = InteriorPointSolver(nlp.meta.x0, model,opts=opts)
         try
             solve!(solver)
-            eval_step!(solver.s)
-            @test norm(solver.s.∇L, Inf) < tol
-            @test norm(solver.s.c, Inf) < tol
-            @test norm(min.(solver.s.x - solver.s.xL, 0), Inf) < tol
-            @test norm(max.(solver.s.x - solver.s.xU, 0), Inf) < tol
+            s = solver.s
+            @test eval_Eμ(0.0,s) <= s.opts.ϵ_tol
+            # @test norm(view(s.x,get_r_idx(s)),1) <= s.opts.ϵ_al_tol
             push!(status, :solved)
         catch
             push!(status, :failed)

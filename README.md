@@ -6,10 +6,10 @@ Problems of the following form,
 ```
 minimize        f(x)
    x
-subject to      xL <= x <= xU
-                cI(x) >= 0
+subject to      cI(x) >= 0
                 c(x)   = 0
                 cA(x)  = 0
+                xL <= x <= xU
 ```
 
 can be solved.

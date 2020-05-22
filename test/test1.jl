@@ -22,7 +22,7 @@ c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cA_idx=ones(Bool,m))
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:slack,verbose=true))#,ϵ_tol=1.0e-6))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,verbose=true))#,ϵ_tol=1.0e-6))
 @time solve!(s)
 
 

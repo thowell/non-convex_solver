@@ -60,11 +60,11 @@ function line_search(s::Solver)
                 s.opts.verbose && @warn "acceleration heuristic: resetting filter, reducing θ_max"
             else
                 @warn "WATCH DOG : UNTESTED"
-                # if watch_dog!(s)
-                #     s.opts.verbose && @warn "acceleration heuristic: watch dog -success"
-                #     status = true
-                #     break
-                # end
+                if watch_dog!(s)
+                    s.opts.verbose && @warn "acceleration heuristic: watch dog -success"
+                    status = true
+                    break
+                end
             end
         end
 
