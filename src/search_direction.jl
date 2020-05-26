@@ -161,15 +161,15 @@ function search_direction_slack!(s::Solver)
     ΔsL = view(s.ΔxL,nL .+ (1:mI))
     ΔxU = s.ΔxU
     zL = view(s.zL,1:nL)
-    zS = s.zL[nL .+ (1:mI)]
+    zS = view(s.zL,nL .+ (1:mI))
     zU = s.zU
 
     inertia_correction_slack!(s)
     s._dxy .= ma57_solve(s.LBL_slack,-s.h_slack)
 
     s.dr .= 1.0/s.ρ*(s.dyA - s.hr)
-    s._dzL .= -(zL.*s.dx[s.idx.xL[1:nL]] + s.hzL)./ΔxL
-    s.dzU .= (zU.*s.dx[s.idx.xU[1:nU]] - s.hzU)./ΔxU
+    s._dzL .= -(zL.*view(s.dxL,1:nL) + s.hzL)./ΔxL
+    s.dzU .= (zU.*view(s.dx,1:nU) - s.hzU)./ΔxU
     s.dzs .= -s.dyI + s.hs
     s.ds .= -(ΔsL.*s.dzs + s.hzs)./zS
 

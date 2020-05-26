@@ -23,8 +23,6 @@ model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cA_idx=ones(Bool,m))
 s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:slack,verbose=false))
 @time solve!(s)
 
-typeof(s.s.hyI)
-
 # ######
 # using Ipopt, MathOptInterface
 # const MOI = MathOptInterface

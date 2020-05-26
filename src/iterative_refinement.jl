@@ -46,16 +46,6 @@ function iterative_refinement_slack(d::Vector{T},s::Solver) where T
     res_norm = norm(s.res,Inf)
     println("init res: $res_norm")
     while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement) || iter < s.opts.min_iterative_refinement
-        # if s.opts.kkt_solve == :fullspace
-        #     s.Δ .= (s.H+Diagonal(s.δ))\s.res
-        # elseif s.opts.kkt_solve == :symmetric
-        #     s.res_xL .+= s.res_zL./s.ΔxL
-        #     s.res_xU .-= s.res_zU./s.ΔxU
-        #
-        #     s.Δ_xy .= ma57_solve(s.LBL,s.res[s.idx.xy])
-        #     s.Δ_zL .= -s.σL.*s.Δ_xL + s.res_zL./s.ΔxL
-        #     s.Δ_zU .= s.σU.*s.Δ_xU + s.res_zU./s.ΔxU
-        # elseif s.opts.kkt_solve == :slack
         n = s.model_opt.n
         m = s.model_opt.m
         mI = s.model.mI
@@ -65,15 +55,7 @@ function iterative_refinement_slack(d::Vector{T},s::Solver) where T
         nU = s.model_opt.nU
         idx = s.idx
 
-        H = spzeros(n+m,n+m)
         r = zeros(n+m)
-
-        view(H,1:n,1:n) .= s.H[1:n,1:n]
-        view(H,CartesianIndex.(idx.xL[1:nL],idx.xL[1:nL])) .+= view(s.σL,1:nL)
-        view(H,CartesianIndex.(idx.xU[1:nU],idx.xU[1:nU])) .+= view(s.σU,1:nU)
-
-        view(H,1:n,n .+ (1:m)) .= view(s.H,1:n,idx.y)
-        view(H,n .+ (1:m),1:n) .= view(s.H,idx.y,1:n)
 
         ΔxL = view(s.ΔxL,1:nL)
         ΔsL = view(s.ΔxL,nL .+ (1:mI))
@@ -81,8 +63,6 @@ function iterative_refinement_slack(d::Vector{T},s::Solver) where T
         zL = view(s.zL,1:nL)
         zS = view(s.zL,nL .+ (1:mI))
         zU = s.zU
-        view(H,CartesianIndex.(n .+ (1:mI),n .+ (1:mI))) .= -ΔsL./zS
-        view(H,CartesianIndex.(n+mI+mE .+ (1:mA),n+mI+mE .+ (1:mA))) .= -1.0/s.ρ
 
         hx = view(s.res,1:n)
         hs = view(s.res,s.idx.s)
@@ -104,7 +84,7 @@ function iterative_refinement_slack(d::Vector{T},s::Solver) where T
 
         idx_tmp = [(1:s.model_opt.n)...,s.idx.y...]
 
-        Δ = -H\r_tmp
+        Δ = ma57_solve(s.LBL_slack,r_tmp)
 
         Δx = Δ[1:n]
         ΔyI = Δ[n .+ (1:mI)]

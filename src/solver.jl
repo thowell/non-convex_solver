@@ -90,12 +90,30 @@ mutable struct Solver{T}
     Δ_zL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     Δ_zU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
 
+    Δ__xy
+    Δ_s
+    Δ_r
+    Δ_yI
+    Δ_yE
+    Δ_yA
+    Δ__zL
+    Δ_zs
+
     res::Vector{T}  # iterative refinement residual
     res_xL::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
     res_xU::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
     res_xy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     res_zL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     res_zU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+
+    res__xy
+    res_s
+    res_r
+    res_yI
+    res_yE
+    res_yA
+    res__zL
+    res_zs
 
     # Line search values
     α::T
@@ -347,12 +365,30 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     Δ_zL = view(Δ,idx.zL)
     Δ_zU = view(Δ,idx.zU)
 
+    Δ__xy = view(Δ,[(1:model_opt.n)...,idx.y...])
+    Δ_s = view(Δ,idx.s)
+    Δ_r = view(Δ,idx.r)
+    Δ_yI = view(Δ,idx.yI)
+    Δ_yE = view(Δ,idx.yE)
+    Δ_yA = view(Δ,idx.yA)
+    Δ__zL = view(Δ,idx.zL[1:model_opt.nL])
+    Δ_zs = view(Δ,idx.zL[model_opt.nL .+ (1:model_opt.mI)])
+
     res = zero(d)
     res_xL = view(res,idx.xL)
     res_xU = view(res,idx.xU)
     res_xy = view(res,idx.xy)
     res_zL = view(res,idx.zL)
     res_zU = view(res,idx.zU)
+
+    res__xy = view(res,[(1:model_opt.n)...,idx.y...])
+    res_s = view(res,idx.s)
+    res_r = view(res,idx.r)
+    res_yI = view(res,idx.yI)
+    res_yE = view(res,idx.yE)
+    res_yA = view(res,idx.yA)
+    res__zL = view(res,idx.zL[1:model_opt.nL])
+    res_zs = view(res,idx.zL[model_opt.nL .+ (1:model_opt.mI)])
 
     Solver(model,model_opt,
            x,xl,xu,xx,xs,xr,
@@ -371,8 +407,8 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            LBL,LBL_slack,
            inertia,inertia_slack,
            d,dx,dxL,dxU,dy,dxy,dzL,dzU,_dxy,ds,dr,dyI,dyE,dyA,_dzL,dzs,
-           Δ,Δ_xL,Δ_xU,Δ_xy,Δ_zL,Δ_zU,
-           res,res_xL,res_xU,res_xy,res_zL,res_zU,
+           Δ,Δ_xL,Δ_xU,Δ_xy,Δ_zL,Δ_zU,Δ__xy,Δ_s,Δ_r,Δ_yI,Δ_yE,Δ_yA,Δ__zL,Δ_zs,
+           res,res_xL,res_xU,res_xy,res_zL,res_zU,res__xy,res_s,res_r,res_yI,res_yE,res_yA,res__zL,res_zs,
            α,αz,α_max,α_min,β,
            δ,δw,δw_last,δc,
            θ,θ⁺,θ_min,θ_max,θ_soc,
