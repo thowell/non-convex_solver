@@ -5,10 +5,11 @@ status = Symbol[]
         println(prob)
         nlp = CUTEstModel(prob)
         model = Model(nlp)
-        opts = Options{Float64}(kkt_solve=:symmetric,
+        opts = Options{Float64}(kkt_solve=:slack,
+                                max_iter=1000,
                                 ϵ_tol = 1e-8,
                                 ϵ_al_tol = 1e-8,
-                                verbose=false)
+                                verbose=true)
         solver = InteriorPointSolver(nlp.meta.x0, model,opts=opts)
         try
             solve!(solver)

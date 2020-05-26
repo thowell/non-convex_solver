@@ -69,30 +69,30 @@ function iterative_refinement_slack(d::Vector{T},s::Solver) where T
         r = zeros(n+m)
 
         view(H,1:n,1:n) .= s.H[1:n,1:n]
-        view(H,CartesianIndex.(idx.xL[1:nL],idx.xL[1:nL])) .+= s.σL[1:nL]
-        view(H,CartesianIndex.(idx.xU[1:nU],idx.xU[1:nU])) .+= s.σU[1:nU]
+        view(H,CartesianIndex.(idx.xL[1:nL],idx.xL[1:nL])) .+= view(s.σL,1:nL)
+        view(H,CartesianIndex.(idx.xU[1:nU],idx.xU[1:nU])) .+= view(s.σU,1:nU)
 
-        view(H,1:n,n .+ (1:m)) .= s.H[1:n,idx.y]
-        view(H,n .+ (1:m),1:n) .= s.H[idx.y,1:n]
+        view(H,1:n,n .+ (1:m)) .= view(s.H,1:n,idx.y)
+        view(H,n .+ (1:m),1:n) .= view(s.H,idx.y,1:n)
 
-        ΔxL = s.ΔxL[1:nL]
-        ΔsL = s.ΔxL[nL .+ (1:mI)]
+        ΔxL = view(s.ΔxL,1:nL)
+        ΔsL = view(s.ΔxL,nL .+ (1:mI))
         ΔxU = s.ΔxU
-        zL = s.zL[1:nL]
-        zS = s.zL[nL .+ (1:mI)]
+        zL = view(s.zL,1:nL)
+        zS = view(s.zL,nL .+ (1:mI))
         zU = s.zU
         view(H,CartesianIndex.(n .+ (1:mI),n .+ (1:mI))) .= -ΔsL./zS
         view(H,CartesianIndex.(n+mI+mE .+ (1:mA),n+mI+mE .+ (1:mA))) .= -1.0/s.ρ
 
-        hx = s.res[1:n]
-        hs = s.res[get_s_idx(s)]
-        hr = s.res[get_r_idx(s)]
-        hyI = s.res[idx.y[1:mI]]
-        hyE = s.res[idx.y[mI .+ (1:mE)]]
-        hyA = s.res[idx.y[mI+mE .+ (1:mA)]]
-        hzL = s.res[idx.zL[1:nL]]
-        hzs = s.res[idx.zL[nL .+ (1:mI)]]
-        hzU = s.res[idx.zU]
+        hx = view(s.res,1:n)
+        hs = view(s.res,s.idx.s)
+        hr = view(s.res,s.idx.r)
+        hyI = view(s.res,idx.y[1:mI])
+        hyE = view(s.res,idx.y[mI .+ (1:mE)])
+        hyA = view(s.res,idx.y[mI+mE .+ (1:mA)])
+        hzL = view(s.res,idx.zL[1:nL])
+        hzs = view(s.res,idx.zL[nL .+ (1:mI)])
+        hzU = view(s.res,idx.zU)
 
         r_tmp = zeros(n+m)
         r_tmp[1:n] .= copy(hx)

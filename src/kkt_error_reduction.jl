@@ -57,7 +57,7 @@ function eval_Fμ(x,y,zL,zU,s)
     s.∇L[s.idx.xL] -= zL
     s.∇L[s.idx.xU] += zU
 
-    s.model.mA > 0 && (s.∇L[get_r_idx(s)] = s.λ + s.ρ*view(s.x,get_r_idx(s)) - s.yA)
+    s.model.mA > 0 && (s.∇L[s.idx.r] += s.λ + s.ρ*view(x,s.idx.r))
 
     # damping
     if s.opts.single_bnds_damping
@@ -67,8 +67,8 @@ function eval_Fμ(x,y,zL,zU,s)
         s.∇L[s.idx.xUs] .-= κd*μ
     end
 
-    s.ΔxL .= (s.x - s.model.xL)[s.idx.xL]
-    s.ΔxU .= (s.model.xU - s.x)[s.idx.xU]
+    s.ΔxL .= view(x,s.idx.xL) - view(s.model.xL,s.idx.xL)
+    s.ΔxU .= view(s.model.xU,s.idx.xU) - view(x,s.idx.xU)
 
     s.Fμ[s.idx.x] = s.∇L
     s.Fμ[s.idx.y] = s.c

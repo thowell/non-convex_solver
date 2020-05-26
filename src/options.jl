@@ -60,6 +60,8 @@
     g_max::T = 100.
     nlp_scaling::Bool = true
 
+    watch_dog_iters::Int = 2
+
     max_fail_cnt::Int = 4
     ϵ_mach::T = 1.0e-16
 end
@@ -116,6 +118,7 @@ function Base.copy(o::Options{T}) where T
                     relax_bnds=copy(o.relax_bnds),
                     g_max=copy(o.g_max),
                     nlp_scaling=copy(o.nlp_scaling),
+                    watch_dog_iters=copy(o.watch_dog_iters),
                     max_fail_cnt=copy(o.max_fail_cnt),
                     ϵ_mach=copy(o.ϵ_mach))
 end

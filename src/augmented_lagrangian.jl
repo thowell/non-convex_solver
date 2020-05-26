@@ -1,5 +1,5 @@
 function λ_update!(s::Solver)
-    s.λ .+= s.ρ*view(s.x,get_r_idx(s))
+    s.λ .+= s.ρ*s.xr
     return nothing
 end
 

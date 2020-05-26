@@ -6,6 +6,8 @@ of `n` primal variables and `y` is the vector of `m` dual variables.
 """
 struct Indices
     x::UnitRange{Int}    # primal variables
+    s::UnitRange{Int}
+    r::UnitRange{Int}
     xL::Vector{Int}      # set of lower bounds on primals
     xU::Vector{Int}      # set of upper bounds on primals
     xLs::Vector{Int}     # set of lower bounds on slacks
@@ -19,8 +21,10 @@ struct Indices
     xy::UnitRange{Int}   # entire primal-dual vector
 end
 
-function indices(model)
+function indices(model,model_opt)
     x = 1:model.n
+    s = model_opt.n .+ (1:model_opt.mI)
+    r = model_opt.n + model_opt.mI .+ (1:model_opt.mA)
     xL = x[model.xL_bool]
     xU = x[model.xU_bool]
     xLs = x[model.xLs_bool]
@@ -32,8 +36,7 @@ function indices(model)
     zL = model.n + model.m .+ (1:model.nL)
     zU = model.n + model.m + model.nL .+ (1:model.nU)
     xy = 1:(model.n+model.m)
-
-    Indices(x,xL,xU,xLs,xUs,y,yI,yE,yA,zL,zU,xy)
+    Indices(x,s,r,xL,xU,xLs,xUs,y,yI,yE,yA,zL,zU,xy)
 end
 
 struct RestorationIndices

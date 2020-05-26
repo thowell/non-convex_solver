@@ -1,6 +1,7 @@
 function restoration!(s̄::Solver,s::Solver)
     s̄.opts.verbose ? println("~restoration phase~\n") : nothing
     if !kkt_error_reduction(s)
+        @error "restoration mode disabled"
         # phase 2 solver
         initialize_restoration_solver!(s̄,s)
 
@@ -148,10 +149,10 @@ function RestorationSolver(s::Solver)
     opts_r.y_init_ls = false
     opts_r.relax_bnds = false
 
-    model_opt_r = restoration_model(s.model_opt,bnd_tol=s.opts.bnd_tol)
+    # model_opt_r = restoration_model(s.model_opt,bnd_tol=s.opts.bnd_tol)
     model_r = restoration_model(s.model,bnd_tol=s.opts.bnd_tol)
 
-    s̄ = Solver(zeros(model_r.n),model_r,model_opt_r,opts=opts_r)
+    s̄ = Solver(zeros(model_r.n),model_r,s.model_opt,opts=opts_r)
     s̄.idx_r = restoration_indices(s̄,s)
     return s̄
 end

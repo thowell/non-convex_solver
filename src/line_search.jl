@@ -116,7 +116,7 @@ Compute the maximum step length (Eq. 15)
 """
 function α_max!(s::Solver)
     s.α_max = 1.0
-    while !fraction_to_boundary_bnds(s.x,s.model.xL,s.model.xU,s.model.xL_bool,s.model.xU_bool,s.dx,s.α_max,s.τ)
+    while !fraction_to_boundary_bnds(view(s.x,s.idx.xL),view(s.model.xL,s.idx.xL),view(s.x,s.idx.xU),view(s.model.xU,s.idx.xU),s.dxL,s.dxU,s.α_max,s.τ)
         s.α_max *= 0.5
     end
     s.α = copy(s.α_max)

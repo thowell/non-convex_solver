@@ -9,25 +9,21 @@ function watch_dog!(s::Solver)
     d_copy = s.d
 
     # new trial point
-    eval_step!(s)
-    search_direction!(s)
-    α_max!(s)
-    αz_max!(s)
-    # α_max = min(s.α,s.αz)
-    # s.α = α_max
-    # s.αz = α_max
-    trial_step!(s)
-    accept_step!(s)
+    for i = 1:s.opts.watch_dog_iters
+        eval_step!(s)
+        search_direction!(s)
+        α_max!(s)
+        αz_max!(s)
+        trial_step!(s)
+        i != s.opts.watch_dog_iters  && accept_step!(s)
+    end
 
-    # second new trial point
-    eval_step!(s)
-    search_direction!(s)
-    α_max!(s)
-    αz_max!(s)
-    # α_max = min(s.α,s.αz)
-    # s.α = α_max
-    # s.αz = α_max
-    trial_step!(s)
+    # # second new trial point
+    # eval_step!(s)
+    # search_direction!(s)
+    # α_max!(s)
+    # αz_max!(s)
+    # trial_step!(s)
 
     # check second new trial point with filter
     if check_filter(s.θ⁺,s.φ⁺,s.filter)
