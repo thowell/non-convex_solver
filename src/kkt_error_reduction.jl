@@ -5,6 +5,7 @@ function kkt_error_reduction(s::Solver)
     s.y_copy .= s.y
     s.zL_copy .= s.zL
     s.zU_copy .= s.zU
+    s.d_copy_2 .= s.d
 
     Fμ_norm = norm(eval_Fμ(s.x,s.y,s.zL,s.zU,s),1)
 
@@ -12,10 +13,6 @@ function kkt_error_reduction(s::Solver)
 
     while norm(eval_Fμ(s.x+s.β*s.dx,s.y+s.β*s.dy,s.zL+s.β*s.dzL,s.zU+s.β*s.dzU,s),1) <= s.opts.κF*Fμ_norm
         s.x .+= s.β*s.dx
-        if s.opts.nlp_scaling
-            s.x .= s.Dx*s.x
-        end
-
         s.y .+= s.β*s.dy
         s.zL .+= s.β*s.dzL
         s.zU .+= s.β*s.dzU
@@ -41,6 +38,7 @@ function kkt_error_reduction(s::Solver)
         s.y .= s.y_copy
         s.zL .= s.zL_copy
         s.zU .= s.zU_copy
+        s.d .= s.d_copy_2
         return false
     end
 end

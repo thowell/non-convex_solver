@@ -78,7 +78,6 @@ function search_direction_symmetric!(s::Solver)
     s.dxy .= ma57_solve(s.LBL, -s.h_sym)
     s.dzL .= -s.σL.*s.dxL - s.zL + s.μ./s.ΔxL
     s.dzU .= s.σU.*s.dxU - s.zU + s.μ./s.ΔxU
-    kkt_hessian_fullspace!(s)
 
     if s.opts.iterative_refinement
         kkt_hessian_fullspace!(s)
@@ -98,12 +97,12 @@ function kkt_hessian_slack!(s::Solver)
     nU = s.model_opt.nU
     idx = s.idx
 
-    view(s.H_slack,1:n,1:n) .= copy(view(s.∇²L,1:n,1:n))
+    view(s.H_slack,1:n,1:n) .= s.∇²L[1:n,1:n]
     view(s.H_slack,CartesianIndex.(idx.xL[1:nL],idx.xL[1:nL])) .+= view(s.σL,1:nL)
     view(s.H_slack,CartesianIndex.(idx.xU[1:nU],idx.xU[1:nU])) .+= view(s.σU,1:nU)
 
-    s.H_slack[1:n,n .+ (1:m)] .= view(get_∇c(s.model),1:m,1:n)'
-    s.H_slack[n .+ (1:m),1:n] .= view(get_∇c(s.model),1:m,1:n)
+    s.H_slack[1:n,n .+ (1:m)] .= get_∇c(s.model)[1:m,1:n]'
+    s.H_slack[n .+ (1:m),1:n] .= get_∇c(s.model)[1:m,1:n]
 
     ΔxL = view(s.ΔxL,1:nL)
     ΔsL = view(s.ΔxL,nL .+ (1:mI))

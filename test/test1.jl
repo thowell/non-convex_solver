@@ -20,7 +20,8 @@ c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cA_idx=ones(Bool,m))
 
-s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:slack,verbose=false))
+s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:slack,iterative_refinement=true,verbose=false))
+s.s.ρ = 1.
 @time solve!(s)
 
 # ######

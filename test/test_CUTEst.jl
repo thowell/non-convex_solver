@@ -26,13 +26,13 @@ include("../src/interior_point.jl")
 # nlp = CUTEstModel("BT12")
 # nlp = CUTEstModel("BYRDSPHR")
 # nlp = CUTEstModel("COOLHANS")
-# nlp = CUTEstModel("DIXCHLNG")
+nlp = CUTEstModel("DIXCHLNG")
 # nlp = CUTEstModel("EIGENA2") ##big
 # nlp = CUTEstModel("EIGENACO") ##big
 # nlp = CUTEstModel("EIGENB2") ##big
 # nlp = CUTEstModel("EIGENBCO") ##big
 # nlp = CUTEstModel("EIGENBC2")
-nlp = CUTEstModel("ELEC") ## calls watchdog and restoration
+# nlp = CUTEstModel("ELEC") ## calls watchdog and restoration
 # nlp = CUTEstModel("GRIDNETE") ##big
 # nlp = CUTEstModel("GRIDNETH") ## big
 # nlp = CUTEstModel("HS6")
@@ -120,11 +120,12 @@ model = Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²c
 opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,
                         relax_bnds=true,
-                        max_iter=1000,
+                        max_iter=100,
                         y_init_ls=true,
                         verbose=false)
 
 s = InteriorPointSolver(x0,model,opts=opts)
+s.s.ρ = 1.
 @time solve!(s)
 
 finalize(nlp)

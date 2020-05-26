@@ -49,6 +49,7 @@ mutable struct Solver{T}
     hx::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     hs::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     hr::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
+    hy
     hyI::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
     hyE::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
     hyA::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
@@ -160,6 +161,7 @@ mutable struct Solver{T}
     zL_copy::Vector{T}
     zU_copy::Vector{T}
     d_copy::Vector{T}
+    d_copy_2::Vector{T}
 
     Fμ::Vector{T}
 
@@ -168,15 +170,12 @@ mutable struct Solver{T}
 
     fail_cnt::Int
 
-    Dx::SparseMatrixCSC{T,Int}
     df::T
     Dc::SparseMatrixCSC{T,Int}
 
     ρ::T
     λ::Vector{T}
     yA::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
-    cA::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
-    ∇cA::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{Array{Int,1},UnitRange{Int}},false}
 
     opts::Options{T}
 end
@@ -221,9 +220,6 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
         x[i] = init_x0(x0[i],xL[i],xU[i],opts.κ1,opts.κ2)
     end
 
-    Dx = init_Dx(n)
-    opts.nlp_scaling && (x .= Dx*x)
-
     zL = opts.zL0*ones(nL)
     zU = opts.zU0*ones(nU)
 
@@ -233,6 +229,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     hx = view(h,1:model_opt.n)
     hs = view(h,idx.s)
     hr = view(h,idx.r)
+    hy = view(h,idx.y)
     hyI = view(h,idx.yI)
     hyE = view(h,idx.yE)
     hyA = view(h,idx.yA)
@@ -320,6 +317,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     zL_copy = zeros(nL)
     zU_copy = zeros(nU)
     d_copy = zero(d)
+    d_copy_2 = zero(d)
 
     Fμ = zeros(n+m+nL+nU)
 
@@ -331,8 +329,6 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     Hv_sym = H_symmetric_views(H_sym,idx)
 
     yA = view(y,cA_idx)
-    cA = view(c,cA_idx)
-    ∇cA = view(model.∇c,cA_idx,idx.x)
 
     θ = norm(c,1)
     θ⁺ = copy(θ)
@@ -401,7 +397,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            c,c_soc,c_tmp,
            H,H_sym,
            Hv,Hv_sym,
-           h,hx,hs,hr,hyI,hyE,hyA,hzL,hzs,hzU,
+           h,hx,hs,hr,hy,hyI,hyE,hyA,hzL,hzs,hzU,
            h_sym,
            H_slack,h_slack,
            LBL,LBL_slack,
@@ -417,12 +413,12 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            filter,
            j,k,l,p,t,small_search_direction_cnt,
            restoration,DR,
-           x_copy,y_copy,zL_copy,zU_copy,d_copy,
+           x_copy,y_copy,zL_copy,zU_copy,d_copy,d_copy_2,
            Fμ,
            idx,idx_r,
            fail_cnt,
-           Dx,df,Dc,
-           ρ,λ,yA,cA,∇cA,
+           df,Dc,
+           ρ,λ,yA,
            opts)
 end
 

@@ -17,7 +17,7 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
             s.res_xL .+= s.res_zL./s.ΔxL
             s.res_xU .-= s.res_zU./s.ΔxU
 
-            s.Δ_xy .= ma57_solve(s.LBL,s.res[s.idx.xy])
+            s.Δ_xy .= ma57_solve(s.LBL,Array(s.res_xy))
             s.Δ_zL .= -s.σL.*s.Δ_xL + s.res_zL./s.ΔxL
             s.Δ_zU .= s.σU.*s.Δ_xU + s.res_zU./s.ΔxU
         end
@@ -55,8 +55,6 @@ function iterative_refinement_slack(d::Vector{T},s::Solver) where T
         nU = s.model_opt.nU
         idx = s.idx
 
-        r = zeros(n+m)
-
         ΔxL = view(s.ΔxL,1:nL)
         ΔsL = view(s.ΔxL,nL .+ (1:mI))
         ΔxU = s.ΔxU
@@ -64,41 +62,17 @@ function iterative_refinement_slack(d::Vector{T},s::Solver) where T
         zS = view(s.zL,nL .+ (1:mI))
         zU = s.zU
 
-        hx = view(s.res,1:n)
-        hs = view(s.res,s.idx.s)
-        hr = view(s.res,s.idx.r)
-        hyI = view(s.res,idx.y[1:mI])
-        hyE = view(s.res,idx.y[mI .+ (1:mE)])
-        hyA = view(s.res,idx.y[mI+mE .+ (1:mA)])
-        hzL = view(s.res,idx.zL[1:nL])
-        hzs = view(s.res,idx.zL[nL .+ (1:mI)])
-        hzU = view(s.res,idx.zU)
+        s.res_xL[1:nL] .+= s.res__zL./ΔxL
+        s.res_xU[1:nU] .-= s.res_zU./ΔxU
+        s.res_yI .+= (ΔsL.*s.res_s + s.res_zs)./zS
+        s.res_yA .+= 1.0/s.ρ*s.res_r
 
-        r_tmp = zeros(n+m)
-        r_tmp[1:n] .= copy(hx)
-        r_tmp[idx.xL[1:nL]] .+= hzL./ΔxL
-        r_tmp[idx.xU[1:nU]] .-= hzU./ΔxU
-        r_tmp[n .+ (1:mI)] .= hyI + (ΔsL.*hs + hzs)./zS
-        r_tmp[n+mI .+ (1:mE)] .= copy(hyE)
-        r_tmp[n+mI+mE .+ (1:mA)] .= hyA + 1.0/s.ρ*hr
-
-        idx_tmp = [(1:s.model_opt.n)...,s.idx.y...]
-
-        Δ = ma57_solve(s.LBL_slack,r_tmp)
-
-        Δx = Δ[1:n]
-        ΔyI = Δ[n .+ (1:mI)]
-        ΔyE = Δ[n+mI .+ (1:mE)]
-        ΔyA = Δ[n+mI+mE .+ (1:mA)]
-
-        Δr = 1.0/s.ρ*(ΔyA - hr)
-        ΔzL = -(zL.*Δx[s.model_opt.xL_bool] + hzL)./ΔxL
-        ΔzU = (zU.*Δx[s.model_opt.xU_bool] - hzU)./ΔxU
-        Δzs = -ΔyI + hs
-        Δs = -(ΔsL.*Δzs + hzs)./zS
-
-        # end
-        s.Δ .= [Δx;Δs;Δr;ΔyI;ΔyE;ΔyA;ΔzL;Δzs;ΔzU]
+        s.Δ__xy .= ma57_solve(s.LBL_slack,Array(s.res__xy))
+        s.Δ_r .= 1.0/s.ρ*(s.Δ_yA - s.res_r)
+        s.Δ__zL .= -(zL.*s.Δ_xL[1:nL] + s.res__zL)./ΔxL
+        s.Δ_zU .= (zU.*s.Δ_xL[1:nU] - s.res_zU)./ΔxU
+        s.Δ_zs .= -s.Δ_yI + s.res_s
+        s.Δ_s .= -(ΔsL.*s.Δ_zs + s.res_zs)./zS
 
         d .+= s.Δ
         s.res .= -s.h - s.H*d

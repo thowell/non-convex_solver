@@ -9,7 +9,7 @@ Returns `true` if the correction was successful and `false` otherwise.
 function second_order_correction(s::Solver)
     status = false
 
-    d_copy = copy(s.d)
+    s.d_copy_2 .= s.d
     α_max = copy(s.α_max)
 
     s.p = 1
@@ -33,7 +33,7 @@ function second_order_correction(s::Solver)
     while true
         if check_filter(s.θ⁺,s.φ⁺,s.filter)  # A-5.7
             # case 1
-            if (s.θ <= s.θ_min && switching_condition(s.∇φ,view(d_copy,s.idx.x),α_max,s.opts.sφ,s.opts.δ,s.θ,s.opts.sθ))  # A-5.8
+            if (s.θ <= s.θ_min && switching_condition(s.∇φ,view(s.d_copy_2,s.idx.x),α_max,s.opts.sφ,s.opts.δ,s.θ,s.opts.sθ))  # A-5.8
                 if armijo(s)
                     status = true
                     s.opts.verbose && println("second-order correction: success")
@@ -73,12 +73,12 @@ function second_order_correction(s::Solver)
         end
     end
 
-    s.d .= d_copy
+    s.d .= s.d_copy_2
     return status
 end
 
 function search_direction_soc!(s::Solver)
-    s.h[s.idx.y] = s.c_soc
+    s.hy .= s.c_soc
     search_direction!(s)
     return nothing
 end

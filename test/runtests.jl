@@ -1,6 +1,6 @@
 using Test
 using BenchmarkTools
-# using Ipopt
+using Ipopt
 using NLPModels
 
 include("../src/interior_point.jl")

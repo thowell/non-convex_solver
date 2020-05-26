@@ -1,8 +1,0 @@
-# IPOPT Options for TrajectoryOptimization.jl
-
-# Use Quasi-Newton methods to avoid the need for the Hessian
-# hessian_approximation limited-memory
-
-# Output file
-file_print_level 5 
-output_file "/home/brian/Code/interior_point/perf/ipopt.out"
