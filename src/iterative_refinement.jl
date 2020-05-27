@@ -9,7 +9,8 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
     s.res .= -s.h - s.H*d
 
     res_norm = norm(s.res,Inf)
-    println("init res: $res_norm")
+    res_norm_init = copy(res_norm)
+
     while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement) || iter < s.opts.min_iterative_refinement
         if s.opts.kkt_solve == :fullspace
             s.Δ .= (s.H+Diagonal(s.δ))\s.res
@@ -29,7 +30,9 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
 
         iter += 1
     end
-    println("res: $res_norm")
+    # println("res: $res_norm")
+    @logmsg InnerLoop "res: $(round(res_norm_init, sigdigits=1)) -> $(round(res_norm, sigdigits=1))"
+
     if res_norm < s.opts.ϵ_iterative_refinement
         return true
     else

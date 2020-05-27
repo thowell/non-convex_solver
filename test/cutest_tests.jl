@@ -1,6 +1,8 @@
 status = Symbol[]
 include("cutest_problems_small.jl")
-
+opts = Options{Float64}(kkt_solve=:symmetric,
+                        max_iter=1000,
+                        verbose=false)
 @testset "CUTEst (small)" begin
     for prob in small
         # println("problem: $(prob)")

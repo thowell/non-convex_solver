@@ -11,13 +11,14 @@ function inertia_correction!(s::Solver; restoration=false)
     # IC-1
     factorize_kkt!(s)
 
-    s.opts.verbose ? println("inertia-> n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)") : nothing
-
-    inertia(s) && return nothing
+    if inertia(s)
+        # @logmsg InnerLoop "(n,m,z): ($(s.inertia.n)/$(s.model.n),$(s.inertia.m)/$(s.model.m),$(s.inertia.z)/0)"
+        return nothing
+    end
 
     # IC-2
     if s.inertia.z != 0
-        s.opts.verbose ? (println("$(s.inertia.z) zero eigen values")) : nothing
+        s.opts.verbose ? (@warn "$(s.inertia.z) zero eigen values - rank deficient constraints") : nothing
         s.δc = s.opts.δc*s.μ^s.opts.κc
     end
 
@@ -34,7 +35,7 @@ function inertia_correction!(s::Solver; restoration=false)
         factorize_kkt!(s)
 
         if inertia(s)
-            s.opts.verbose ? println("inertia (corrected)-> n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)") : nothing
+            @logmsg InnerLoop "(n,m,z)+: ($(s.inertia.n)/$(s.model.n),$(s.inertia.m)/$(s.model.m),$(s.inertia.z)/0)"
             break
         else
             # IC-5
@@ -47,10 +48,8 @@ function inertia_correction!(s::Solver; restoration=false)
 
         # IC-6
         if s.δw > s.opts.δw_max
-            if s.opts.verbose
-                println("n: $(s.inertia.n), m: $(s.inertia.m), z: $(s.inertia.z)")
-                println("s.δw: $(s.δw)")
-            end
+            @logmsg InnerLoop "(n,m,z)+: ($(s.inertia.n)/$(s.model.n),$(s.inertia.m)/$(s.model.m),$(s.inertia.z)/0)"
+            @logmsg InnerLoop "s.δw: $(s.δw)"
             # skp backtracking line search and go to restoration phase
             # TODO: handle inertia correction failure gracefully
             error("inertia correction failure")

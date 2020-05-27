@@ -1,9 +1,7 @@
 include("nlp_problems.jl")
-
 opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=1000,
-                        verbose=true)
-
+                        verbose=false)
 @testset "NLP problems" begin
 	solver = InteriorPointSolver(wachter()...,opts=opts)
 	solve!(solver)

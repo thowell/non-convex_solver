@@ -1,24 +1,23 @@
-using Crayons
 function solve!(solver::InteriorPointSolver)
-    # println("<augmented-Lagrangian interior-point solve>\n")
-    title = "PRIMAL-DUAL AUGMENTED-LAGRANGIAN BARRIER SOLVER"
-    println(crayon"bold underline red", title)
-    println(crayon"reset","Taylor Howell")
-    println("Robotic Exploration Lab")
-    println("Stanford University\n")
-
+    # phase 1 solver
     s = solver.s
 
-    # Problem summary
-    println(crayon"bold underline black", "Problem Summary")
-    print(crayon"reset")
-    println("   num vars = $(s.model.n)")
-    println("   num cons = $(s.model.m)")
-    println()
+    if s.opts.verbose
+        println(crayon"bold underline red",
+            "CALIPSO: CONIC PRIMAL-DUAL AUGMENTED-LAGRANGIAN INTERIOR-POINT SOLVER")
+        println(crayon"reset","Taylor Howell")
+        println("Robotic Exploration Lab")
+        println("Stanford University\n")
+        println(crayon"bold underline black", "Problem Summary")
+        print(crayon"reset")
+        println("   num vars = $(s.model.n)")
+        println("   num cons = $(s.model.m)")
+        println()
+    end
 
-    logger = SolverLogger(s.opts.verbose ? Logging.Info : InnerLoop)
+    # set up logger
+    logger = SolverLogger(s.opts.verbose ? InnerLoop : Logging.Info)
     add_level!(logger, InnerLoop, print_color=:red)
-    # add_level!(logger, OuterLoop, print_color=:yellow)
     with_logger(logger) do
 
     # evaluate problem
@@ -34,7 +33,6 @@ function solve!(solver::InteriorPointSolver)
     while eval_Eμ(0.0,s) > s.opts.ϵ_tol
 
         # Converge the interior point sub-problem
-        # s.k > 0 && print_header(logger, InnerLoop)
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
             s.opts.relax_bnds && relax_bounds!(s)
 
@@ -44,7 +42,7 @@ function solve!(solver::InteriorPointSolver)
                 if s.small_search_direction_cnt == s.opts.small_search_direction_max
                     s.small_search_direction_cnt = 0
                     if s.μ < 0.1*s.opts.ϵ_tol
-                        @logmsg InnerLoop "<interior-point solve complete>: small search direction"
+                        @logmsg InnerLoop "small search direction"
                         return
                     else
                         break
@@ -60,8 +58,7 @@ function solve!(solver::InteriorPointSolver)
                 # Perform line search and check if it fails
                 if !line_search(s)
                     if s.θ < s.opts.ϵ_tol
-                        # @logmsg InnerLoop "Infeasibility detected"
-                        @warn "Infeasibiity detected"
+                        @logmsg InnerLoop "infeasibility detected"
                         return
                     else
                         augment_filter!(s)
@@ -78,11 +75,9 @@ function solve!(solver::InteriorPointSolver)
             # Calculate everything at the new trial point
             eval_step!(s)
 
-
             s.k += 1
             if s.k > s.opts.max_iter
-                # TODO: don't throw an error! handle this gracefully
-                @warn "max iterations"
+                @logmsg InnerLoop "max. iterations"
                 return
             end
 
@@ -93,7 +88,6 @@ function solve!(solver::InteriorPointSolver)
 
 
         if eval_Eμ(0.0,s) <= s.opts.ϵ_tol && norm(s.xr,Inf) <= s.opts.ϵ_al_tol
-            @warn "augmented Lagrangian kick-out"
             break
         else
             barrier_update!(s)
@@ -108,16 +102,18 @@ function solve!(solver::InteriorPointSolver)
         end
     end  # outer while loop
 
-    println(crayon"red bold underline", "\nSolve Summary")
-    println(crayon"reset", "   status: complete")
-    println("   iteration ($(s.j),$(s.k)):")
+    if s.opts.verbose
+        println(crayon"red bold underline", "\nSolve Summary")
+        println(crayon"reset", "   status: complete")
+        println("   iteration ($(s.j),$(s.k)):")
+        s.model.n < 5 &&  println("   x: $(s.x)")
+        println("   f: $(get_f_scaled(s.x,s))")
+        println("   θ: $(s.θ), φ: $(s.φ)")
+        println("   E0: $(eval_Eμ(0.0,s))")
+        println("   norm(c,Inf): $(norm(s.c,Inf))")
+        s.model.mA > 0  && println("   norm(r,Inf): $(norm(s.xr,Inf))")
+    end
 
-    s.model.n < 5 &&  println("   x: $(s.x)")
-    println("   f: $(get_f_scaled(s.x,s))")
-    println("   θ: $(s.θ), φ: $(s.φ)")
-    println("   E0: $(eval_Eμ(0.0,s))")
-    println("   norm(c): $(norm(s.c,Inf))")
-    s.model.mA > 0  && println("   norm(r): $(norm(s.xr,Inf))")
     end # logger
 end
 

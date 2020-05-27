@@ -215,6 +215,7 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     s̄.θ_min = init_θ_min(s̄.θ)
     s̄.θ_max = init_θ_max(s̄.θ)
 
+    s̄.opts.kkt_solve = :symmetric
     return nothing
 end
 
@@ -249,9 +250,9 @@ function init_p(n,c)
 end
 
 function search_direction_restoration!(s̄::Solver,s::Solver)
-    if s.opts.kkt_solve == :fullspace
+    if s̄.opts.kkt_solve == :fullspace
         search_direction_symmetric_restoration!(s̄,s)
-    elseif s.opts.kkt_solve == :symmetric
+    elseif s̄.opts.kkt_solve == :symmetric
         search_direction_symmetric_restoration!(s̄,s)
     else
         error("restoration does not have kkt solve method")
