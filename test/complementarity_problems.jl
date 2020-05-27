@@ -1,8 +1,8 @@
-include("../src/interior_point.jl")
-
 function knitro_comp()
     n = 8
     m = 7
+
+    x0 = ones(n)
 
     xL = zeros(n)
     xU = Inf*ones(n)
@@ -25,27 +25,6 @@ function knitro_comp()
                   f,∇f!,∇²f!,
                   c!,∇c!,∇²cy!,
                   cI_idx=cI_idx,cA_idx=cA_idx)
+
+    return x0, model
 end
-
-
-opts = Options{Float64}(kkt_solve=:slack,
-                        relax_bnds=true,
-                        single_bnds_damping=true,
-                        iterative_refinement=true,
-                        max_iter=100,
-                        ϵ_tol=1.0e-8,
-                        nlp_scaling=true)
-
-s = InteriorPointSolver(x0,model,opts=opts)
-
-@time solve!(s)
-
-# x = s.s.x
-# x[3]
-# x[6]
-#
-# x[4]
-# x[7]
-#
-# x[5]
-# x[8]
