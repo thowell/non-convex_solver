@@ -1,12 +1,9 @@
-
 function Model(nlp)
     nlp.meta.lcon
     nlp.meta.ucon
 
     n = nlp.meta.nvar
     m = nlp.meta.ncon
-
-    # println("n: $n\nm: $m")
 
     x0 = nlp.meta.x0
     xL = nlp.meta.lvar

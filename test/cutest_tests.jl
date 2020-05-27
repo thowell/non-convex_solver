@@ -1,8 +1,10 @@
 status = Symbol[]
+include("cutest_problems_small.jl")
 @testset "CALIPSO - CUTEst small problems" begin
-    for prob in CUTEstProbs[:small]
-        println(prob)
-        nlp = CUTEstModel(prob)
+    for prob in small
+        println("problem: $(prob)")
+
+        nlp = SlackModel(CUTEstModel(prob))
         model = Model(nlp)
         opts = Options{Float64}(kkt_solve=:symmetric,
                                 max_iter=1000,
@@ -10,15 +12,12 @@ status = Symbol[]
                                 ϵ_al_tol = 1e-8,
                                 verbose=true)
         solver = InteriorPointSolver(nlp.meta.x0, model,opts=opts)
-        # solver.s.ρ = 1.0
         try
             solve!(solver)
-            s = solver.s
-            @test eval_Eμ(0.0,s) <= s.opts.ϵ_tol
+            @test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
             push!(status, :solved)
         catch
-            @test eval_Eμ(0.0,s) <= s.opts.ϵ_tol
-
+            @test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
             push!(status, :failed)
         end
         finalize(nlp)
@@ -28,8 +27,8 @@ status = Symbol[]
 end
 
 @testset "Ipopt - CUTEst small problems" begin
-    for prob in CUTEstProbs[:small]
-        println(prob)
+    for prob in small
+        println("problem: $(prob)")
         nlp = CUTEstModel(prob)
         ipoptProb = createProblem(nlp)
         ipoptProb.x .= copy(nlp.meta.x0)

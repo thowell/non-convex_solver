@@ -56,7 +56,7 @@ end
 
 
 function Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cy_func!;
-        cI_idx=zeros(Bool,m),cA_idx=zeros(Bool,m),bnd_tol=1.0e8)
+        cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m),bnd_tol=1.0e8)
 
     mI = convert(Int,sum(cI_idx))
     cE_idx = Vector((cI_idx + cA_idx) .== 0)
