@@ -29,6 +29,19 @@ function update_bfgs!(bfgs,x,y,zL,zU,idx_xL,idx_xU,∇f,∇c; init=false, update
             ∇L[idx_xL] -= zL
             ∇L[idx_xU] += zU
             push!(bfgs.y,∇L⁺ - ∇L)
+        elseif update == :objective
+            push!(bfgs.y,∇f - bfgs.∇f_prev)
+        elseif update == :constraints
+            ∇L⁺ = ∇c'*y
+            ∇L⁺[idx_xL] -= zL
+            ∇L⁺[idx_xU] += zU
+
+            ∇L = bfgs.∇c_prev'*y
+            ∇L[idx_xL] -= zL
+            ∇L[idx_xU] += zU
+            push!(bfgs.y,∇L⁺ - ∇L)
+        else
+            @error "quasi-newton approx not defined"
         end
     end
     bfgs.x_prev.= copy(x)

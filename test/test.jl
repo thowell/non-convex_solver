@@ -26,7 +26,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iterative_refinement=10,
                         max_iter=250,
                         verbose=true,
-                        quasi_newton=:none,
+                        quasi_newton=:bfgs,
                         )
 
 s = InteriorPointSolver(x0,model,opts=opts)
