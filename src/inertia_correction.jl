@@ -8,9 +8,15 @@ function inertia_correction!(s::Solver; restoration=false)
     s.δw = 0.0
     s.δc = 0.0
 
+    # println("INERTIA CORRECTION")
+
     # IC-1
     factorize_kkt!(s)
+    # println("(n,m,z): ($(s.inertia.n)/$(s.model.n),$(s.inertia.m)/$(s.model.m),$(s.inertia.z)/0)")
 
+    # println(length(s.qn.s) > 0 && s.qn.s[end])
+    # println(length(s.qn.y) > 0 && s.qn.y[end])
+    # println("first factorization")
     if inertia(s)
         # @logmsg InnerLoop "(n,m,z): ($(s.inertia.n)/$(s.model.n),$(s.inertia.m)/$(s.model.m),$(s.inertia.z)/0)"
         return nothing

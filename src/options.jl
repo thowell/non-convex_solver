@@ -64,6 +64,10 @@
 
     max_fail_cnt::Int = 4
     ϵ_mach::T = 1.0e-16
+
+    quasi_newton::Symbol = :none # :none, :lbfgs, :custom
+    lbfgs_length::Int = 10
+    quasi_newton_approx::Symbol = :lagrangian
 end
 
 # TODO: do this with a loop
@@ -120,5 +124,8 @@ function Base.copy(o::Options{T}) where T
                     nlp_scaling=copy(o.nlp_scaling),
                     watch_dog_iters=copy(o.watch_dog_iters),
                     max_fail_cnt=copy(o.max_fail_cnt),
-                    ϵ_mach=copy(o.ϵ_mach))
+                    ϵ_mach=copy(o.ϵ_mach),
+                    quasi_newton=o.quasi_newton,
+                    lbfgs_length=copy(o.lbfgs_length),
+                    quasi_newton_approx=o.quasi_newton_approx)
 end

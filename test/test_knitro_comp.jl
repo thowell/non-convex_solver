@@ -4,6 +4,8 @@ function knitro_comp()
     n = 8
     m = 7
 
+    x0 = rand(n)
+
     xL = zeros(n)
     xU = Inf*ones(n)
 
@@ -25,18 +27,22 @@ function knitro_comp()
                   f,∇f!,∇²f!,
                   c!,∇c!,∇²cy!,
                   cI_idx=cI_idx,cA_idx=cA_idx)
+
+    return x0,model
 end
 
-
-opts = Options{Float64}(kkt_solve=:slack,
+opts = Options{Float64}(kkt_solve=:symmetric,
                         relax_bnds=true,
                         single_bnds_damping=true,
                         iterative_refinement=true,
                         max_iter=100,
-                        ϵ_tol=1.0e-8,
-                        nlp_scaling=true)
+                        ϵ_tol=1.0e-4,
+                        ϵ_al_tol=1.0e-4,
+                        nlp_scaling=true,
+                        quasi_newton=:bfgs,
+                        verbose=true)
 
-s = InteriorPointSolver(x0,model,opts=opts)
+s = InteriorPointSolver(knitro_comp()...,opts=opts)
 
 @time solve!(s)
 

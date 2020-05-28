@@ -21,9 +21,9 @@ c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cA_idx=ones(Bool,m))
 
 s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,iterative_refinement=true,verbose=true))
-s.s.ρ = 1.
 @time solve!(s)
 
+s.s.qn
 # ######
 # using Ipopt, MathOptInterface
 # const MOI = MathOptInterface

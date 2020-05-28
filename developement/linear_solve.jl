@@ -1,4 +1,4 @@
-using LinearAlgebra, ForwardDiff, StaticArrays, SparseArrays, BenchmarkTools, HSL
+using LinearAlgebra, ForwardDiff, StaticArrays, SparseArrays, BenchmarkTools, HSL, SuiteSparse
 
 T = 10
 n = 6
@@ -37,8 +37,6 @@ function obj(z)
     return s
 end
 
-obj(z)
-
 function ∇obj(z)
     ∇f = zero(z)
     for t = 1:T-1
@@ -54,8 +52,6 @@ function ∇obj(z)
     return ∇f
 end
 
-∇obj(z)
-
 function ∇²obj(z)
     ∇²f = zeros(n*T+m*(T-1),n*T+m*(T-1))
     for t = 1:T-1
@@ -67,8 +63,6 @@ function ∇²obj(z)
     end
     return ∇²f
 end
-
-∇²obj(z)
 
 function con(z)
     c = zeros(eltype(z),n*T)
@@ -84,8 +78,6 @@ function con(z)
 
     return c
 end
-
-con(z)
 
 function ∇con(z)
     ∇c = zeros(eltype(z),n*T,n*T+m*(T-1))
@@ -103,8 +95,6 @@ function ∇con(z)
 
     return ∇c
 end
-
-∇con(z)
 
 n̄ = n*T + m*(T-1)
 m̄ = n*T
@@ -158,8 +148,7 @@ function schur!(dx::Vector{T},dy::Vector{T},
     dy .= S\b̃
     dx .= tmp2 - tmp1*dy
 end
-
-
+@benchmark cholesky($∇²f)
 dx = zeros(n̄)
 dy = zeros(m̄)
 A11 = sparse(∇²f)
@@ -173,15 +162,16 @@ b̃ = zeros(m̄)
 tmp1 = spzeros(n̄,m̄)
 tmp2 = zeros(n̄)
 # schur!(dx,dy,A11,A12,A21,A22,b1,b2,tmp1,tmp2,S,b̃)
-
+A11\A12
+typeof(A11)
 @benchmark schur!($dx,$dy,$A11,$A12,$A21,$A22,$b1,$b2,$tmp1,$tmp2,$S,$b̃)
 
 norm([dx;dy] - H\h)
 
 LBL = Ma57(H)
-ma57_factorize(LBL)
 
 function solve_HSL!(d::Vector{T},LBL::Ma57{T},h::Vector{T}) where T
+    ma57_factorize(LBL)
     d .= ma57_solve(LBL,h)
     return nothing
 end

@@ -177,6 +177,8 @@ mutable struct Solver{T}
     λ::Vector{T}
     yA::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
 
+    qn::QuasiNewton
+
     opts::Options{T}
 end
 
@@ -386,6 +388,8 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     res__zL = view(res,idx.zL[1:model_opt.nL])
     res_zs = view(res,idx.zL[model_opt.nL .+ (1:model_opt.mI)])
 
+    bfgs = BFGS(n=model.n,m=model.m)
+
     Solver(model,model_opt,
            x,xl,xu,xx,xs,xr,
            x⁺,
@@ -419,6 +423,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            fail_cnt,
            df,Dc,
            ρ,λ,yA,
+           bfgs,
            opts)
 end
 
@@ -457,7 +462,13 @@ Evaluate the objective value and it's first and second-order derivatives
 """
 function eval_objective!(s::Solver)
     eval_∇f!(s.model,s.x)
-    eval_∇²f!(s.model,s.x)
+    if s.opts.quasi_newton == :none
+        eval_∇²f!(s.model,s.x)
+    else
+        if s.opts.quasi_newton_approx == :constraints
+            eval_∇²f!(s.model,s.x)
+        end
+    end
     return nothing
 end
 
@@ -477,8 +488,14 @@ function eval_constraints!(s::Solver)
     get_c_scaled!(s.c,s)
 
     eval_∇c!(s.model,s.x)
-    eval_∇²cy!(s.model,s.x,s.y)
 
+    if s.opts.quasi_newton == :none
+        eval_∇²cy!(s.model,s.x,s.y)
+    else
+        if s.opts.quasi_newton == :objective
+            eval_∇²cy!(s.model,s.x,s.y)
+        end
+    end
     s.θ = norm(s.c,1)
     return nothing
 end
@@ -504,15 +521,17 @@ function eval_lagrangian!(s::Solver)
 
     s.model.mA > 0 && (s.∇L[s.idx.r] .+= s.λ + s.ρ*s.xr)
 
-    s.∇²L .= get_∇²f(s.model) + get_∇²cy(s.model)
-    s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
-
     # damping
     if s.opts.single_bnds_damping
         κd = s.opts.κd
         μ = s.μ
         s.∇L[s.idx.xLs] .+= κd*μ
         s.∇L[s.idx.xUs] .-= κd*μ
+    end
+
+    if s.opts.quasi_newton == :none
+        s.∇²L .= get_∇²f(s.model) + get_∇²cy(s.model)
+        s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
     end
     return nothing
 end
@@ -795,4 +814,30 @@ function InteriorPointSolver(x0,model;opts=Options{Float64}()) where T
     s̄ = RestorationSolver(s)
 
     InteriorPointSolver(s,s̄)
+end
+
+function update_quasi_newton!(s; init=false, update=:lagrangian, x_update=false, ∇L_update=false)
+    if s.opts.quasi_newton == :bfgs
+        ∇f = copy(get_∇f(s.model))
+        s.model.mA > 0 && (∇f[s.idx.r] .+= s.λ + s.ρ*s.xr)
+
+        # damping
+        if s.opts.single_bnds_damping
+            κd = s.opts.κd
+            μ = s.μ
+            ∇f[s.idx.xLs] .+= κd*μ
+            ∇f[s.idx.xUs] .-= κd*μ
+        end
+        update_bfgs!(s.qn,copy(s.x),copy(s.y),copy(s.zL),copy(s.zU),s.idx.xL,s.idx.xU,∇f,copy(get_∇c(s.model)),init=init,x_update=x_update,∇L_update=∇L_update)
+        s.∇²L .= get_B(s.qn)
+    end
+    return nothing
+end
+
+function reset_quasi_newton!(s)
+    if s.opts.quasi_newton == :bfgs
+        reset_bfgs!(s.qn)
+        s.∇²L .= get_B(s.qn)
+    end
+    return nothing
 end

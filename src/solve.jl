@@ -22,6 +22,10 @@ function solve!(solver::InteriorPointSolver)
 
     # evaluate problem
     eval_step!(s)
+    update_quasi_newton!(s,
+                         update=s.opts.quasi_newton_approx,
+                         x_update=false,
+                         ∇L_update=false)
 
     # initialize filter
     push!(s.filter,(s.θ_max,Inf))
@@ -58,6 +62,8 @@ function solve!(solver::InteriorPointSolver)
                 # Perform line search and check if it fails
                 if !line_search(s)
                     if s.θ < s.opts.ϵ_tol
+                        @error "infeasibility detected"
+
                         @logmsg InnerLoop "infeasibility detected"
                         return
                     else
@@ -74,9 +80,14 @@ function solve!(solver::InteriorPointSolver)
 
             # Calculate everything at the new trial point
             eval_step!(s)
+            update_quasi_newton!(s,
+                                 update=s.opts.quasi_newton_approx,
+                                 x_update=true,
+                                 ∇L_update=true)
 
             s.k += 1
             if s.k > s.opts.max_iter
+                @error "max iterations"
                 @logmsg InnerLoop "max. iterations"
                 return
             end
@@ -93,12 +104,23 @@ function solve!(solver::InteriorPointSolver)
             barrier_update!(s)
             augmented_lagrangian_update!(s)
             eval_step!(s)
+            update_quasi_newton!(s,
+                                 update=s.opts.quasi_newton_approx,
+                                 x_update=false,
+                                 ∇L_update=true)
+
 
             if s.k == 0
                 barrier_update!(s)
                 augmented_lagrangian_update!(s)
                 eval_step!(s)
+                update_quasi_newton!(s,
+                                     update=s.opts.quasi_newton_approx,
+                                     x_update=false,
+                                     ∇L_update=true)
             end
+
+            # reset_quasi_newton!(s)
         end
     end  # outer while loop
 
