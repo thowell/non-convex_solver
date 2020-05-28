@@ -10,10 +10,12 @@ mutable struct BFGS <: QuasiNewton
     ∇c_prev
 
     status
+
+    fail_cnt
 end
 
 function BFGS(;n=0,m=0)
-    BFGS(sparse(1.0*I,n,n),[],[],zeros(n),zeros(n),zeros(m,n),:init)
+    BFGS(sparse(1.0*I,n,n),[],[],zeros(n),zeros(n),zeros(m,n),:init,0)
 end
 
 function update_bfgs!(bfgs,x,y,zL,zU,idx_xL,idx_xU,∇f,∇c; init=false, update=:lagrangian, x_update=false, ∇L_update=false)
@@ -52,7 +54,9 @@ function update_bfgs!(bfgs,x,y,zL,zU,idx_xL,idx_xU,∇f,∇c; init=false, update
 end
 
 function get_B(bfgs::BFGS)
-
+    if bfgs.fail_cnt >= 2
+        reset_bfgs!(bfgs)
+    end
     if length(bfgs.s) > 0
         s = bfgs.s[end]
         y = bfgs.y[end]
@@ -63,25 +67,27 @@ function get_B(bfgs::BFGS)
             #damped BFGS
             if ρ >= 0.2*s'*bfgs.B*s
                 θ = 1.0
+                bfgs.fail_cnt = 0
             else
                 θ = (0.8*s'*bfgs.B*s)/(s'*bfgs.B*s - s'*y)
+                bfgs.fail_cnt += 1
             end
-            θ = 1.0
             r = θ*y + (1.0 - θ)*bfgs.B*s
             if length(bfgs.s) == 1
-                bfgs.B .= (r'*r)/(s'*r)*bfgs.B - (bfgs.B*s*s'*bfgs.B)/(s'*bfgs.B*s) + (r*r')/(s'*r)
+                bfgs.B .= (s'*r)/(s'*s)*bfgs.B - (bfgs.B*s*s'*bfgs.B)/(s'*bfgs.B*s) + (r*r')/(s'*r)
             else
                 bfgs.B .= bfgs.B - (bfgs.B*s*s'*bfgs.B)/(s'*bfgs.B*s) + (r*r')/(s'*r)
             end
         end
     end
-    # println("B pos. def. check: $(isposdef(Hermitian(bfgs.B)))")
     return bfgs.B
 end
 
 function reset_bfgs!(bfgs)
+    @warn "bfgs reset"
     bfgs.B .= sparse(1.0*I,size(bfgs.B))
     bfgs.s .= [bfgs.s[end]]
     bfgs.y .= [bfgs.y[end]]
+    bfgs.fail_cnt = 0
     return nothing
 end

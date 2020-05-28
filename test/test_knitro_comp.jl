@@ -45,6 +45,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
 s = InteriorPointSolver(knitro_comp()...,opts=opts)
 
 @time solve!(s)
+s.s.qn.fail_cnt
 
 # x = s.s.x
 # x[3]

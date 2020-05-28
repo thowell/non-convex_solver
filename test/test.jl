@@ -3,7 +3,7 @@ include("../src/interior_point.jl")
 n = 50
 m = 30
 
-x0 = ones(n)
+x0 = rand(n)
 
 xL = -Inf*ones(n)
 xL[1] = -10.
@@ -21,13 +21,15 @@ model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=zeros(Bool,m),c
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,
-                        ϵ_tol=1.0e-5,
-                        ϵ_al_tol=1.0e-5,
+                        ϵ_tol=1.0e-8,
+                        ϵ_al_tol=1.0e-8,
                         max_iterative_refinement=10,
                         max_iter=250,
                         verbose=true,
-                        quasi_newton=:bfgs,
+                        quasi_newton=:none
                         )
 
 s = InteriorPointSolver(x0,model,opts=opts)
 @time solve!(s)
+
+restoration!(s.s̄,s.s)

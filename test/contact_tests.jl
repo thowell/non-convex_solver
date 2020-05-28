@@ -1,7 +1,13 @@
 include("contact_problems.jl")
-opts = Options{Float64}(kkt_solve=:symmetric,
+opts = opts = Options{Float64}(kkt_solve=:symmetric,
+                        iterative_refinement=true,
+                        ϵ_tol=1.0e-6,
+                        ϵ_al_tol=1.0e-6,
+                        max_iterative_refinement=10,
                         max_iter=1000,
-                        verbose=false)
+                        verbose=true,
+                        quasi_newton=:bfgs
+                        )
 @testset "Contact problems" begin
     # particle
 	solver = InteriorPointSolver(particle()...,opts=opts)
