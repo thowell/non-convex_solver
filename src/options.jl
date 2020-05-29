@@ -66,7 +66,7 @@
     ϵ_mach::T = 1.0e-16
 
     quasi_newton::Symbol = :none # :none, :lbfgs, :custom
-    lbfgs_length::Int = 10
+    lbfgs_length::Int = 6
     quasi_newton_approx::Symbol = :lagrangian
     bfgs_max_fail_cnt::Int = 2
 end

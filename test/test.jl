@@ -19,17 +19,17 @@ c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m))
 
-opts = Options{Float64}(kkt_solve=:symmetric,
+opts = Options{Float64}(
+                        kkt_solve=:symmetric,
                         iterative_refinement=true,
-                        ϵ_tol=1.0e-8,
-                        ϵ_al_tol=1.0e-8,
+                        ϵ_tol=1.0e-6,
+                        ϵ_al_tol=1.0e-6,
                         max_iterative_refinement=10,
                         max_iter=250,
                         verbose=true,
-                        quasi_newton=:none
+                        quasi_newton=:lbfgs,
+                        quasi_newton_approx=:lagrangian
                         )
 
 s = InteriorPointSolver(x0,model,opts=opts)
 @time solve!(s)
-
-restoration!(s.s̄,s.s)

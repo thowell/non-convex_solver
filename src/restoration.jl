@@ -43,7 +43,10 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
     # evaluate problem
     s̄.opts.verbose = true
     eval_step!(s̄)
-
+    update_quasi_newton!(s̄,
+                         update=s̄.opts.quasi_newton_approx,
+                         x_update=false,
+                         ∇L_update=false)
     # initialize filter
     push!(s̄.filter,(s̄.θ_max,Inf))
 
@@ -93,6 +96,10 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
             s̄.opts.z_reset && reset_z!(s̄)
 
             eval_step!(s̄)
+            update_quasi_newton!(s̄,
+                                 update=s̄.opts.quasi_newton_approx,
+                                 x_update=true,
+                                 ∇L_update=true)
 
             s̄.k += 1
             if s̄.k > s̄.opts.max_iter
@@ -111,11 +118,19 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
         barrier_update!(s̄)
         augmented_lagrangian_update!(s̄)
         eval_step!(s̄)
+        update_quasi_newton!(s̄,
+                             update=s̄.opts.quasi_newton_approx,
+                             x_update=false,
+                             ∇L_update=true)
 
         if s̄.k == 0
             barrier_update!(s̄)
             augmented_lagrangian_update!(s̄)
             eval_step!(s̄)
+            update_quasi_newton!(s̄,
+                                 update=s̄.opts.quasi_newton_approx,
+                                 x_update=false,
+                                 ∇L_update=true)
         end
 
         update_restoration_model_info!(s̄)
@@ -148,6 +163,7 @@ function RestorationSolver(s::Solver)
     opts_r.y_init_ls = false
     opts_r.relax_bnds = false
     opts_r.kkt_solve = :symmetric
+    opts_r.quasi_newton_approx = :constraints
     model_r = restoration_model(s.model,bnd_tol=s.opts.bnd_tol)
 
     s̄ = Solver(zeros(model_r.n),model_r,s.model_opt,opts=opts_r)
