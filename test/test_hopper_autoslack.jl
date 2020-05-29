@@ -183,17 +183,20 @@ for t = 1:T
 end
 
 opts = Options{Float64}(kkt_solve=:symmetric,
-                        iterative_refinement=true,
-                        max_iter=1000,
-                        relax_bnds=true,
-                        y_init_ls=true,
-                        ϵ_tol=1.0e-6,
-                        ϵ_al_tol=1.0e-6,
-                        quasi_newton=:none,
-                        quasi_newton_approx=:lagrangian,
-                        verbose=true)
+                       max_iter=1000,
+                       iterative_refinement=true,
+                       relax_bnds=true,
+                       max_iterative_refinement=10, ϵ_tol=1.0e-4,
+                       ϵ_al_tol=1.0e-4,
+                       verbose=true,
+                       quasi_newton=:bfgs,
+                       quasi_newton_approx=:lagrangian,
+                       lbfgs_length=6)
 
 s = InteriorPointSolver(x0,nlp_model,opts=opts)
+s.s.ρ = 1.0
 @time solve!(s)
+# norm(c_func(s.s.x)[cA_idx .== 0],1)
+# norm(c_func(s.s.x)[cA_idx],1)
 
-s.s.qn.fail_cnt
+# restoration!(s.s̄,s.s)

@@ -23,7 +23,6 @@ function solve!(solver::InteriorPointSolver)
     # evaluate problem
     eval_step!(s)
     update_quasi_newton!(s,
-                         update=s.opts.quasi_newton_approx,
                          x_update=false,
                          ∇L_update=false)
 
@@ -61,7 +60,7 @@ function solve!(solver::InteriorPointSolver)
 
                 # Perform line search and check if it fails
                 if !line_search(s)
-                    if s.θ < s.opts.ϵ_tol
+                    if s.θ < s.opts.ϵ_tol && s.opts.quasi_newton == :none
                         @error "infeasibility detected"
 
                         @logmsg InnerLoop "infeasibility detected"
@@ -81,7 +80,6 @@ function solve!(solver::InteriorPointSolver)
             # Calculate everything at the new trial point
             eval_step!(s)
             update_quasi_newton!(s,
-                                 update=s.opts.quasi_newton_approx,
                                  x_update=true,
                                  ∇L_update=true)
 
@@ -104,23 +102,15 @@ function solve!(solver::InteriorPointSolver)
             barrier_update!(s)
             augmented_lagrangian_update!(s)
             eval_step!(s)
-            update_quasi_newton!(s,
-                                 update=s.opts.quasi_newton_approx,
-                                 x_update=false,
-                                 ∇L_update=true)
-
 
             if s.k == 0
                 barrier_update!(s)
                 augmented_lagrangian_update!(s)
                 eval_step!(s)
-                update_quasi_newton!(s,
-                                     update=s.opts.quasi_newton_approx,
-                                     x_update=false,
-                                     ∇L_update=true)
             end
-
-            # reset_quasi_newton!(s)
+            update_quasi_newton!(s,
+                                 x_update=false,
+                                 ∇L_update=true)
         end
     end  # outer while loop
 
@@ -129,7 +119,7 @@ function solve!(solver::InteriorPointSolver)
         println(crayon"reset", "   status: complete")
         println("   iteration ($(s.j),$(s.k)):")
         s.model.n < 5 &&  println("   x: $(s.x)")
-        println("   f: $(get_f_scaled(s.x,s))")
+        println("   f: $(get_f(s,s.x))")
         println("   θ: $(s.θ), φ: $(s.φ)")
         println("   E0: $(eval_Eμ(0.0,s))")
         println("   norm(c,Inf): $(norm(s.c,Inf))")
@@ -154,7 +144,7 @@ function log_stats(s)
     @logmsg InnerLoop :θ value=s.θ width=10
     @logmsg InnerLoop :φ value=s.φ width=10
     @logmsg InnerLoop :Eμ value=eval_Eμ(s.μ, s)
-    @logmsg InnerLoop :f value=get_f_scaled(s.x,s) width=10
+    @logmsg InnerLoop :f value=get_f(s,s.x) width=10
     @logmsg InnerLoop :μ value=s.μ width=10
     @logmsg InnerLoop :α value=s.α
 end

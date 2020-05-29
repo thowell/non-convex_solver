@@ -18,8 +18,9 @@ c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=ones(Bool,m))
 
 s = InteriorPointSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,
-                                                        quasi_newton=:lbfgs,
-                                                        ϵ_tol=1.0e-5,
-                                                        ϵ_al_tol=1.0e-5,
+                                                        max_iter=250,
+                                                        quasi_newton=:bfgs,
+                                                        ϵ_tol=1.0e-8,
+                                                        ϵ_al_tol=1.0e-8,
                                                         verbose=true))
 @time solve!(s)

@@ -19,6 +19,7 @@ model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=ones(Bool,m),cA
 
 s = InteriorPointSolver(x0,model,opts=opts=Options{Float64}(kkt_solve=:symmetric,
                                                         quasi_newton=:bfgs,
+                                                        quasi_newton_approx=:lagrangian,
                                                         ϵ_tol=1.0e-8,
                                                         ϵ_al_tol=1.0e-8,
                                                         verbose=true,

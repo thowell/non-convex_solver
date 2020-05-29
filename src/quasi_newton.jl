@@ -1,95 +1,82 @@
 abstract type QuasiNewton end
 
 mutable struct BFGS <: QuasiNewton
-    B
     s
     y
 
     x_prev
     ∇f_prev
     ∇c_prev
+    ∇L_prev
 
-    status
+    B
 
     fail_cnt
 end
 
 function BFGS(;n=0,m=0)
-    BFGS(sparse(1.0*I,n,n),[],[],zeros(n),zeros(n),zeros(m,n),:init,0)
+    BFGS([],[],zeros(n),zeros(n),zeros(m,n),zeros(n),sparse(1.0*I,n,n),0)
 end
 
-function update_quasi_newton!(qn::QuasiNewton,x,y,zL,zU,idx_xL,idx_xU,∇f,∇c; init=false, update=:lagrangian, x_update=false, ∇L_update=false)
+function update_quasi_newton!(qn::QuasiNewton,x,∇f,∇c,∇L; x_update=false, ∇L_update=false)
 
     x_update && push!(qn.s,x - qn.x_prev)
 
-    if ∇L_update
-        if update == :lagrangian
-            ∇L⁺ = ∇f + ∇c'*y
-            ∇L⁺[idx_xL] -= zL
-            ∇L⁺[idx_xU] += zU
+    if ∇L_update && length(qn.s) > 0
+        y = ∇L - qn.∇L_prev
 
-            ∇L = qn.∇f_prev + qn.∇c_prev'*y
-            ∇L[idx_xL] -= zL
-            ∇L[idx_xU] += zU
-            push!(qn.y,∇L⁺ - ∇L)
-        elseif update == :objective
-            push!(qn.y,∇f - qn.∇f_prev)
-        elseif update == :constraints
-            ∇L⁺ = ∇c'*y
-            ∇L⁺[idx_xL] -= zL
-            ∇L⁺[idx_xU] += zU
+        # damped
+        s = qn.s[end]
+        ρ = s'*y
+        # @warn "ρ: $ρ" #- y: $y, s: $s"
 
-            ∇L = qn.∇c_prev'*y
-            ∇L[idx_xL] -= zL
-            ∇L[idx_xU] += zU
-            push!(qn.y,∇L⁺ - ∇L)
+        if ρ >= 0.2*s'*qn.B*s
+            θ = 1.0
+            qn.fail_cnt = 0
         else
-            @error "quasi-newton approx not defined"
+            θ = (0.8*s'*qn.B*s)/(s'*qn.B*s - ρ)
+            qn.fail_cnt += 1
+        end
+        y = θ*y + (1.0 - θ)*qn.B*s
+
+        if x_update || isempty(qn.y)
+            push!(qn.y,y)
+        else
+            qn.y[end] = y
         end
     end
-    qn.x_prev.= copy(x)
-    qn.∇f_prev .= copy(∇f)
-    qn.∇c_prev .= copy(∇c)
+
+    if qn.fail_cnt >= 2
+        reset_quasi_newton!(qn)
+    else
+        qn.x_prev .= copy(x)
+        qn.∇f_prev .= copy(∇f)
+        qn.∇c_prev .= copy(∇c)
+        qn.∇L_prev .= copy(∇L)
+    end
 
     return nothing
 end
 
-function get_B(bfgs::BFGS)
-    if bfgs.fail_cnt >= 2
-        reset_quasi_newton!(bfgs)
-    end
-    if length(bfgs.s) > 0
-        s = bfgs.s[end]
-        y = bfgs.y[end]
-        ρ = s'*y
+function get_B(qn::BFGS)
+    if length(qn.s) > 0
+        s = qn.s[end]
+        y = qn.y[end]
 
-        if isfinite(ρ) && ρ > 0.
+        δ = length(qn.s) == 1 ? (y'*y)/(s'*y) : 1.0
 
-            #damped BFGS
-            if ρ >= 0.2*s'*bfgs.B*s
-                θ = 1.0
-                bfgs.fail_cnt = 0
-            else
-                θ = (0.8*s'*bfgs.B*s)/(s'*bfgs.B*s - s'*y)
-                bfgs.fail_cnt += 1
-            end
-            r = θ*y + (1.0 - θ)*bfgs.B*s
-            if length(bfgs.s) == 1
-                bfgs.B .= (r'*r)/(s'*r)*bfgs.B - (bfgs.B*s*s'*bfgs.B)/(s'*bfgs.B*s) + (r*r')/(s'*r)
-            else
-                bfgs.B .= bfgs.B - (bfgs.B*s*s'*bfgs.B)/(s'*bfgs.B*s) + (r*r')/(s'*r)
-            end
-        end
+        qn.B .= δ*qn.B - (qn.B*s*s'*qn.B)/(s'*qn.B*s) + (y*y')/(s'*y)
     end
-    return bfgs.B
+
+    return qn.B
 end
 
-function reset_bfgs!(bfgs)
-    @warn "bfgs reset"
-    bfgs.B .= sparse(1.0*I,size(bfgs.B))
-    bfgs.s .= [bfgs.s[end]]
-    bfgs.y .= [bfgs.y[end]]
-    bfgs.fail_cnt = 0
+function reset_quasi_newton!(qn)
+    @warn "quasi newton reset"
+    qn.B .= sparse(1.0*I,size(qn.B))
+    qn.s = empty!(qn.s)
+    qn.y = empty!(qn.y)
+    qn.fail_cnt = 0
     return nothing
 end
 
@@ -130,98 +117,98 @@ end
 #
 # rank(Bk)
 
-
-mutable struct LBFGS <: QuasiNewton
-    s
-    y
-    δ
-    k
-
-    A1
-    A2
-    L
-    D
-
-    B
-
-    x_prev
-    ∇f_prev
-    ∇c_prev
-
-    status
-
-    fail_cnt
-end
-
-function LBFGS(;n=0,m=0,k=0)
-    LBFGS([],[],0,k,spzeros(2k,2k),spzeros(n,2k),spzeros(k,k),spzeros(k,k),
-        sparse(1.0*I,n,n),zeros(n),zeros(n),zeros(m,n),:init,0)
-end
-
-# qn = LBFGS(n=100,m=10,k=5)
 #
-# push!(qn.s,rand(100))
-# push!(qn.y,rand(100))
+# mutable struct LBFGS <: QuasiNewton
+#     s
+#     y
+#     δ
+#     k
 #
-# rank(get_B(qn))
-# reset_quasi_newton!(qn)
-
-
-function get_B(qn::LBFGS)
-    if qn.fail_cnt >= 2
-        reset_quasi_newton!(qn)
-    end
-    if length(qn.s) > 0
-        shift = 0
-        if qn.s[end]'*qn.y[end] <= 0.
-            qn.fail_cnt += 1
-            shift = 1
-        end
-        ls = length(qn.s)-shift
-        ly = length(qn.y)-shift
-
-        (ls < 1 || ly < 1) && return qn.B
-
-        qn.fail_cnt = 0
-        n = size(qn.B,1)
-        δ = (qn.y[end-shift]'*qn.y[end-shift])/(qn.s[end-shift]'*qn.y[end-shift])
-
-        In = sparse(1.0*I,n,n)
-
-        _k = min(ls,qn.k)
-        S = [qn.s[ls-_k+i] for i = 1:_k]
-        Y = [qn.y[ly-_k+i] for i = 1:_k]
-
-        tmp1 = zeros(n,2*_k)
-        tmp2 = zeros(2*_k,2*_k)
-        L = spzeros(_k,_k)
-        D = zeros(_k)
-
-        for i = 1:_k
-            tmp1[:,i] = δ*S[i]
-            tmp1[:,i+_k] = Y[i]
-
-            for j = 1:_k
-                L[i,j] = (i > j ? S[i]'*Y[j] : 0.)
-            end
-            D[i] = S[i]'*Y[i]
-        end
-        tmp2[1:_k,1:_k] = δ*hcat(S...)'*hcat(S...)
-        tmp2[1:_k,_k .+ (1:_k)] = L
-        tmp2[_k .+ (1:_k),1:_k] = L'
-        tmp2[CartesianIndex.(_k .+ (1:_k),_k .+ (1:_k))] = -1.0*D
-
-        qn.B = δ*In - tmp1*(tmp2\tmp1')
-
-    end
-    return qn.B
-end
-
-function reset_quasi_newton!(qn)
-    @warn "quasi-newton reset"
-    qn.B .= sparse(1.0*I,size(qn.B))
-    empty!(qn.s)
-    empty!(qn.y)
-    qn.fail_cnt = 0
-    return nothing
-end
+#     A1
+#     A2
+#     L
+#     D
+#
+#     B
+#
+#     x_prev
+#     ∇f_prev
+#     ∇c_prev
+#
+#     status
+#
+#     fail_cnt
+# end
+#
+# function LBFGS(;n=0,m=0,k=0)
+#     LBFGS([],[],0,k,spzeros(2k,2k),spzeros(n,2k),spzeros(k,k),spzeros(k,k),
+#         sparse(1.0*I,n,n),zeros(n),zeros(n),zeros(m,n),:init,0)
+# end
+#
+# # qn = LBFGS(n=100,m=10,k=5)
+# #
+# # push!(qn.s,rand(100))
+# # push!(qn.y,rand(100))
+# #
+# # rank(get_B(qn))
+# # reset_quasi_newton!(qn)
+#
+#
+# function get_B(qn::LBFGS)
+#     if qn.fail_cnt >= 2
+#         reset_quasi_newton!(qn)
+#     end
+#     if length(qn.s) > 0
+#         shift = 0
+#         if qn.s[end]'*qn.y[end] <= 0.
+#             qn.fail_cnt += 1
+#             shift = 1
+#         end
+#         ls = length(qn.s)-shift
+#         ly = length(qn.y)-shift
+#
+#         (ls < 1 || ly < 1) && return qn.B
+#
+#         qn.fail_cnt = 0
+#         n = size(qn.B,1)
+#         δ = (qn.y[end-shift]'*qn.y[end-shift])/(qn.s[end-shift]'*qn.y[end-shift])
+#
+#         In = sparse(1.0*I,n,n)
+#
+#         _k = min(ls,qn.k)
+#         S = [qn.s[ls-_k+i] for i = 1:_k]
+#         Y = [qn.y[ly-_k+i] for i = 1:_k]
+#
+#         tmp1 = zeros(n,2*_k)
+#         tmp2 = zeros(2*_k,2*_k)
+#         L = spzeros(_k,_k)
+#         D = zeros(_k)
+#
+#         for i = 1:_k
+#             tmp1[:,i] = δ*S[i]
+#             tmp1[:,i+_k] = Y[i]
+#
+#             for j = 1:_k
+#                 L[i,j] = (i > j ? S[i]'*Y[j] : 0.)
+#             end
+#             D[i] = S[i]'*Y[i]
+#         end
+#         tmp2[1:_k,1:_k] = δ*hcat(S...)'*hcat(S...)
+#         tmp2[1:_k,_k .+ (1:_k)] = L
+#         tmp2[_k .+ (1:_k),1:_k] = L'
+#         tmp2[CartesianIndex.(_k .+ (1:_k),_k .+ (1:_k))] = -1.0*D
+#
+#         qn.B = δ*In - tmp1*(tmp2\tmp1')
+#
+#     end
+#     return qn.B
+# end
+#
+# function reset_quasi_newton!(qn)
+#     @warn "quasi-newton reset"
+#     qn.B .= sparse(1.0*I,size(qn.B))
+#     empty!(qn.s)
+#     empty!(qn.y)
+#     qn.fail_cnt = 0
+#     return nothing
+# end

@@ -264,7 +264,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     τ = update_τ(μ,opts.τ_min)
 
     eval_∇f!(model,x)
-    model.∇f[idx.r] += λ + ρ*view(x,idx.r)
+    # model.∇f[idx.r] += λ + ρ*view(x,idx.r)
     df = init_df(opts.g_max,get_∇f(model))
 
     φ = 0.
@@ -478,9 +478,9 @@ function eval_objective!(s::Solver)
     return nothing
 end
 
-function get_f_scaled(x,s::Solver)
-    s.opts.nlp_scaling ? s.df*get_f(s,x) : get_f(s,x)
-end
+# function get_f_scaled(x,s::Solver)
+#     s.opts.nlp_scaling ? s.df*get_f(s,x) : get_f(s,x)
+# end
 
 
 """
@@ -548,7 +548,7 @@ end
 Evaluate barrier objective and it's gradient
 """
 function eval_barrier!(s::Solver)
-    s.φ = get_f_scaled(s.x,s)
+    s.φ = get_f(s,s.x)
     s.φ -= s.μ*sum(log.(s.ΔxL))
     s.φ -= s.μ*sum(log.(s.ΔxU))
 
@@ -741,7 +741,7 @@ function barrier(x,s::Solver)
     eval_c!(s.model,x)
     get_c_scaled!(s.c_tmp,s)
 
-    return barrier(get_f_scaled(x,s),
+    return barrier(get_f(s,x),
                    view(x,s.idx.xL),view(s.model.xL,s.idx.xL),
                    view(x,s.idx.xU),view(s.model.xU,s.idx.xU),
                    view(x,s.idx.xLs),view(s.model.xL,s.idx.xLs),
@@ -821,29 +821,21 @@ function InteriorPointSolver(x0,model;opts=Options{Float64}()) where T
     InteriorPointSolver(s,s̄)
 end
 
-function update_quasi_newton!(s; init=false, update=:lagrangian, x_update=false, ∇L_update=false)
+function update_quasi_newton!(s; x_update=false, ∇L_update=false)
     if s.opts.quasi_newton != :none
-        ∇f = copy(get_∇f(s.model))
+        s.qn.∇L_prev .= s.qn.∇f_prev + s.qn.∇c_prev'*s.y
+        s.qn.∇L_prev[s.idx.xL] -= s.zL
+        s.qn.∇L_prev[s.idx.xU] += s.zU
 
         # damping
         if s.opts.single_bnds_damping
             κd = s.opts.κd
             μ = s.μ
-            ∇f[s.idx.xLs] .+= κd*μ
-            ∇f[s.idx.xUs] .-= κd*μ
+            s.qn.∇L_prev[s.idx.xLs] .+= κd*μ
+            s.qn.∇L_prev[s.idx.xUs] .-= κd*μ
         end
-
-        update_quasi_newton!(s.qn,copy(s.x),copy(s.y),copy(s.zL),copy(s.zU),s.idx.xL,s.idx.xU,∇f,copy(get_∇c(s.model)),init=init,x_update=x_update,∇L_update=∇L_update)
-
-        if update == :lagrangian
-            s.∇²L .= get_B(s.qn)
-        elseif update == :objective
-            s.∇²L .= get_B(s.qn) + get_∇²cy(s.model)
-        elseif update == :constraints
-            s.∇²L .= get_∇²f(s.model) + get_B(s.qn)
-        else
-            @error "quasi-newton approx not defined"
-        end
+        update_quasi_newton!(s.qn,copy(s.x),copy(get_∇f(s.model)),copy(get_∇c(s.model)),copy(s.∇L),x_update=x_update,∇L_update=∇L_update)
+        s.∇²L .= copy(get_B(s.qn))
     end
     return nothing
 end
@@ -858,7 +850,7 @@ end
 
 # modify to include Augmented Lagrangian terms
 function get_f(s::Solver,x)
-    s.model.f_func(x,s.model) + (s.model.mA > 0 ? (s.λ'*view(x,s.idx.r) + 0.5*s.ρ*view(x,s.idx.r)'*view(x,s.idx.r)) : 0.)
+    (s.opts.nlp_scaling ? s.df*get_f(s.model,x) : get_f(s.model,x)) + (s.model.mA > 0 ? (s.λ'*view(x,s.idx.r) + 0.5*s.ρ*view(x,s.idx.r)'*view(x,s.idx.r)) : 0.)
 end
 
 function eval_∇f!(s::Solver,x)

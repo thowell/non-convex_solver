@@ -36,10 +36,11 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         single_bnds_damping=true,
                         iterative_refinement=true,
                         max_iter=1000,
-                        ϵ_tol=1.0e-6,
-                        ϵ_al_tol=1.0e-6,
+                        ϵ_tol=1.0e-8,
+                        ϵ_al_tol=1.0e-8,
                         nlp_scaling=true,
-                        quasi_newton=:lbfgs,
+                        quasi_newton=:bfgs,
+                        quasi_newton_approx=:lagrangian,
                         verbose=true)
 
 s = InteriorPointSolver(knitro_comp()...,opts=opts)
