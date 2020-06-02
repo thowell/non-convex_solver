@@ -455,8 +455,8 @@ Evaluate the bound constraints and their sigma values
 function eval_bounds!(s::Solver)
     s.ΔxL .= view(s.x,s.idx.xL) - view(s.model.xL,s.idx.xL)
     s.ΔxU .= view(s.model.xU,s.idx.xU) - view(s.x,s.idx.xU)
-    s.σL .= s.zL./s.ΔxL
-    s.σU .= s.zU./s.ΔxU
+    s.σL .= s.zL./(s.ΔxL .- s.δc)
+    s.σU .= s.zU./(s.ΔxU .- s.δc)
     return nothing
 end
 

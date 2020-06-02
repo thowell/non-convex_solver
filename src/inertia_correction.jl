@@ -146,7 +146,7 @@ function factorize_kkt!(s::Solver)
 end
 
 function factorize_kkt_slack!(s::Solver)
-    s.δ[1:s.model_opt.n] .= s.δw
+    s.δ[s.idx.x] .= s.δw
     s.δ[s.idx.y] .= -s.δc
 
     s.LBL_slack = Ma57(s.H_slack + Diagonal(view(s.δ,[(1:s.model_opt.n)...,s.idx.y...])))

@@ -15,12 +15,12 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
         if s.opts.kkt_solve == :fullspace
             s.Δ .= (s.H+Diagonal(s.δ))\s.res
         elseif s.opts.kkt_solve == :symmetric
-            s.res_xL .+= s.res_zL./s.ΔxL
-            s.res_xU .-= s.res_zU./s.ΔxU
+            s.res_xL .+= s.res_zL./(s.ΔxL .- s.δc)
+            s.res_xU .-= s.res_zU./(s.ΔxU .- s.δc)
 
             s.Δ_xy .= ma57_solve(s.LBL,Array(s.res_xy))
-            s.Δ_zL .= -s.σL.*s.Δ_xL + s.res_zL./s.ΔxL
-            s.Δ_zU .= s.σU.*s.Δ_xU + s.res_zU./s.ΔxU
+            s.Δ_zL .= -s.σL.*s.Δ_xL + s.res_zL./(s.ΔxL .- s.δc)
+            s.Δ_zU .= s.σU.*s.Δ_xU + s.res_zU./(s.ΔxU .- s.δc)
         end
 
         d .+= s.Δ

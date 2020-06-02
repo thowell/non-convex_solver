@@ -62,8 +62,8 @@ end
 
 function kkt_gradient_symmetric!(s::Solver)
     s.h_sym[s.idx.x] .= copy(view(s.h,s.idx.x))
-    s.h_sym[s.idx.xL] .+= view(s.h,s.idx.zL)./s.ΔxL
-    s.h_sym[s.idx.xU] .-= view(s.h,s.idx.zU)./s.ΔxU
+    s.h_sym[s.idx.xL] .+= view(s.h,s.idx.zL)./(s.ΔxL .- s.δc)
+    s.h_sym[s.idx.xU] .-= view(s.h,s.idx.zU)./(s.ΔxU .- s.δc)
     s.h_sym[s.idx.y] .= copy(view(s.h,s.idx.y))
 
     return nothing
@@ -76,8 +76,8 @@ function search_direction_symmetric!(s::Solver)
     inertia_correction!(s,restoration=s.restoration)
 
     s.dxy .= ma57_solve(s.LBL, -s.h_sym)
-    s.dzL .= -s.σL.*s.dxL - s.zL + s.μ./s.ΔxL
-    s.dzU .= s.σU.*s.dxU - s.zU + s.μ./s.ΔxU
+    s.dzL .= -s.σL.*s.dxL - s.zL + s.μ./(s.ΔxL .- s.δc)
+    s.dzU .= s.σU.*s.dxU - s.zU + s.μ./(s.ΔxU .- s.δc)
 
     if s.opts.iterative_refinement
         kkt_hessian_fullspace!(s)

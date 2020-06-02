@@ -17,8 +17,8 @@ end
 
 function update_phase1_solver!(s̄::Solver,s::Solver)
     s.dx .= view(s̄.x,s.idx.x) - s.x
-    s.dzL .= -s.σL.*s.dxL - s.zL + s.μ./s.ΔxL
-    s.dzU .= s.σU.*s.dxU - s.zU + s.μ./s.ΔxU
+    s.dzL .= -s.σL.*s.dxL - s.zL + s.μ./(s.ΔxL .- s.δc)
+    s.dzU .= s.σU.*s.dxU - s.zU + s.μ./(s.ΔxU .- s.δc)
 
     αz_max!(s)
 
@@ -296,8 +296,8 @@ end
 
 function kkt_gradient_symmetric_restoration!(s̄::Solver,s::Solver)
     s.h_sym[s.idx.x] = s̄.h[s.idx.x]
-    s.h_sym[s.idx.xL] += (view(s̄.h,s̄.idx.zL)./s̄.ΔxL)[s̄.idx_r.zLL]
-    s.h_sym[s.idx.xU] -= (view(s̄.h,s̄.idx.zU)./s̄.ΔxU)[s̄.idx_r.zUU]
+    s.h_sym[s.idx.xL] += (view(s̄.h,s̄.idx.zL)./(s̄.ΔxL - s̄.δc))[s̄.idx_r.zLL]
+    s.h_sym[s.idx.xU] -= (view(s̄.h,s̄.idx.zU)./(s̄.ΔxU - s̄.δc))[s̄.idx_r.zUU]
     s.h_sym[s.idx.y] = view(s̄.h,s̄.idx.y) + 1.0./view(s̄.σL,s̄.idx_r.zLp).*view(s̄.h,s̄.idx_r.p) -1.0./view(s̄.σL,s̄.idx_r.zLn).*view(s̄.h,s̄.idx_r.n) + view(s̄.h,s̄.idx_r.zp)./view(s̄.zL,s̄.idx_r.zLp) - view(s̄.h,s̄.idx_r.zn)./view(s̄.zL,s̄.idx_r.zLn)
     return nothing
 end
@@ -324,10 +324,10 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
 
     s̄.d[s̄.idx_r.p] = -1.0./view(s̄.σL,s̄.idx_r.zLp).*(-dy - rp) + rzp./view(s̄.zL,s̄.idx_r.zLp)
     s̄.d[s̄.idx_r.n] = -1.0./view(s̄.σL,s̄.idx_r.zLn).*(dy - rn) + rzn./view(s̄.zL,s̄.idx_r.zLn)
-    s̄.d[s̄.idx_r.zL] = -view(s̄.σL,s̄.idx_r.zLL).*view(dx,s.idx.xL) + rzL./view(s̄.ΔxL,s̄.idx_r.zLL)
+    s̄.d[s̄.idx_r.zL] = -view(s̄.σL,s̄.idx_r.zLL).*view(dx,s.idx.xL) + rzL./(view(s̄.ΔxL,s̄.idx_r.zLL) .- s̄.δc)
     s̄.d[s̄.idx_r.zp] = -dy - rp
     s̄.d[s̄.idx_r.zn] = dy - rn
-    s̄.d[s̄.idx_r.zU] = view(s̄.σU,s̄.idx_r.zUU).*view(dx,s.idx.xU) + rzU./view(s̄.ΔxU,s̄.idx_r.zUU)
+    s̄.d[s̄.idx_r.zU] = view(s̄.σU,s̄.idx_r.zUU).*view(dx,s.idx.xU) + rzU./(view(s̄.ΔxU,s̄.idx_r.zUU) .- s̄.δc)
 
     if s̄.opts.iterative_refinement
         kkt_hessian_fullspace!(s̄)
@@ -362,8 +362,8 @@ function iterative_refinement_restoration(d::Vector{T},s̄::Solver,s::Solver) wh
             rzU = view(s̄.res,s̄.idx_r.zU)
 
             s.h_sym[s.idx.x] = rx
-            s.h_sym[s.idx.xL] += rzL./view(s̄.ΔxL,s̄.idx_r.zLL)
-            s.h_sym[s.idx.xU] -= rzU./view(s̄.ΔxU,s̄.idx_r.zUU)
+            s.h_sym[s.idx.xL] += rzL./(view(s̄.ΔxL,s̄.idx_r.zLL) .- s̄.δc)
+            s.h_sym[s.idx.xU] -= rzU./(view(s̄.ΔxU,s̄.idx_r.zUU) .- s̄.δc)
             s.h_sym[s.idx.y] = ry
             s.h_sym[s.idx.y] += 1.0./view(s̄.σL,s̄.idx_r.zLp).*rp + rzp./view(s̄.zL,s̄.idx_r.zLp) - 1.0./view(s̄.σL,s̄.idx_r.zLn).*rn - rzn./view(s̄.zL,s̄.idx_r.zLn)
 
@@ -374,10 +374,10 @@ function iterative_refinement_restoration(d::Vector{T},s̄::Solver,s::Solver) wh
 
             s̄.Δ[s̄.idx_r.p] = -1.0./view(s̄.σL,s̄.idx_r.zLp).*(-dy - rp) + rzp./view(s̄.zL,s̄.idx_r.zLp)
             s̄.Δ[s̄.idx_r.n] = -1.0./view(s̄.σL,s̄.idx_r.zLn).*(dy - rn) + rzn./view(s̄.zL,s̄.idx_r.zLn)
-            s̄.Δ[s̄.idx_r.zL] = -view(s̄.σL,s̄.idx_r.zLL).*view(dx,s.idx.xL) + rzL./view(s̄.ΔxL,s̄.idx_r.zLL)
+            s̄.Δ[s̄.idx_r.zL] = -view(s̄.σL,s̄.idx_r.zLL).*view(dx,s.idx.xL) + rzL./(view(s̄.ΔxL,s̄.idx_r.zLL) .- s̄.δc)
             s̄.Δ[s̄.idx_r.zp] = -dy - rp
             s̄.Δ[s̄.idx_r.zn] = dy - rn
-            s̄.Δ[s̄.idx_r.zU] = view(s̄.σU,s̄.idx_r.zUU).*view(dx,s.idx.xU) + rzU./view(s̄.ΔxU,s̄.idx_r.zUU)
+            s̄.Δ[s̄.idx_r.zU] = view(s̄.σU,s̄.idx_r.zUU).*view(dx,s.idx.xU) + rzU./(view(s̄.ΔxU,s̄.idx_r.zUU) .- s̄.δc)
         end
 
         d .+= s̄.Δ

@@ -15,7 +15,7 @@ c_func(x) = [-(x[1] -1)^3 + x[2] - 1;
              -x[1] - x[2] + 2]
 c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
-model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=ones(Bool,m),cA_idx=ones(Bool,m))
+model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=ones(Bool,m),cA_idx=zeros(Bool,m))
 
 s = InteriorPointSolver(x0,model,opts=opts=Options{Float64}(kkt_solve=:symmetric,
                                                         quasi_newton=:bfgs,
