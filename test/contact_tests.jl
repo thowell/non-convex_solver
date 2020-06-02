@@ -2,6 +2,7 @@ include("contact_problems.jl")
 
 @testset "Contact problems" begin
     # particle
+	@info "particle"
 	solver = InteriorPointSolver(particle()...,opts=opts)
 	solve!(solver)
 	@test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
@@ -37,6 +38,7 @@ include("contact_problems.jl")
 	@test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
 
     # Raibert hopper
+	@info "raibert hopper"
     solver = InteriorPointSolver(
               hopper()...,
               opts=opts)

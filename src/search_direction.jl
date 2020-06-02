@@ -110,8 +110,8 @@ function kkt_hessian_slack!(s::Solver)
     zL = view(s.zL,1:nL)
     zS = view(s.zL,nL .+ (1:mI))
     zU = s.zU
-    view(s.H_slack,CartesianIndex.(n .+ (1:mI),n .+ (1:mI))) .= -ΔsL./zS
-    view(s.H_slack,CartesianIndex.(n+mI+mE .+ (1:mA),n+mI+mE .+ (1:mA))) .= -1.0/s.ρ
+    view(s.H_slack,CartesianIndex.(n .+ (1:mI),n .+ (1:mI))) .= -(ΔsL .- s.δc)./zS
+    view(s.H_slack,CartesianIndex.(n+mI+mE .+ (1:mA),n+mI+mE .+ (1:mA))) .= -1.0/(s.ρ + s.δw)
 
     return nothing
 end
@@ -134,11 +134,11 @@ function kkt_gradient_slack!(s::Solver)
     zU = s.zU
 
     s.h_slack[1:n] .= copy(s.hx)
-    s.h_slack[idx.xL[1:nL]] .+= s.hzL./ΔxL
-    s.h_slack[idx.xU[1:nU]] .-= s.hzU./ΔxU
-    s.h_slack[n .+ (1:mI)] .= s.hyI + (ΔsL.*s.hs + s.hzs)./zS
+    s.h_slack[idx.xL[1:nL]] .+= s.hzL./(ΔxL .- s.δc)
+    s.h_slack[idx.xU[1:nU]] .-= s.hzU./(ΔxU .- s.δc)
+    s.h_slack[n .+ (1:mI)] .= s.hyI + ((ΔsL .- s.δc).*s.hs + s.hzs)./zS
     s.h_slack[n+mI .+ (1:mE)] .= copy(s.hyE)
-    s.h_slack[n+mI+mE .+ (1:mA)] .= s.hyA + 1.0/s.ρ*s.hr
+    s.h_slack[n+mI+mE .+ (1:mA)] .= s.hyA + 1.0/(s.ρ + s.δw)*s.hr
 
     return nothing
 end
@@ -166,11 +166,18 @@ function search_direction_slack!(s::Solver)
     inertia_correction_slack!(s)
     s._dxy .= ma57_solve(s.LBL_slack,-s.h_slack)
 
-    s.dr .= 1.0/s.ρ*(s.dyA - s.hr)
-    s._dzL .= -(zL.*view(s.dxL,1:nL) + s.hzL)./ΔxL
-    s.dzU .= (zU.*view(s.dx,1:nU) - s.hzU)./ΔxU
-    s.dzs .= -s.dyI + s.hs
-    s.ds .= -(ΔsL.*s.dzs + s.hzs)./zS
+    s.dr .= 1.0/(s.ρ + s.δw)*(s.dyA - s.hr)
+    s._dzL .= -(zL.*view(s.dxL,1:nL) + s.hzL)./(ΔxL .- s.δc)
+    s.dzU .= (zU.*view(s.dx,1:nU) - s.hzU)./(ΔxU .- s.δc)
+
+
+    # s.dzs .= -s.dyI + s.hs
+    # s.ds .= -((ΔsL .- s.δc).*s.dzs + s.hzs)./zS
+
+    Is = Matrix(I,mI,mI)
+    tmp = [s.δw*Is -Is; Diagonal(zS) Diagonal(ΔsL .- s.δc)]\[-s.hs + s.dyI; -s.hzs]
+    s.ds .= tmp[1:mI]
+    s.dzs .= tmp[mI .+ (1:mI)]
 
     if s.opts.iterative_refinement
         kkt_hessian_fullspace!(s)
