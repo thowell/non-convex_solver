@@ -13,7 +13,6 @@ struct H_fullspace_views{T}
     zUxU::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
     zLzL::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
     zUzU::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
-    yAyA::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
 end
 
 function H_fullspace_views(H::SparseMatrixCSC,idx::Indices)
@@ -26,9 +25,8 @@ function H_fullspace_views(H::SparseMatrixCSC,idx::Indices)
     zUxU = view(H,CartesianIndex.(idx.zU,idx.xU))
     zLzL = view(H,CartesianIndex.(idx.zL,idx.zL))
     zUzU = view(H,CartesianIndex.(idx.zU,idx.zU))
-    yAyA = view(H,CartesianIndex.(idx.yA,idx.yA))
 
-    H_fullspace_views(xx,xy,yx,xLzL,zLxL,xUzU,zUxU,zLzL,zUzU,yAyA)
+    H_fullspace_views(xx,xy,yx,xLzL,zLxL,xUzU,zUxU,zLzL,zUzU)
 end
 
 """
@@ -43,7 +41,6 @@ struct H_symmetric_views{T}
     xy::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
     yx::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
     yy::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
-    yAyA::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
 end
 
 function H_symmetric_views(H::SparseMatrixCSC,idx::Indices)
@@ -53,9 +50,8 @@ function H_symmetric_views(H::SparseMatrixCSC,idx::Indices)
     xy = view(H,idx.x,idx.y)
     yx = view(H,idx.y,idx.x)
     yy = view(H,CartesianIndex.(idx.y,idx.y))
-    yAyA = view(H,CartesianIndex.(idx.yA,idx.yA))
 
-    H_symmetric_views(xx,xLxL,xUxU,xy,yx,yy,yAyA)
+    H_symmetric_views(xx,xLxL,xUxU,xy,yx,yy)
 end
 
 # TODO: shouldn't this be `Base.copyto(x,y)`?

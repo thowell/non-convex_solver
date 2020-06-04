@@ -1,4 +1,4 @@
-include("../src/interior_point.jl")
+include("../src/non-convex_solver.jl")
 
 function knitro_comp()
     n = 8
@@ -43,7 +43,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         quasi_newton_approx=:lagrangian,
                         verbose=true)
 
-s = InteriorPointSolver(knitro_comp()...,opts=opts)
+s = NonConvexSolver(knitro_comp()...,opts=opts)
 eval_step!(s.s)
 @time solve!(s)
 s.s.qn.fail_cnt

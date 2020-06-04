@@ -23,12 +23,6 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
     αz_max!(s)
 
     s.x .= view(s̄.x,s.idx.x)
-
-    # project phase 2 solution on phase 1 bounds
-    # for i = 1:s.n
-    #     s.x[i] = init_x0(s̄.x[i],s.xL[i],s.xU[i],s.opts.κ1,s.opts.κ2)
-    # end
-
     s.zL .+= s.αz*s.dzL
     s.zU .+= s.αz*s.dzU
 
@@ -187,11 +181,6 @@ function initialize_restoration_solver!(s̄::Solver,s::Solver)
     for i = 1:s.model.m
         s̄.x[s.model.n + i] = init_p(s̄.x[s.model.n + s.model.m + i],s.c[i])
     end
-
-    # # project
-    # for i = 1:s̄.n
-    #     s̄.x[i] = init_x0(s̄.x[i],s̄.xL[i],s̄.xU[i],s̄.opts.κ1,s̄.opts.κ2)
-    # end
 
     # initialize zL, zU, zp, zn
     for i = 1:s.model.nL

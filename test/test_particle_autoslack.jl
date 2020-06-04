@@ -1,4 +1,4 @@
-include("../src/interior_point.jl")
+include("../src/non-convex_solver.jl")
 
 
 nc = 1
@@ -97,5 +97,5 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         quasi_newton_approx=:lagrangian,
                         verbose=true)
 
-s = InteriorPointSolver(x0,nlp_model,opts=opts)
+s = NonConvexSolver(x0,nlp_model,opts=opts)
 @time solve!(s)

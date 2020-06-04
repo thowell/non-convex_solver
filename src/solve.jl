@@ -1,10 +1,10 @@
-function solve!(solver::InteriorPointSolver)
+function solve!(solver::NonConvexSolver)
     # phase 1 solver
     s = solver.s
 
     if s.opts.verbose
         println(crayon"bold underline red",
-            "CALIPSO: CONIC PRIMAL-DUAL AUGMENTED-LAGRANGIAN INTERIOR-POINT SOLVER")
+            "NON-CONVEX SOLVER")
         println(crayon"reset","Taylor Howell")
         println("Robotic Exploration Lab")
         println("Stanford University\n")

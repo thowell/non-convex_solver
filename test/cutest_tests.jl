@@ -6,7 +6,7 @@ include("cutest_problems_medium.jl")
         println("problem: $(prob)")
         nlp = SlackModel(CUTEstModel(prob))
         model = Model(nlp)
-        solver = InteriorPointSolver(nlp.meta.x0, model,opts=opts)
+        solver = NonConvexSolver(nlp.meta.x0, model,opts=opts)
         try
             solve!(solver)
             @test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
@@ -22,7 +22,7 @@ end
         # println("problem: $(prob)")
 #         nlp = SlackModel(CUTEstModel(prob))
 #         model = Model(nlp)
-#         solver = InteriorPointSolver(nlp.meta.x0, model,opts=opts)
+#         solver = NonConvexSolver(nlp.meta.x0, model,opts=opts)
 #         try
 #             solve!(solver)
 #             @test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol

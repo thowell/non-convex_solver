@@ -109,3 +109,5 @@ F1
 F1.workspace
 
 s.model.n
+s.s.δ[s.s.idx.x] .= 0.01
+F = qdldl(s.s.H_sym+ Diagonal(view(s.s.δ,s.s.idx.xy)))

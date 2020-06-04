@@ -1,4 +1,4 @@
-include("../src/interior_point.jl")
+include("../src/non-convex_solver.jl")
 
 n = 50
 m = 30
@@ -12,14 +12,9 @@ xU = Inf*ones(n)
 xU[5] = 20.
 
 f_func(x) = x'*x
-f, ∇f!, ∇²f! = objective_functions(f_func)
-
 c_func(x) = x[1:m].^2 .- 1.2
-# c_func(x) = x[1:m] .- 1.2
 
-c!, ∇c!, ∇²cy! = constraint_functions(c_func)
-
-model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m))
+model = Model(n,m,xL,xU,f_func,c_func)
 
 opts = Options{Float64}(
                         kkt_solve=:symmetric,
@@ -33,25 +28,5 @@ opts = Options{Float64}(
                         quasi_newton_approx=:lagrangian
                         )
 
-s = InteriorPointSolver(x0,model,opts=opts)
+s = NonConvexSolver(x0,model,opts=opts)
 @time solve!(s)
-
-solve(inertia_correction_qdldl(s.s),-s.s.h_sym)
-
-F = inertia_correction_qdldl(s.s)
-s.s.dxy .= solve(F,-s.s.h_sym)
-# cholesky(s.s.∇²L + 1.0*I)
-# rank(s.s.∇²L)
-# rank(get_∇c(s.s.model))
-# s.s.model.m
-#
-# sum(eigen(Array(s.s.H_sym)).values .> 0)
-# sum(eigen(Array(s.s.H_sym)).values .< 0)
-#
-# inertia_correction!(s.s)
-# s.s.δ
-# s.s.δw
-# s.s.inertia
-# s.s.LBL
-#
-# qdldl(s.s.H_sym + 1.0*I)

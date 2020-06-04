@@ -54,6 +54,11 @@ mutable struct Model{T} <: AbstractModel
     info::AbstractModelInfo
 end
 
+function Model(n,m,xL,xU,f_func,c_func;cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m))
+    f, ∇f!, ∇²f! = objective_functions(f_func)
+    c!, ∇c!, ∇²cy! = constraint_functions(c_func)
+    Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
+end
 
 function Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cy_func!;
         cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m),bnd_tol=1.0e8)

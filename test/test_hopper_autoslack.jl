@@ -1,4 +1,4 @@
-include("../src/interior_point.jl")
+include("../src/non-convex_solver.jl")
 
 
 mutable struct Hopper{T,S} <: AbstractModel
@@ -193,5 +193,5 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        quasi_newton_approx=:lagrangian,
                        lbfgs_length=6)
 
-s = InteriorPointSolver(x0,nlp_model,opts=opts)
+s = NonConvexSolver(x0,nlp_model,opts=opts)
 @time solve!(s)

@@ -47,25 +47,14 @@ mutable struct Solver{T}
 
     h::Vector{T}                    # rhs of KKT system
     hx::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
-    hs::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
-    hr::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     hy
-    hyI::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
-    hyE::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
-    hyA::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
     hzL
-    hzs
     hzU
 
     h_sym::Vector{T}                # rhs of symmetric KKT system
 
-    H_slack::SparseMatrixCSC{T,Int}
-    h_slack::Vector{T}
-
     LBL::Ma57{T} # ?
-    LBL_slack::Ma57{T}
     inertia::Inertia
-    inertia_slack::Inertia
 
     d::Vector{T}                    # current step
     dx::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}   # current step in the primals
@@ -75,14 +64,6 @@ mutable struct Solver{T}
     dxy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     dzL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
     dzU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}  # current step in the slack duals
-    _dxy
-    ds
-    dr
-    dyI
-    dyE
-    dyA
-    _dzL
-    dzs
 
     Δ::Vector{T}    # iterative refinement step
     Δ_xL::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
@@ -91,30 +72,12 @@ mutable struct Solver{T}
     Δ_zL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     Δ_zU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
 
-    Δ__xy
-    Δ_s
-    Δ_r
-    Δ_yI
-    Δ_yE
-    Δ_yA
-    Δ__zL
-    Δ_zs
-
     res::Vector{T}  # iterative refinement residual
     res_xL::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
     res_xU::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
     res_xy::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     res_zL::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     res_zU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
-
-    res__xy
-    res_s
-    res_r
-    res_yI
-    res_yE
-    res_yA
-    res__zL
-    res_zs
 
     # Line search values
     α::T
@@ -175,7 +138,6 @@ mutable struct Solver{T}
 
     ρ::T
     λ::Vector{T}
-    yA::SubArray{T,1,Array{T,1},Tuple{Array{Int,1}},false}
 
     qn::QuasiNewton
 
@@ -229,27 +191,16 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     h = zeros(n+m+nL+nU)
 
     hx = view(h,1:model_opt.n)
-    hs = view(h,idx.s)
-    hr = view(h,idx.r)
     hy = view(h,idx.y)
-    hyI = view(h,idx.yI)
-    hyE = view(h,idx.yE)
-    hyA = view(h,idx.yA)
     hzL = view(h,idx.zL[1:model_opt.nL])
-    hzs = view(h,idx.zL[model_opt.nL .+ (1:mI)])
     hzU = view(h,idx.zU)
 
     H_sym = spzeros(n+m,n+m)
     h_sym = zeros(n+m)
 
-    H_slack = spzeros(model_opt.n+model_opt.m,model_opt.n+model_opt.m)
-    h_slack = zeros(model_opt.n+model_opt.m)
-
     LBL = Ma57(H_sym)
-    LBL_slack = Ma57(H_slack)
 
     inertia = Inertia(0,0,0)
-    inertia_slack = Inertia(0,0,0)
 
     ∇²L = spzeros(n,n)
     σL = zeros(nL)
@@ -264,7 +215,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     τ = update_τ(μ,opts.τ_min)
 
     eval_∇f!(model,x)
-    # model.∇f[idx.r] += λ + ρ*view(x,idx.r)
+    model.∇f[idx.r] += λ + ρ*view(x,idx.r)
     df = init_df(opts.g_max,get_∇f(model))
 
     φ = 0.
@@ -324,14 +275,10 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
 
     Fμ = zeros(n+m+nL+nU)
 
-
-
     fail_cnt = 0
 
     Hv = H_fullspace_views(H,idx)
     Hv_sym = H_symmetric_views(H_sym,idx)
-
-    yA = view(y,cA_idx)
 
     θ = norm(c,1)
     θ⁺ = copy(θ)
@@ -348,15 +295,6 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     dzL = view(d,idx.zL)
     dzU = view(d,idx.zU)
 
-    _dxy = view(d,[(1:model_opt.n)...,idx.y...])
-    ds = view(d,idx.s)
-    dr = view(d,idx.r)
-    dyI = view(d,idx.yI)
-    dyE = view(d,idx.yE)
-    dyA = view(d,idx.yA)
-    _dzL = view(d,idx.zL[1:model_opt.nL])
-    dzs = view(d,idx.zL[model_opt.nL .+ (1:model_opt.mI)])
-
     Δ = zero(d)
     Δ_xL = view(Δ,idx.xL)
     Δ_xU = view(Δ,idx.xU)
@@ -364,30 +302,12 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     Δ_zL = view(Δ,idx.zL)
     Δ_zU = view(Δ,idx.zU)
 
-    Δ__xy = view(Δ,[(1:model_opt.n)...,idx.y...])
-    Δ_s = view(Δ,idx.s)
-    Δ_r = view(Δ,idx.r)
-    Δ_yI = view(Δ,idx.yI)
-    Δ_yE = view(Δ,idx.yE)
-    Δ_yA = view(Δ,idx.yA)
-    Δ__zL = view(Δ,idx.zL[1:model_opt.nL])
-    Δ_zs = view(Δ,idx.zL[model_opt.nL .+ (1:model_opt.mI)])
-
     res = zero(d)
     res_xL = view(res,idx.xL)
     res_xU = view(res,idx.xU)
     res_xy = view(res,idx.xy)
     res_zL = view(res,idx.zL)
     res_zU = view(res,idx.zU)
-
-    res__xy = view(res,[(1:model_opt.n)...,idx.y...])
-    res_s = view(res,idx.s)
-    res_r = view(res,idx.r)
-    res_yI = view(res,idx.yI)
-    res_yE = view(res,idx.yE)
-    res_yA = view(res,idx.yA)
-    res__zL = view(res,idx.zL[1:model_opt.nL])
-    res_zs = view(res,idx.zL[model_opt.nL .+ (1:model_opt.mI)])
 
     if opts.quasi_newton == :lbfgs
         qn = LBFGS(n=model.n,m=model.m,k=opts.lbfgs_length)
@@ -406,14 +326,13 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            c,c_soc,c_tmp,
            H,H_sym,
            Hv,Hv_sym,
-           h,hx,hs,hr,hy,hyI,hyE,hyA,hzL,hzs,hzU,
+           h,hx,hy,hzL,hzU,
            h_sym,
-           H_slack,h_slack,
-           LBL,LBL_slack,
-           inertia,inertia_slack,
-           d,dx,dxL,dxU,dy,dxy,dzL,dzU,_dxy,ds,dr,dyI,dyE,dyA,_dzL,dzs,
-           Δ,Δ_xL,Δ_xU,Δ_xy,Δ_zL,Δ_zU,Δ__xy,Δ_s,Δ_r,Δ_yI,Δ_yE,Δ_yA,Δ__zL,Δ_zs,
-           res,res_xL,res_xU,res_xy,res_zL,res_zU,res__xy,res_s,res_r,res_yI,res_yE,res_yA,res__zL,res_zs,
+           LBL,
+           inertia,
+           d,dx,dxL,dxU,dy,dxy,dzL,dzU,
+           Δ,Δ_xL,Δ_xU,Δ_xy,Δ_zL,Δ_zU,
+           res,res_xL,res_xU,res_xy,res_zL,res_zU,
            α,αz,α_max,α_min,β,
            δ,δw,δw_last,δc,
            θ,θ⁺,θ_min,θ_max,θ_soc,
@@ -427,7 +346,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            idx,idx_r,
            fail_cnt,
            df,Dc,
-           ρ,λ,yA,
+           ρ,λ,
            qn,
            opts)
 end
@@ -453,8 +372,8 @@ eval_Eμ(μ,s::Solver) = eval_Eμ(s.zL,s.zU,s.ΔxL,s.ΔxU,s.c,s.∇L,μ,s.sd,s.s
 Evaluate the bound constraints and their sigma values
 """
 function eval_bounds!(s::Solver)
-    s.ΔxL .= view(s.x,s.idx.xL) - view(s.model.xL,s.idx.xL)
-    s.ΔxU .= view(s.model.xU,s.idx.xU) - view(s.x,s.idx.xU)
+    s.ΔxL .= s.xl - view(s.model.xL,s.idx.xL)
+    s.ΔxU .= view(s.model.xU,s.idx.xU) - s.xu
     s.σL .= s.zL./(s.ΔxL .- s.δc)
     s.σU .= s.zU./(s.ΔxU .- s.δc)
     return nothing
@@ -477,11 +396,6 @@ function eval_objective!(s::Solver)
     end
     return nothing
 end
-
-# function get_f_scaled(x,s::Solver)
-#     s.opts.nlp_scaling ? s.df*get_f(s,x) : get_f(s,x)
-# end
-
 
 """
     eval_constraints!(s::Solver)
@@ -525,8 +439,6 @@ function eval_lagrangian!(s::Solver)
     s.∇L[s.idx.xL] -= s.zL
     s.∇L[s.idx.xU] += s.zU
 
-    # s.model.mA > 0 && (s.∇L[s.idx.r] .+= s.λ + s.ρ*s.xr)
-
     # damping
     if s.opts.single_bnds_damping
         κd = s.opts.κd
@@ -537,7 +449,6 @@ function eval_lagrangian!(s::Solver)
 
     if s.opts.quasi_newton == :none
         s.∇²L .= get_∇²f(s.model) + get_∇²cy(s.model)
-        # s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
     end
     return nothing
 end
@@ -552,13 +463,9 @@ function eval_barrier!(s::Solver)
     s.φ -= s.μ*sum(log.(s.ΔxL))
     s.φ -= s.μ*sum(log.(s.ΔxU))
 
-    # s.model.mA > 0 && (s.φ += s.λ'*s.xr + 0.5*s.ρ*s.xr'*s.xr)
-
     s.∇φ .= get_∇f(s.model)
     s.∇φ[s.idx.xL] -= s.μ./s.ΔxL
     s.∇φ[s.idx.xU] += s.μ./s.ΔxU
-
-    # s.model.mA > 0 && (s.∇φ[s.idx.r] += s.λ + s.ρ*s.xr)
 
     # damping
     if s.opts.single_bnds_damping
@@ -634,8 +541,8 @@ some constant > 1, usually very large (e.g. 10^10).
 reset_z(z,x,μ,κΣ) = max(min(z,κΣ*μ/x),μ/(κΣ*x))
 
 function reset_z!(s::Solver)
-    s.ΔxL .= view(s.x,s.idx.xL) - view(s.model.xL,s.idx.xL)
-    s.ΔxU .= view(s.model.xU,s.idx.xU) - view(s.x,s.idx.xU)
+    s.ΔxL .= s.xl - view(s.model.xL,s.idx.xL)
+    s.ΔxU .= view(s.model.xU,s.idx.xU) - s.xu
 
     for i = 1:s.model.nL
         s.zL[i] = reset_z(s.zL[i],s.ΔxL[i],s.μ,s.opts.κΣ)
@@ -788,7 +695,7 @@ function relax_bounds!(s::Solver)
 end
 
 """
-    InteriorPointSolver{T}
+    NonConvexSolver{T}
 
 Complete interior point solver as described by the Ipopt paper.
 
@@ -796,12 +703,12 @@ Complete interior point solver as described by the Ipopt paper.
 - `s`: interior point solver for the original problem
 - `s`: interior point solver for the restoration phase
 """
-struct InteriorPointSolver{T}
+struct NonConvexSolver{T}
     s::Solver{T}
     s̄::Solver{T}
 end
 
-function InteriorPointSolver(x0,model;opts=Options{Float64}()) where T
+function NonConvexSolver(x0,model;opts=Options{Float64}()) where T
     if model.mI > 0 || model.mA > 0
         # slack model
         model_s = slack_model(model,bnd_tol=opts.bnd_tol)
@@ -818,7 +725,7 @@ function InteriorPointSolver(x0,model;opts=Options{Float64}()) where T
     s = Solver(_x0,model_s,model,opts=opts)
     s̄ = RestorationSolver(s)
 
-    InteriorPointSolver(s,s̄)
+    NonConvexSolver(s,s̄)
 end
 
 function update_quasi_newton!(s; x_update=false, ∇L_update=false)
@@ -851,7 +758,7 @@ end
 
 # modify to include Augmented Lagrangian terms
 function get_f(s::Solver,x)
-    (s.opts.nlp_scaling ? s.df*get_f(s.model,x) : get_f(s.model,x)) + (s.model.mA > 0 ? (s.λ'*view(x,s.idx.r) + 0.5*s.ρ*view(x,s.idx.r)'*view(x,s.idx.r)) : 0.)
+    (s.opts.nlp_scaling ? s.df*(get_f(s.model,x) + (s.model.mA > 0 ? (s.λ'*view(x,s.idx.r) + 0.5*s.ρ*view(x,s.idx.r)'*view(x,s.idx.r)) : 0.)) : (get_f(s.model,x) + (s.model.mA > 0 ? (s.λ'*view(x,s.idx.r) + 0.5*s.ρ*view(x,s.idx.r)'*view(x,s.idx.r)) : 0.)))
 end
 
 function eval_∇f!(s::Solver,x)
@@ -866,4 +773,8 @@ function eval_∇²f!(s::Solver,x)
     eval_∇²f!(s.model,x)
     s.model.mA > 0 && (view(s.model.∇²f,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
     return return nothing
+end
+
+function get_solution(s::NonConvexSolver)
+    return s.s.x[1:s.s.model_opt.n]
 end

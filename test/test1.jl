@@ -1,5 +1,5 @@
 # NOTE: Ipopt fails to converge on this problem.
-include("../src/interior_point.jl")
+include("../src/non-convex_solver.jl")
 
 n = 3
 m = 2
@@ -12,13 +12,12 @@ xL[3] = 0.
 xU = Inf*ones(n)
 
 f_func(x) = x[1]
-f, ∇f!, ∇²f! = objective_functions(f_func)
 
 c_func(x) = [x[1]^2 - x[2] - 1.0;
              x[1] - x[3] - 0.5]
-c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
-model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cA_idx=ones(Bool,m))
+model = Model(n,m,xL,xU,f_func,c_func)
+
 opts = Options{Float64}(
                         kkt_solve=:symmetric,
                         iterative_refinement=false,
@@ -31,8 +30,9 @@ opts = Options{Float64}(
                         quasi_newton_approx=:lagrangian
                         )
 
-s = InteriorPointSolver(x0,model,opts=opts)
+s = NonConvexSolver(x0,model,opts=opts)
 @time solve!(s)
+s.s.x
 
 # ######
 # using Ipopt, MathOptInterface
