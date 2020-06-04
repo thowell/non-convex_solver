@@ -66,8 +66,10 @@ TODO:
 - [ ] Schur-complement linear-system solve
 
 ## Install
--Git clone this repository
--Install [HSL.jl](https://github.com/JuliaSmoothOptimizers/HSL.jl)
+```code
+git clone https://github.com/thowell/non-convex_solver
+```
+install [HSL.jl](https://github.com/JuliaSmoothOptimizers/HSL.jl)
 
 ## Example
 Wachter problem
