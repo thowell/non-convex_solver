@@ -69,6 +69,8 @@
     lbfgs_length::Int = 6
     quasi_newton_approx::Symbol = :lagrangian
     bfgs_max_fail_cnt::Int = 2
+
+    restoration::Bool=true
 end
 
 # TODO: do this with a loop
@@ -129,5 +131,6 @@ function Base.copy(o::Options{T}) where T
                     quasi_newton=o.quasi_newton,
                     lbfgs_length=copy(o.lbfgs_length),
                     quasi_newton_approx=o.quasi_newton_approx,
-                    bfgs_max_fail_cnt=copy(o.bfgs_max_fail_cnt))
+                    bfgs_max_fail_cnt=copy(o.bfgs_max_fail_cnt),
+                    restoration=copy(o.restoration))
 end

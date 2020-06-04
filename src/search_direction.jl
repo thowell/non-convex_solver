@@ -171,13 +171,13 @@ function search_direction_slack!(s::Solver)
     s.dzU .= (zU.*view(s.dx,1:nU) - s.hzU)./(ΔxU .- s.δc)
 
 
-    # s.dzs .= -s.dyI + s.hs
-    # s.ds .= -((ΔsL .- s.δc).*s.dzs + s.hzs)./zS
+    s.dzs .= -s.dyI + s.hs
+    s.ds .= -((ΔsL .- s.δc).*s.dzs + s.hzs)./zS
 
-    Is = Matrix(I,mI,mI)
-    tmp = [s.δw*Is -Is; Diagonal(zS) Diagonal(ΔsL .- s.δc)]\[-s.hs + s.dyI; -s.hzs]
-    s.ds .= tmp[1:mI]
-    s.dzs .= tmp[mI .+ (1:mI)]
+    # Is = Matrix(I,mI,mI)
+    # tmp = [s.δw*Is -Is; Diagonal(zS) Diagonal(ΔsL .- s.δc)]\[-s.hs + s.dyI; -s.hzs]
+    # s.ds .= tmp[1:mI]
+    # s.dzs .= tmp[mI .+ (1:mI)]
 
     if s.opts.iterative_refinement
         kkt_hessian_fullspace!(s)

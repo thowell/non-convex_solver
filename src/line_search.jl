@@ -59,12 +59,12 @@ function line_search(s::Solver)
                 push!(s.filter,(s.θ_max,Inf))
                 s.opts.verbose && @warn "acceleration heuristic: resetting filter, reducing θ_max"
             else
-                @warn "WATCH DOG : UNTESTED"
-                if watch_dog!(s)
-                    s.opts.verbose && @warn "acceleration heuristic: watch dog -success"
-                    status = true
-                    break
-                end
+                # @warn "WATCH DOG : UNTESTED"
+                # if watch_dog!(s)
+                #     s.opts.verbose && @warn "acceleration heuristic: watch dog -success"
+                #     status = true
+                #     break
+                # end
             end
         end
 

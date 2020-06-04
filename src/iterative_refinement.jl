@@ -74,13 +74,13 @@ function iterative_refinement_slack(d::Vector{T},s::Solver) where T
         s.Δ_r .= 1.0/(s.ρ + s.δw)*(s.Δ_yA - s.res_r)
         s.Δ__zL .= -(zL.*s.Δ_xL[1:nL] + s.res__zL)./(ΔxL .- s.δc)
         s.Δ_zU .= (zU.*s.Δ_xL[1:nU] - s.res_zU)./(ΔxU .- s.δc)
-        # s.Δ_zs .= -s.Δ_yI + s.res_s
-        # s.Δ_s .= -((ΔsL .- s.δc).*s.Δ_zs + s.res_zs)./zS
+        s.Δ_zs .= -s.Δ_yI + s.res_s
+        s.Δ_s .= -((ΔsL .- s.δc).*s.Δ_zs + s.res_zs)./zS
 
-        Is = Matrix(I,mI,mI)
-        tmp = [s.δw*Is -Is; Diagonal(zS) Diagonal(ΔsL .- s.δc)]\[-s.res_s + s.Δ_yI; -s.res_zs]
-        s.Δ_s .= tmp[1:mI]
-        s.Δ_zs .= tmp[mI .+ (1:mI)]
+        # Is = Matrix(I,mI,mI)
+        # tmp = [s.δw*Is -Is; Diagonal(zS) Diagonal(ΔsL .- s.δc)]\[-s.res_s + s.Δ_yI; -s.res_zs]
+        # s.Δ_s .= tmp[1:mI]
+        # s.Δ_zs .= tmp[mI .+ (1:mI)]
 
         d .+= s.Δ
         s.res .= -s.h - s.H*d

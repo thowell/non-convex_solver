@@ -67,7 +67,12 @@ function solve!(solver::InteriorPointSolver)
                         return
                     else
                         augment_filter!(s)
-                        restoration!(solver.s̄,s)
+                        if s.opts.restoration
+                            restoration!(solver.s̄,s)
+                        else
+                            @logmsg InnerLoop "restoration mode turned off"
+                            return
+                        end
                     end
                 else  # successful line search
                     augment_filter!(s)

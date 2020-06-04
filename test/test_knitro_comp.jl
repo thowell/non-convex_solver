@@ -31,7 +31,7 @@ function knitro_comp()
     return x0,model
 end
 
-opts = Options{Float64}(kkt_solve=:slack,
+opts = Options{Float64}(kkt_solve=:symmetric,
                         relax_bnds=true,
                         single_bnds_damping=true,
                         iterative_refinement=true,
