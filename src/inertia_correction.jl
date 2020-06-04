@@ -187,3 +187,47 @@ inertia(s::Solver) = (s.inertia.n == s.model.n
 inertia_slack(s::Solver) = (s.inertia_slack.n == s.model_opt.n
                         && s.inertia_slack.m == s.model_opt.m
                         && s.inertia_slack.z == 0)
+
+
+function inertia_correction_qdldl(s::Solver)
+    s.δw = 0.0
+    s.δc = 0.0
+
+    # println("INERTIA CORRECTION")
+
+    try
+        F = qdldl(s.H_sym)
+        return F
+    catch
+        # IC-3
+        if s.δw_last == 0.
+            s.δw = s.opts.δw0
+        else
+            s.δw = max(s.opts.δw_min, s.opts.κw⁻*s.δw_last)
+        end
+
+        while true
+
+            try
+                s.δ[s.idx.x] .= s.δw
+                F = qdldl(s.H_sym + Diagonal(view(s.δ,s.idx.xy)))
+                s.δw_last = s.δw
+                return F
+            catch
+                # IC-5
+                if s.δw_last == 0
+                    s.δw = s.opts.κw⁺_*s.δw
+                else
+                    s.δw = s.opts.κw⁺*s.δw
+                end
+
+                # IC-6
+                if s.δw > s.opts.δw_max
+                    @logmsg InnerLoop "(n,m,z)+: ($(s.inertia.n)/$(s.model.n),$(s.inertia.m)/$(s.model.m),$(s.inertia.z)/0)"
+                    @logmsg InnerLoop "s.δw: $(s.δw)"
+                    error("inertia correction failure")
+                end
+            end
+        end
+    end
+end

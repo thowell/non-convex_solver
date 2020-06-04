@@ -20,8 +20,8 @@ c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cA_idx=ones(Bool,m))
 opts = Options{Float64}(
-                        kkt_solve=:slack,
-                        iterative_refinement=true,
+                        kkt_solve=:symmetric,
+                        iterative_refinement=false,
                         ϵ_tol=1.0e-8,
                         ϵ_al_tol=1.0e-8,
                         max_iterative_refinement=10,

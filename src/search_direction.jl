@@ -43,6 +43,7 @@ function search_direction_fullspace!(s::Solver)
     inertia_correction!(s,restoration=s.restoration)
 
     kkt_hessian_fullspace!(s)
+
     s.d .= lu(s.H + Diagonal(s.δ))\(-s.h)
 
     s.opts.iterative_refinement && iterative_refinement(s.d,s)
@@ -74,8 +75,10 @@ function search_direction_symmetric!(s::Solver)
     kkt_gradient_symmetric!(s)
 
     inertia_correction!(s,restoration=s.restoration)
-
     s.dxy .= ma57_solve(s.LBL, -s.h_sym)
+    # F = inertia_correction_qdldl(s)
+    # s.dxy .= QDLDL.solve(F,-s.h_sym)
+
     s.dzL .= -s.σL.*s.dxL - s.zL + s.μ./(s.ΔxL .- s.δc)
     s.dzU .= s.σU.*s.dxU - s.zU + s.μ./(s.ΔxU .- s.δc)
 

@@ -74,8 +74,8 @@ end
 function reset_quasi_newton!(qn)
     @warn "quasi newton reset"
     qn.B .= sparse(1.0*I,size(qn.B))
-    qn.s = empty!(qn.s)
-    qn.y = empty!(qn.y)
+    qn.s = [qn.s[end]]
+    qn.y = [qn.y[end]]
     qn.fail_cnt = 0
     return nothing
 end

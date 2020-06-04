@@ -1,6 +1,6 @@
 using LinearAlgebra, ForwardDiff, SparseArrays, Parameters
 using SolverLogging, Logging, Crayons
-using HSL
+using HSL, QDLDL
 
 include("options.jl")
 include("indices.jl")

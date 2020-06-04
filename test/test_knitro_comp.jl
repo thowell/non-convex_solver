@@ -34,7 +34,7 @@ end
 opts = Options{Float64}(kkt_solve=:symmetric,
                         relax_bnds=true,
                         single_bnds_damping=true,
-                        iterative_refinement=true,
+                        iterative_refinement=false,
                         max_iter=1000,
                         ϵ_tol=1.0e-8,
                         ϵ_al_tol=1.0e-8,
@@ -44,7 +44,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         verbose=true)
 
 s = InteriorPointSolver(knitro_comp()...,opts=opts)
-
+eval_step!(s.s)
 @time solve!(s)
 s.s.qn.fail_cnt
 

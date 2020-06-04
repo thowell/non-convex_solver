@@ -81,3 +81,31 @@ d_tmp2 = ma57_solve(s.LBL, -s.h_sym)
 
 norm(d_tmp + s.h_sym)
 norm(d_tmp - d_tmp2)
+
+s = s.s
+H_copy = copy(s.H)
+view(H_copy,CartesianIndex.(s.idx.zL,s.idx.xL)) .= -1.0
+view(H_copy,CartesianIndex.(s.idx.zU,s.idx.xU)) .= 1.0
+view(H_copy,CartesianIndex.(s.idx.zL,s.idx.zL)) .= -s.ΔxL./s.zL
+view(H_copy,CartesianIndex.(s.idx.zU,s.idx.zU)) .= -s.ΔxU./s.zU
+
+qdldl(H_copy)
+h_copy = copy(s.h)
+h_copy[s.idx.zL] .= -s.ΔxL + s.μ./s.zL
+h_copy[s.idx.zU] .= -s.ΔxU + s.μ./s.zU
+
+HH_tmp = H_copy + Diagonal(s.δ)
+d_tmp1 = (H_copy + Diagonal(s.δ))\(-1*h_copy)
+search_direction_fullspace!(s)
+norm(d_tmp1 - s.d)
+
+F1 = qdldl(HH_tmp)
+@benchmark qdldl($HH_tmp)
+d_tmp2 = solve(F1,-h_copy)
+@benchmark solve($F1,$(-h_copy))
+norm(d_tmp2 - s.d)
+
+F1
+F1.workspace
+
+s.model.n

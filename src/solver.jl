@@ -824,18 +824,19 @@ end
 function update_quasi_newton!(s; x_update=false, ∇L_update=false)
     if s.opts.quasi_newton != :none
         s.qn.∇L_prev .= s.qn.∇f_prev + s.qn.∇c_prev'*s.y
-        s.qn.∇L_prev[s.idx.xL] -= s.zL
-        s.qn.∇L_prev[s.idx.xU] += s.zU
+        # s.qn.∇L_prev[s.idx.xL] -= s.zL
+        # s.qn.∇L_prev[s.idx.xU] += s.zU
 
-        # damping
-        if s.opts.single_bnds_damping
-            κd = s.opts.κd
-            μ = s.μ
-            s.qn.∇L_prev[s.idx.xLs] .+= κd*μ
-            s.qn.∇L_prev[s.idx.xUs] .-= κd*μ
-        end
+        # # damping
+        # if s.opts.single_bnds_damping
+        #     κd = s.opts.κd
+        #     μ = s.μ
+        #     s.qn.∇L_prev[s.idx.xLs] .+= κd*μ
+        #     s.qn.∇L_prev[s.idx.xUs] .-= κd*μ
+        # end
         update_quasi_newton!(s.qn,copy(s.x),copy(get_∇f(s.model)),copy(get_∇c(s.model)),copy(s.∇L),x_update=x_update,∇L_update=∇L_update)
         s.∇²L .= copy(get_B(s.qn))
+        s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
     end
     return nothing
 end
@@ -855,14 +856,14 @@ end
 
 function eval_∇f!(s::Solver,x)
     s.model.∇f .= 0.
-    s.model.∇f_func!(s.model.∇f,x,s.model)
+    eval_∇f!(s.model,x)
     s.model.∇f[s.idx.r] += s.λ + s.ρ*view(x,s.idx.r)
     return nothing
 end
 
 function eval_∇²f!(s::Solver,x)
     s.model.∇²f .= 0.
-    s.model.∇²f_func!(s.model.∇²f,x,s.model)
+    eval_∇²f!(s.model,x)
     s.model.mA > 0 && (view(s.model.∇²f,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
     return return nothing
 end
