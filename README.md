@@ -69,7 +69,7 @@ TODO:
 ```code
 git clone https://github.com/thowell/non-convex_solver
 ```
-install [HSL.jl](https://github.com/JuliaSmoothOptimizers/HSL.jl)
+Request [HSL MA57 license](http://www.hsl.rl.ac.uk/download/HSL_MA57/5.2.0/) and install [HSL.jl](https://github.com/JuliaSmoothOptimizers/HSL.jl)
 
 ## Example
 Wachter problem
