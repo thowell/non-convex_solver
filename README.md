@@ -65,7 +65,7 @@ TODO:
  - [ ] block-wise BFGS
 - [ ] Schur-complement linear-system solve
 
-## Install
+## Installation
 ```code
 git clone https://github.com/thowell/non-convex_solver
 ```
@@ -80,7 +80,7 @@ subject to      x1^2 - x2 - 1.0 = 0
                 x1   - x3 - 0.5 = 0
                 x2, x3 >= 0
 ```
-
+Implementation
 ```julia
 # problem dimensions
 n = 3 # decision variables
