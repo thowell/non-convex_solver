@@ -7,7 +7,7 @@ Problems of the following form,
 minimize        f(x)
    x
 subject to      cI(x) >= 0
-                c(x)   = 0
+                cE(x)  = 0
                 cA(x)  = 0
                 xL <= x <= xU
 ```
@@ -87,12 +87,12 @@ n = 3 # decision variables
 m = 2 # constraints
 
 # initial guess
-x0 = [-2.0;3.0;1.0]
+x0 = [-2.0, 3.0, 1.0]
 
 # bounds
 xL = -Inf*ones(n) # lower bounds
-xL[2] = 0.
-xL[3] = 0.
+xL[2] = 0.0
+xL[3] = 0.0
 xU = Inf*ones(n) # upper bounds
 
 # objective
@@ -100,7 +100,7 @@ f_func(x) = x[1]
 
 # constraints
 c_func(x) = [x[1]^2 - x[2] - 1.0;
-           x[1] - x[3] - 0.5]
+             x[1]   - x[3] - 0.5]
 
 # model
 model = Model(n,m,xL,xU,f_func,c_func)
@@ -115,5 +115,5 @@ s = NonConvexSolver(x0,model,opts=opts)
 solve!(s)
 
 # solution
-x = get_solution(s) # x* = [1, 0, 0.5]
+x = get_solution(s) # x* = [1.0, 0.0, 0.5]
 ```
