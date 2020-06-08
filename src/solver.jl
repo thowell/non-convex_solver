@@ -731,18 +731,17 @@ end
 function update_quasi_newton!(s; x_update=false, ∇L_update=false)
     if s.opts.quasi_newton != :none
         s.qn.∇L_prev .= s.qn.∇f_prev + s.qn.∇c_prev'*s.y
-        # s.qn.∇L_prev[s.idx.xL] -= s.zL
-        # s.qn.∇L_prev[s.idx.xU] += s.zU
+        s.qn.∇L_prev[s.idx.xL] -= s.zL
+        s.qn.∇L_prev[s.idx.xU] += s.zU
 
-        # # damping
-        # if s.opts.single_bnds_damping
-        #     κd = s.opts.κd
-        #     μ = s.μ
-        #     s.qn.∇L_prev[s.idx.xLs] .+= κd*μ
-        #     s.qn.∇L_prev[s.idx.xUs] .-= κd*μ
-        # end
-        update_quasi_newton!(s.qn,copy(s.x),copy(get_∇f(s.model)),copy(get_∇c(s.model)),copy(s.∇L),x_update=x_update,∇L_update=∇L_update)
-        s.∇²L .= copy(get_B(s.qn))
+        ftmp = copy(get_∇f(s.model))
+        s.model.mA > 0 && (view(ftmp,s.idx.r) .= 0.)
+        ∇Ltmp = copy(ftmp) + get_∇c(s.model)'*s.y
+        ∇Ltmp[s.idx.xL] -= s.zL
+        ∇Ltmp[s.idx.xU] += s.zU
+
+        update_quasi_newton!(s.qn,copy(s.x),ftmp,copy(get_∇c(s.model)),∇Ltmp,x_update=x_update,∇L_update=∇L_update)
+        s.∇²L .= get_B(s.qn)
         s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
     end
     return nothing

@@ -14,7 +14,7 @@ xU[5] = 20.
 f_func(x) = x'*x
 c_func(x) = x[1:m].^2 .- 1.2
 
-model = Model(n,m,xL,xU,f_func,c_func)
+model = Model(n,m,xL,xU,f_func,c_func,cA_idx=ones(Bool,m))
 
 opts = Options{Float64}(
                         kkt_solve=:symmetric,
@@ -24,7 +24,7 @@ opts = Options{Float64}(
                         max_iterative_refinement=10,
                         max_iter=250,
                         verbose=true,
-                        quasi_newton=:none,
+                        quasi_newton=:bfgs,
                         quasi_newton_approx=:lagrangian
                         )
 

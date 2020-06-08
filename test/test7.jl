@@ -16,7 +16,7 @@ c_func(x) = [-(x[1] -1)^3 + x[2] - 1;
 model = Model(n,m,xL,xU,f_func,c_func,cI_idx=ones(Bool,m))
 
 s = NonConvexSolver(x0,model,opts=opts=Options{Float64}(kkt_solve=:symmetric,
-                                                        quasi_newton=:none,
+                                                        quasi_newton=:bfgs,
                                                         quasi_newton_approx=:lagrangian,
                                                         ϵ_tol=1.0e-8,
                                                         ϵ_al_tol=1.0e-8,

@@ -39,7 +39,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         ϵ_tol=1.0e-8,
                         ϵ_al_tol=1.0e-8,
                         nlp_scaling=true,
-                        quasi_newton=:none,
+                        quasi_newton=:bfgs,
                         quasi_newton_approx=:lagrangian,
                         verbose=true)
 

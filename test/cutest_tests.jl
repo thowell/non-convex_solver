@@ -33,20 +33,18 @@ end
 #     end
 # end
 
-# @testset "Ipopt - CUTEst small problems" begin
-#     for prob in small
-#         println("problem: $(prob)")
-#         nlp = CUTEstModel(prob)
-#         ipoptProb = createProblem(nlp)
-#         ipoptProb.x .= copy(nlp.meta.x0)
-#
-#         st = solveProblem(ipoptProb)
-#         @test st == 0
-#         finalize(nlp)
-#     end
-#
-#     @test count(status .!= :failed)/length(status) > .9
-# end
+@testset "Ipopt - CUTEst small problems" begin
+    for prob in small
+        println("problem: $(prob)")
+        nlp = CUTEstModel(prob)
+        ipoptProb = createProblem(nlp)
+        ipoptProb.x .= copy(nlp.meta.x0)
+        # addOption(ipoptProb,"hessian_approximation","limited-memory")
+        st = solveProblem(ipoptProb)
+        @test st == 0
+        finalize(nlp)
+    end
+end
 
 # @testset "Ipopt - CUTEst medium problems" begin
 #     for prob in medium

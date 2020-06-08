@@ -80,10 +80,10 @@ cA_idx[1:nc+nc] .= 0
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
 
 q0 = q1
-u0 = 1.0e-3*rand(nu)
-y0 = 1.0*rand(1)[1]
-β0 = 1.0*rand(nβ)
-ψ0 = 1.0*rand(1)[1]
+u0 = 1.0e-5*rand(nu)
+y0 = 1.0e-5*rand(1)[1]
+β0 = 1.0e-5*rand(nβ)
+ψ0 = 1.0e-5*rand(1)[1]
 x0 = [q0;u0;y0;β0;ψ0]
 
 opts = Options{Float64}(kkt_solve=:symmetric,

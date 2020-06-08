@@ -46,7 +46,7 @@ function update_quasi_newton!(qn::QuasiNewton,x,∇f,∇c,∇L; x_update=false, 
         end
     end
 
-    if qn.fail_cnt >= 2
+    if qn.fail_cnt >= 10
         reset_quasi_newton!(qn)
     else
         qn.x_prev .= copy(x)

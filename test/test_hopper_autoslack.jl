@@ -172,10 +172,10 @@ end
 
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
 
-u0 = 1.0e-3*rand(nu)
-y0 = 1.0*rand(1)[1]
-β0 = 1.0*rand(nβ)[1]
-ψ0 = 1.0*rand(1)[1]
+u0 = 1.0e-5*rand(nu)
+y0 = 1.0e-5*rand(1)[1]
+β0 = 1.0e-5*rand(nβ)[1]
+ψ0 = 1.0e-5*rand(1)[1]
 
 x0 = zeros(T*nx)
 for t = 1:T
@@ -186,10 +186,11 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        max_iter=1000,
                        iterative_refinement=true,
                        relax_bnds=true,
-                       max_iterative_refinement=10, ϵ_tol=1.0e-4,
+                       max_iterative_refinement=10,
+                       ϵ_tol=1.0e-4,
                        ϵ_al_tol=1.0e-4,
                        verbose=true,
-                       quasi_newton=:none,
+                       quasi_newton=:bfgs,
                        quasi_newton_approx=:lagrangian,
                        lbfgs_length=6)
 
