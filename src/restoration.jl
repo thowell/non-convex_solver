@@ -57,7 +57,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                     s̄.small_search_direction_cnt = 0
                     if s̄.μ < 0.1*s̄.opts.ϵ_tol
                         s̄.opts.verbose ? println("<phase 2 complete>: small search direction") : nothing
-                        return
+                        return false
                     end
                 else
                     break
@@ -72,7 +72,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
                 if !line_search(s̄)
                     if s̄.θ < s̄.opts.ϵ_tol
                         @warn "infeasibility (restoration phase)"
-                        return
+                        return false
                     else
                         restoration_reset!(s̄,s)
                     end
