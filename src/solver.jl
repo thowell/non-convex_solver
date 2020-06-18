@@ -734,26 +734,21 @@ function update_quasi_newton!(s; x_update=false, ∇L_update=false)
         s.qn.∇L_prev[s.idx.xL] -= s.zL
         s.qn.∇L_prev[s.idx.xU] += s.zU
 
-        ftmp = copy(get_∇f(s.model))
-        s.model.mA > 0 && (view(ftmp,s.idx.r) .= 0.)
-        ∇Ltmp = copy(ftmp) + get_∇c(s.model)'*s.y
-        ∇Ltmp[s.idx.xL] -= s.zL
-        ∇Ltmp[s.idx.xU] += s.zU
+        s.qn.∇f_prev .= get_∇f(s.model)
+        s.model.mA > 0 && (view(s.qn.∇f_prev,s.idx.r) .= 0.)
 
-        update_quasi_newton!(s.qn,copy(s.x),ftmp,copy(get_∇c(s.model)),∇Ltmp,x_update=x_update,∇L_update=∇L_update)
+        s.qn.∇c_prev .= get_∇c(s.model)
+
+        s.qn.∇L = s.qn.∇f_prev + s.qn.∇c_prev'*s.y
+        s.qn.∇L[s.idx.xL] -= s.zL
+        s.qn.∇L[s.idx.xU] += s.zU
+
+        update_quasi_newton!(s.qn,s.x,x_update=x_update,∇L_update=∇L_update)
         s.∇²L .= get_B(s.qn)
         s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
     end
     return nothing
 end
-
-# function reset_quasi_newton!(s)
-#     if s.opts.quasi_newton == :bfgs
-#         reset_bfgs!(s.qn)
-#         s.∇²L .= get_B(s.qn)
-#     end
-#     return nothing
-# end
 
 # modify to include Augmented Lagrangian terms
 function get_f(s::Solver,x)

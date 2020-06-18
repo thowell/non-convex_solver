@@ -4,10 +4,14 @@ mutable struct BFGS <: QuasiNewton
     s
     y
 
+
     x_prev
     ∇f_prev
     ∇c_prev
     ∇L_prev
+
+    ∇f
+    ∇L
 
     B
 
@@ -15,20 +19,19 @@ mutable struct BFGS <: QuasiNewton
 end
 
 function BFGS(;n=0,m=0)
-    BFGS([],[],zeros(n),zeros(n),zeros(m,n),zeros(n),sparse(1.0*I,n,n),0)
+    BFGS([],[],zeros(n),zeros(n),zeros(m,n),zeros(n),zeros(n),zeros(n),sparse(1.0*I,n,n),0)
 end
 
-function update_quasi_newton!(qn::QuasiNewton,x,∇f,∇c,∇L; x_update=false, ∇L_update=false)
+function update_quasi_newton!(qn::QuasiNewton,x; x_update=false, ∇L_update=false, max_reset_cnt=100)
 
     x_update && push!(qn.s,x - qn.x_prev)
 
     if ∇L_update && length(qn.s) > 0
-        y = ∇L - qn.∇L_prev
+        y = qn.∇L - qn.∇L_prev
 
         # damped
         s = qn.s[end]
         ρ = s'*y
-        # @warn "ρ: $ρ" #- y: $y, s: $s"
 
         if ρ >= 0.2*s'*qn.B*s
             θ = 1.0
@@ -46,13 +49,10 @@ function update_quasi_newton!(qn::QuasiNewton,x,∇f,∇c,∇L; x_update=false, 
         end
     end
 
-    if qn.fail_cnt >= 10
+    if qn.fail_cnt >= max_reset_cnt
         reset_quasi_newton!(qn)
     else
-        qn.x_prev .= copy(x)
-        qn.∇f_prev .= copy(∇f)
-        qn.∇c_prev .= copy(∇c)
-        qn.∇L_prev .= copy(∇L)
+        qn.x_prev .= x
     end
 
     return nothing

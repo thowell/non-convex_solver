@@ -18,14 +18,15 @@ model = Model(n,m,xL,xU,f_func,c_func,cA_idx=ones(Bool,m))
 
 opts = Options{Float64}(
                         kkt_solve=:symmetric,
-                        iterative_refinement=false,
+                        iterative_refinement=true,
                         ϵ_tol=1.0e-8,
                         ϵ_al_tol=1.0e-8,
                         max_iterative_refinement=10,
                         max_iter=250,
                         verbose=true,
                         quasi_newton=:bfgs,
-                        quasi_newton_approx=:lagrangian
+                        quasi_newton_approx=:lagrangian,
+                        bfgs_max_fail_cnt=10,
                         )
 
 s = NonConvexSolver(x0,model,opts=opts)

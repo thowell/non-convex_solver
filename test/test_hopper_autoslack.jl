@@ -162,8 +162,8 @@ for t = 1:T
     cI_idx[(t-1)*np .+ (1:np)] .= cI_idx_t
 end
 
-cA_idx_t = ones(Bool,np)
-cA_idx_t[1:nc+nc+nq+nβ] .= 0
+cA_idx_t = zeros(Bool,np)
+cA_idx_t[nc+nc+nq+nβ .+ (1:2nc)] .= 1
 cA_idx = ones(Bool,m)
 
 for t = 1:T
@@ -187,12 +187,11 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        iterative_refinement=true,
                        relax_bnds=true,
                        max_iterative_refinement=10,
-                       ϵ_tol=1.0e-4,
-                       ϵ_al_tol=1.0e-4,
+                       ϵ_tol=1.0e-8,
+                       ϵ_al_tol=1.0e-8,
                        verbose=true,
                        quasi_newton=:bfgs,
-                       quasi_newton_approx=:lagrangian,
-                       lbfgs_length=6)
+                       quasi_newton_approx=:lagrangian)
 
 s = NonConvexSolver(x0,nlp_model,opts=opts)
 @time solve!(s)

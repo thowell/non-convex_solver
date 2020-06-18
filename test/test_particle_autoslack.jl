@@ -74,8 +74,9 @@ xU = Inf*ones(nx)
 cI_idx = zeros(Bool,m)
 cI_idx[1:nc+nc] .= 1
 
-cA_idx = ones(Bool,m)
-cA_idx[1:nc+nc] .= 0
+cA_idx = zeros(Bool,m)
+cA_idx[2nc+nq+nf*nc .+ (1:2nc)] .= 1.0
+cA_idx
 
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
 
@@ -88,7 +89,7 @@ x0 = [q0;u0;y0;β0;ψ0]
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                         iterative_refinement=true,
-                        max_iter=1000,
+                        max_iter=500,
                         relax_bnds=true,
                         y_init_ls=true,
                         ϵ_tol=1.0e-8,

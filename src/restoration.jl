@@ -39,7 +39,8 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
     eval_step!(s̄)
     update_quasi_newton!(s̄,
                          x_update=false,
-                         ∇L_update=false)
+                         ∇L_update=false,
+                         )
     # initialize filter
     push!(s̄.filter,(s̄.θ_max,Inf))
 
@@ -96,7 +97,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
             s̄.k += 1
             if s̄.k > s̄.opts.max_iter
                 @warn "max iterations (restoration)"
-                return
+                return false
             end
 
             if s̄.opts.verbose
@@ -123,7 +124,7 @@ function solve_restoration!(s̄::Solver,s::Solver; verbose=false)
         update_restoration_model_info!(s̄)
     end
     @warn "<phase 2 complete>: locally infeasible"
-    return
+    return false
 end
 
 function restoration_reset!(s̄::Solver,s::Solver)

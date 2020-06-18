@@ -68,7 +68,10 @@ function solve!(solver::NonConvexSolver)
                     else
                         augment_filter!(s)
                         if s.opts.restoration
-                            restoration!(solver.s̄,s)
+                            if !restoration!(solver.s̄,s)
+                                @logmsg InnerLoop "restoration failed"
+                                return
+                            end
                         else
                             @logmsg InnerLoop "restoration mode turned off"
                             return

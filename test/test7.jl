@@ -13,7 +13,7 @@ f_func(x) = 100*(x[2]-x[1]^2)^2 + (1-x[1])^2
 c_func(x) = [-(x[1] -1)^3 + x[2] - 1;
              -x[1] - x[2] + 2]
 
-model = Model(n,m,xL,xU,f_func,c_func,cI_idx=ones(Bool,m))
+model = Model(n,m,xL,xU,f_func,c_func,cI_idx=ones(Bool,m),cA_idx=zeros(Bool,m))
 
 s = NonConvexSolver(x0,model,opts=opts=Options{Float64}(kkt_solve=:symmetric,
                                                         quasi_newton=:bfgs,

@@ -4,7 +4,7 @@ function knitro_comp()
     n = 8
     m = 7
 
-    x0 = rand(n)
+    x0 = ones(n)
 
     xL = zeros(n)
     xU = Inf*ones(n)
@@ -22,7 +22,9 @@ function knitro_comp()
     c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
     cI_idx = zeros(Bool,m)
-    cA_idx = ones(Bool,m)
+    cA_idx = zeros(Bool,m)
+    cA_idx[5:end] .= 1
+
     model = Model(n,m,xL,xU,
                   f,∇f!,∇²f!,
                   c!,∇c!,∇²cy!,
@@ -34,7 +36,7 @@ end
 opts = Options{Float64}(kkt_solve=:symmetric,
                         relax_bnds=true,
                         single_bnds_damping=true,
-                        iterative_refinement=false,
+                        iterative_refinement=true,
                         max_iter=1000,
                         ϵ_tol=1.0e-8,
                         ϵ_al_tol=1.0e-8,
@@ -44,9 +46,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         verbose=true)
 
 s = NonConvexSolver(knitro_comp()...,opts=opts)
-eval_step!(s.s)
 @time solve!(s)
-s.s.qn.fail_cnt
 
 # x = s.s.x
 # x[3]

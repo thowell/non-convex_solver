@@ -71,16 +71,16 @@ function particle(;qpp=[0.,0.,1.],v0=[0.,0.,0.])
     cI_idx = zeros(Bool,m)
     cI_idx[1:nc+nc] .= 1
 
-    cA_idx = ones(Bool,m)
-    cA_idx[1:nc+nc] .= 0
+    cA_idx = zeros(Bool,m)
+    cA_idx[nc+nc+nq+nf*nc .+ (1:nc+nc)] .= 1
 
     nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
 
     q0 = q1
-    u0 = 1.0e-3*ones(nu)
-    y0 = 1.0
-    β0 = 1.0*ones(nβ)
-    ψ0 = 1.0
+    u0 = 1.0e-5*ones(nu)
+    y0 = 1.0e-5
+    β0 = 1.0e-5*ones(nβ)
+    ψ0 = 1.0e-5
     x0 = [q0;u0;y0;β0;ψ0]
 
     return x0, nlp_model
@@ -246,9 +246,9 @@ function hopper(;T=1,r=0.7,q0=[0.,r,r,0.,0.],qf =[1.,r,r,0.,0.])
         cI_idx[(t-1)*np .+ (1:np)] .= cI_idx_t
     end
 
-    cA_idx_t = ones(Bool,np)
-    cA_idx_t[1:nc+nc] .= 0
-    cA_idx = ones(Bool,m)
+    cA_idx_t = zeros(Bool,np)
+    cA_idx_t[nc+nc+nq+nf*nc .+ (1:nc+nc)] .= 1
+    cA_idx = zeros(Bool,m)
 
     for t = 1:T
         cA_idx[(t-1)*np .+ (1:np)] .= cA_idx_t
@@ -256,10 +256,10 @@ function hopper(;T=1,r=0.7,q0=[0.,r,r,0.,0.],qf =[1.,r,r,0.,0.])
 
     nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
 
-    u0 = 1.0e-3*ones(nu)
-    y0 = 1.0e-3
-    β0 = 1.0e-3*ones(nβ)[1]
-    ψ0 = 1.0e-3
+    u0 = 1.0e-5*ones(nu)
+    y0 = 1.0e-5
+    β0 = 1.0e-5*ones(nβ)[1]
+    ψ0 = 1.0e-5
 
     x0 = zeros(T*nx)
     for t = 1:T
