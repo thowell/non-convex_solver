@@ -9,9 +9,9 @@ include("test_utils.jl")
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=1000,
-                        verbose=true,
+                        verbose=false,
                         iterative_refinement=true,
-                        quasi_newton=:bfgs)
+                        quasi_newton=:none)
 
 include("cutest_tests.jl")
 include("complementarity_tests.jl")

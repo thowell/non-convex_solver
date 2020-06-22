@@ -1,9 +1,3 @@
-mutable struct Inertia
-    n::Int  # number of positve eigenvalues
-    m::Int  # number of negative eigenvalues
-    z::Int  # number of zero eigenvalues
-end
-
 mutable struct Solver{T}
     model::AbstractModel
     model_opt::AbstractModel # optimization model provided to the solver
@@ -53,8 +47,7 @@ mutable struct Solver{T}
 
     h_sym::Vector{T}                # rhs of symmetric KKT system
 
-    LBL::Ma57{T} # ?
-    inertia::Inertia
+    linear_solver::LinearSolver
 
     d::Vector{T}                    # current step
     dx::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}   # current step in the primals
@@ -198,9 +191,15 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     H_sym = spzeros(n+m,n+m)
     h_sym = zeros(n+m)
 
-    LBL = Ma57(H_sym)
-
-    inertia = Inertia(0,0,0)
+    if opts.linear_solver == :MA57
+        LBL = Ma57(H_sym)
+        inertia = Inertia(0,0,0)
+        linear_solver = MA57Solver(LBL,inertia)
+    elseif opts.linear_solver == :QDLDL
+        F = qdldl(H_sym)
+        inertia = Inertia(0,0,0)
+        linear_solver = QDLDLSolver(F,inertia)
+    end
 
     ∇²L = spzeros(n,n)
     σL = zeros(nL)
@@ -248,7 +247,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
 
     y = zeros(m)
 
-    opts.y_init_ls ? init_y!(y,H_sym,h_sym,d,zL,zU,get_∇f(model),get_∇c(model),n,m,xL_bool,xU_bool,opts.y_max) : zeros(m)
+    opts.y_init_ls ? init_y!(y,H_sym,h_sym,d,zL,zU,get_∇f(model),get_∇c(model),n,m,xL_bool,xU_bool,opts.y_max,linear_solver) : zeros(m)
 
     sd = init_sd(y,[zL;zU],n,m,opts.s_max)
     sc = init_sc([zL;zU],n,opts.s_max)
@@ -328,8 +327,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            Hv,Hv_sym,
            h,hx,hy,hzL,hzU,
            h_sym,
-           LBL,
-           inertia,
+           linear_solver,
            d,dx,dxL,dxU,dy,dxy,dzL,dzU,
            Δ,Δ_xL,Δ_xU,Δ_xy,Δ_zL,Δ_zU,
            res,res_xL,res_xU,res_xy,res_zL,res_zU,
@@ -589,7 +587,7 @@ end
 
 Solve for the initial dual variables for the equality constraints (Eq. 36)
 """
-function init_y!(y,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,y_max)
+function init_y!(y,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,y_max,linear_solver)
 
     if m > 0
         H[CartesianIndex.((1:n),(1:n))] .= 1.0
@@ -601,12 +599,15 @@ function init_y!(y,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,y_max)
         h[(1:n)[xU_bool]] += zU
         h[n+1:end] .= 0.
 
-        LBL = Ma57(H)
-        ma57_factorize(LBL)
+        # LBL = Ma57(H)
+        # ma57_factorize(LBL)
+        #
+        # d[1:(n+m)] .= ma57_solve(LBL,-h)
+        # y .= d[n .+ (1:m)]
 
-        d[1:(n+m)] .= ma57_solve(LBL,-h)
+        factorize!(linear_solver,H)
+        solve!(linear_solver,view(d,1:(n+m)),-h)
         y .= d[n .+ (1:m)]
-
 
         if norm(y,Inf) > y_max || any(isnan.(y))
             @warn "least-squares y init failure:\n y_max = $(norm(y,Inf))"

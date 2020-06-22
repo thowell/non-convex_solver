@@ -47,6 +47,7 @@
     κd::T = 1.0e-4
 
     kkt_solve::Symbol = :symmetric # :symmetric, :fullspace, custom
+    linear_solver::Symbol = :MA57
 
     small_search_direction_max::Int = 2
 
@@ -117,6 +118,7 @@ function Base.copy(o::Options{T}) where T
                     single_bnds_damping=copy(o.single_bnds_damping),
                     κd=copy(o.κd),
                     kkt_solve=o.kkt_solve,
+                    linear_solver=o.linear_solver,
                     small_search_direction_max=copy(o.small_search_direction_max),
                     iterative_refinement=copy(o.iterative_refinement),
                     max_iterative_refinement=copy(o.max_iterative_refinement),

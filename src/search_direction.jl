@@ -73,7 +73,8 @@ function search_direction_symmetric!(s::Solver)
     kkt_gradient_symmetric!(s)
 
     inertia_correction!(s,restoration=s.restoration)
-    s.dxy .= ma57_solve(s.LBL, -s.h_sym)
+    # s.dxy .= ma57_solve(s.LBL, -s.h_sym)
+    solve!(s.linear_solver,s.dxy,-s.h_sym)
     s.dzL .= -s.σL.*s.dxL - s.zL + s.μ./(s.ΔxL .- s.δc)
     s.dzU .= s.σU.*s.dxU - s.zU + s.μ./(s.ΔxU .- s.δc)
 

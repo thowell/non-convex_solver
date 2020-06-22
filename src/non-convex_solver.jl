@@ -1,6 +1,6 @@
 using LinearAlgebra, ForwardDiff, SparseArrays, Parameters
 using SolverLogging, Logging, Crayons
-using HSL
+using HSL, QDLDL
 
 include("options.jl")
 include("indices.jl")
@@ -9,6 +9,7 @@ include("bounds.jl")
 include("model.jl")
 include("scaling.jl")
 include("quasi_newton.jl")
+include("linear_solver.jl")
 include("solver.jl")
 include("filter.jl")
 include("second_order_correction.jl")

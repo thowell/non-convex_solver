@@ -18,7 +18,8 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
             s.res_xL .+= s.res_zL./(s.ΔxL .- s.δc)
             s.res_xU .-= s.res_zU./(s.ΔxU .- s.δc)
 
-            s.Δ_xy .= ma57_solve(s.LBL,Array(s.res_xy))
+            # s.Δ_xy .= ma57_solve(s.LBL,Array(s.res_xy))
+            solve!(s.linear_solver,s.Δ_xy,Array(s.res_xy))
             s.Δ_zL .= -s.σL.*s.Δ_xL + s.res_zL./(s.ΔxL .- s.δc)
             s.Δ_zU .= s.σU.*s.Δ_xU + s.res_zU./(s.ΔxU .- s.δc)
         end
