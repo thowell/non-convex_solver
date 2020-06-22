@@ -26,13 +26,15 @@ opts = Options{Float64}(
                         max_iterative_refinement=10,
                         max_iter=250,
                         verbose=true,
-                        quasi_newton=:bfgs,
-                        quasi_newton_approx=:lagrangian
+                        quasi_newton=:none,
+                        quasi_newton_approx=:lagrangian,
+                        linear_solver=:QDLDL
                         )
 
 s = NonConvexSolver(x0,model,opts=opts)
 @time solve!(s)
 s.s.x
+
 
 # ######
 # using Ipopt, MathOptInterface

@@ -307,7 +307,7 @@ function search_direction_symmetric_restoration!(s̄::Solver,s::Solver)
     rzn = view(-s̄.h,s̄.idx_r.zn)
     rzU = view(-s̄.h,s̄.idx_r.zU)
 
-    s̄.d[s̄.idx_r.xy] = ma57_solve(s.LBL,-s.h_sym)
+    solve!(s.linear_solver,view(s̄.d,s̄.idx_r.xy),-s.h_sym)
 
     dx = view(s̄.d,s.idx.x)
     dy = view(s̄.d,s̄.idx.y)
@@ -357,7 +357,7 @@ function iterative_refinement_restoration(d::Vector{T},s̄::Solver,s::Solver) wh
             s.h_sym[s.idx.y] = ry
             s.h_sym[s.idx.y] += 1.0./view(s̄.σL,s̄.idx_r.zLp).*rp + rzp./view(s̄.zL,s̄.idx_r.zLp) - 1.0./view(s̄.σL,s̄.idx_r.zLn).*rn - rzn./view(s̄.zL,s̄.idx_r.zLn)
 
-            s̄.Δ[s̄.idx_r.xy] = ma57_solve(s.LBL,s.h_sym)
+            solve!(s.linear_solver,view(s̄.Δ,s̄.idx_r.xy),s.h_sym)
 
             dx = view(s̄.Δ,s.idx.x)
             dy = view(s̄.Δ,s̄.idx.y)

@@ -5,16 +5,13 @@ Implementation of Algorithm IC. Increase the regularization of the symmetric KKT
 until it has the correct inertia.
 """
 function inertia_correction!(s::Solver; restoration=false)
-    # s.δw = 0.0
-    # s.δc = 0.0
+
     regularization_init!(s.linear_solver,s)
 
     # IC-1
     factorize_regularized_kkt!(s)
-    # println("(n,m,z): ($(s.inertia.n)/$(s.model.n),$(s.inertia.m)/$(s.model.m),$(s.inertia.z)/0)")
 
     if inertia(s)
-        # @logmsg InnerLoop "(n,m,z): ($(s.inertia.n)/$(s.model.n),$(s.inertia.m)/$(s.model.m),$(s.inertia.z)/0)"
         return nothing
     end
 
@@ -37,7 +34,7 @@ function inertia_correction!(s::Solver; restoration=false)
         factorize_regularized_kkt!(s)
 
         if inertia(s)
-            @logmsg InnerLoop "(n,m,z)+: ($(s.linear_solver.n)/$(s.model.n),$(s.linear_solver.m)/$(s.model.m),$(s.linear_solver.z)/0)"
+            @logmsg InnerLoop "(n,m,z)+: ($(s.linear_solver.inertia.n)/$(s.model.n),$(s.linear_solver.inertia.m)/$(s.model.m),$(s.linear_solver.inertia.z)/0)"
             break
         else
             # IC-5
@@ -50,7 +47,7 @@ function inertia_correction!(s::Solver; restoration=false)
 
         # IC-6
         if s.δw > s.opts.δw_max
-            @logmsg InnerLoop "(n,m,z)+: ($(s.linear_solver.n)/$(s.model.n),$(s.linear_solver.m)/$(s.model.m),$(s.linear_solver.z)/0)"
+            @logmsg InnerLoop "(n,m,z)+: ($(s.linear_solver.inertia.n)/$(s.model.n),$(s.linear_solver.inertia.m)/$(s.model.m),$(s.linear_solver.inertia.z)/0)"
             @logmsg InnerLoop "s.δw: $(s.δw)"
             # TODO: handle inertia correction failure gracefully
             error("inertia correction failure")
@@ -76,14 +73,7 @@ function factorize_regularized_kkt!(s::Solver)
     s.σU .= s.zU./(s.ΔxU .- s.δc)
 
     kkt_hessian_symmetric!(s)
-
-    # s.LBL = Ma57(s.H_sym + Diagonal(view(s.δ,s.idx.xy)))
-    # ma57_factorize(s.LBL)
     factorize!(s.linear_solver,s.H_sym + Diagonal(view(s.δ,s.idx.xy)))
-
-    # s.inertia.m = s.LBL.info.num_negative_eigs
-    # s.inertia.n = s.LBL.info.rank - s.inertia.m
-    # s.inertia.z = s.model.n+s.model.m - s.LBL.info.rank
     compute_inertia!(s.linear_solver,s)
 
     return nothing

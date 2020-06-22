@@ -27,6 +27,7 @@ opts = Options{Float64}(
                         quasi_newton=:none,
                         quasi_newton_approx=:lagrangian,
                         bfgs_max_fail_cnt=10,
+                        linear_solver=:QDLDL
                         )
 
 s = NonConvexSolver(x0,model,opts=opts)

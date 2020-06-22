@@ -196,7 +196,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
         inertia = Inertia(0,0,0)
         linear_solver = MA57Solver(LBL,inertia)
     elseif opts.linear_solver == :QDLDL
-        F = qdldl(H_sym)
+        F = qdldl(sparse(1.0*I,n+m,n+m))
         inertia = Inertia(0,0,0)
         linear_solver = QDLDLSolver(F,inertia)
     end
@@ -599,13 +599,13 @@ function init_y!(y,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,y_max,linear_solver
         h[(1:n)[xU_bool]] += zU
         h[n+1:end] .= 0.
 
-        # LBL = Ma57(H)
-        # ma57_factorize(LBL)
-        #
-        # d[1:(n+m)] .= ma57_solve(LBL,-h)
-        # y .= d[n .+ (1:m)]
 
-        factorize!(linear_solver,H)
+        δ = zeros(n+m)
+        δw, δc = regularization_init(linear_solver)
+        δ[1:n] .= δw
+        δ[n .+ (1:m)] .= -δc
+
+        factorize!(linear_solver,H + Diagonal(δ))
         solve!(linear_solver,view(d,1:(n+m)),-h)
         y .= d[n .+ (1:m)]
 
