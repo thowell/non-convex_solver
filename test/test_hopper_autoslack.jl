@@ -172,10 +172,10 @@ end
 
 nlp_model = Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
 
-u0 = 1.0e-5*rand(nu)
-y0 = 1.0e-5*rand(1)[1]
-β0 = 1.0e-5*rand(nβ)[1]
-ψ0 = 1.0e-5*rand(1)[1]
+u0 = 1.0e-5*ones(nu)
+y0 = 1.0e-5*ones(1)[1]
+β0 = 1.0e-5*ones(nβ)[1]
+ψ0 = 1.0e-5*ones(1)[1]
 
 x0 = zeros(T*nx)
 for t = 1:T
@@ -191,7 +191,8 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        ϵ_al_tol=1.0e-8,
                        verbose=true,
                        quasi_newton=:bfgs,
-                       quasi_newton_approx=:lagrangian)
+                       quasi_newton_approx=:lagrangian,
+                       lbfgs_length=10)
 
 s = NonConvexSolver(x0,nlp_model,opts=opts)
 @time solve!(s)

@@ -1,4 +1,4 @@
-function particle(;qpp=[0.,0.,1.],v0=[0.,0.,0.])
+function particle(;qpp=[0.,0.,5.],v0=[0.,0.,0.])
     nc = 1
     nf = 2
     nq = 3

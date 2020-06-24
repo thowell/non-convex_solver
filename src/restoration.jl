@@ -28,7 +28,7 @@ function update_phase1_solver!(s̄::Solver,s::Solver)
 
     eval_∇f!(s.model,s.x)
     eval_∇c!(s.model,s.x)
-    init_y!(s.y,s.H_sym,s.h_sym,s.d,s.zL,s.zU,get_∇f(s.model),get_∇c(s.model),s.model.n,s.model.m,s.model.xL_bool,s.model.xU_bool,s.opts.y_max)
+    init_y!(s.y,s.H_sym,s.h_sym,s.d,s.zL,s.zU,get_∇f(s.model),get_∇c(s.model),s.model.n,s.model.m,s.model.xL_bool,s.model.xU_bool,s.opts.y_max,s.linear_solver)
 
     return nothing
 end
