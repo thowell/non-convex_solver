@@ -4,7 +4,6 @@ mutable struct BFGS <: QuasiNewton
     s
     y
 
-
     x_prev
     ∇f_prev
     ∇c_prev
@@ -52,8 +51,8 @@ function update_quasi_newton!(qn::QuasiNewton,x; x_update=false, ∇L_update=fal
     if qn.fail_cnt >= max_reset_cnt
         reset_quasi_newton!(qn)
     else
-        qn.x_prev .= x
     end
+    qn.x_prev .= x
 
     return nothing
 end
@@ -74,8 +73,8 @@ end
 function reset_quasi_newton!(qn)
     @warn "quasi newton reset"
     qn.B .= sparse(1.0*I,size(qn.B))
-    qn.s = [qn.s[end]]
-    qn.y = [qn.y[end]]
+    qn.s = []#[qn.s[end]]
+    qn.y = []#[qn.y[end]]
     qn.fail_cnt = 0
     return nothing
 end

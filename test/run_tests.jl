@@ -11,8 +11,8 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         max_iter=1000,
                         verbose=true,
                         iterative_refinement=true,
-                        quasi_newton=:none,
-                        linear_solver=:QDLDL)
+                        quasi_newton=:bfgs,
+                        linear_solver=:MA57)
 
 include("cutest_tests.jl")
 include("complementarity_tests.jl")
