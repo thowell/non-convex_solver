@@ -45,10 +45,12 @@ mutable struct Model{T} <: AbstractModel
 
     # data
     ∇f::Vector{T}
+    ∇f_prev::Vector{T}
     ∇²f::SparseMatrixCSC{T,Int}
 
     c::Vector{T}
     ∇c::SparseMatrixCSC{T,Int}
+    ∇c_prev::SparseMatrixCSC{T,Int}
     ∇²cy::SparseMatrixCSC{T,Int}
 
     info::AbstractModelInfo
@@ -75,10 +77,12 @@ function Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²
 
     # data
     ∇f = zeros(n)
+    ∇f_prev = zeros(n)
     ∇²f = spzeros(n,n)
 
     c = zeros(m)
     ∇c = spzeros(m,n)
+    ∇c_prev = spzeros(m,n)
     ∇²cy = spzeros(n,n)
 
     info = EmptyModelInfo()
@@ -88,12 +92,13 @@ function Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²
           f_func,∇f_func!,∇²f_func!,
           c_func!,∇c_func!,∇²cy_func!,
           cI_idx,cE_idx,cA_idx,
-          ∇f,∇²f,
-          c,∇c,∇²cy,
+          ∇f,∇f_prev,∇²f,
+          c,∇c,∇c_prev,∇²cy,
           info)
 end
 
 function eval_∇f!(model::Model,x)
+    model.∇f_prev .= model.∇f
     model.∇f_func!(model.∇f,x,model)
     return nothing
 end
@@ -121,6 +126,7 @@ function eval_c!(model::Model,x)
 end
 
 function eval_∇c!(model::Model,x)
+    model.∇c_prev .= model.∇c
     model.∇c_func!(model.∇c,x,model)
     return nothing
 end
@@ -269,10 +275,12 @@ function slack_model(model::Model;bnd_tol=1.0e8)
 
     # data
     ∇f = zeros(n)
+    ∇f_prev = zeros(n)
     ∇²f = spzeros(n,n)
 
     c = zeros(m)
     ∇c = spzeros(m,n)
+    ∇c_prev = spzeros(m,n)
     ∇²cy = spzeros(n,n)
 
     info = SlackModelInfo(model)
@@ -282,8 +290,8 @@ function slack_model(model::Model;bnd_tol=1.0e8)
           f_func,∇f_func!,∇²f_func!,
           c_func!,∇c_func!,∇²cy_func!,
           model.cI_idx,model.cE_idx,model.cA_idx,
-          ∇f,∇²f,
-          c,∇c,∇²cy,
+          ∇f,∇f_prev,∇²f,
+          c,∇c,∇c_prev,∇²cy,
           info)
 end
 
@@ -369,10 +377,12 @@ function restoration_model(model::Model;bnd_tol=1.0e8)
 
     # data
     ∇f = zeros(n)
+    ∇f_prev = zeros(n)
     ∇²f = spzeros(n,n)
 
     c = zeros(m)
     ∇c = spzeros(m,n)
+    ∇c_prev = spzeros(m,n)
     ∇²cy = spzeros(n,n)
 
     info = RestorationModelInfo(model,zeros(model.n),spzeros(model.n,model.n),0.,0.)
@@ -382,7 +392,7 @@ function restoration_model(model::Model;bnd_tol=1.0e8)
           f_func,∇f_func!,∇²f_func!,
           c_func!,∇c_func!,∇²cy_func!,
           model.cI_idx,model.cE_idx,model.cA_idx,
-          ∇f,∇²f,
-          c,∇c,∇²cy,
+          ∇f,∇f_prev,∇²f,
+          c,∇c,∇c_prev,∇²cy,
           info)
 end

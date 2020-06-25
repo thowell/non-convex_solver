@@ -214,7 +214,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     τ = update_τ(μ,opts.τ_min)
 
     eval_∇f!(model,x)
-    model.∇f[idx.r] += λ + ρ*view(x,idx.r)
+    # model.∇f[idx.r] += λ + ρ*view(x,idx.r)
     df = init_df(opts.g_max,get_∇f(model))
 
     φ = 0.
@@ -383,13 +383,13 @@ end
 Evaluate the objective value and it's first and second-order derivatives
 """
 function eval_objective!(s::Solver)
-    eval_∇f!(s,s.x)
+    eval_∇f!(s.model,s.x)
 
     if s.opts.quasi_newton == :none
-        eval_∇²f!(s,s.x)
+        eval_∇²f!(s.model,s.x)
     else
         if s.opts.quasi_newton_approx == :constraints
-            eval_∇²f!(s,s.x)
+            eval_∇²f!(s.model,s.x)
         end
     end
     return nothing
@@ -436,6 +436,7 @@ function eval_lagrangian!(s::Solver)
     s.∇L .+= get_∇c(s.model)'*s.y
     s.∇L[s.idx.xL] -= s.zL
     s.∇L[s.idx.xU] += s.zU
+    s.model.mA > 0 && (s.∇L[s.idx.r] += s.λ + s.ρ*view(s.x,s.idx.r))
 
     # damping
     if s.opts.single_bnds_damping
@@ -447,6 +448,8 @@ function eval_lagrangian!(s::Solver)
 
     if s.opts.quasi_newton == :none
         s.∇²L .= get_∇²f(s.model) + get_∇²cy(s.model)
+        s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
+
     end
     return nothing
 end
@@ -460,10 +463,13 @@ function eval_barrier!(s::Solver)
     s.φ = get_f(s,s.x)
     s.φ -= s.μ*sum(log.(s.ΔxL))
     s.φ -= s.μ*sum(log.(s.ΔxU))
+    s.model.mA > 0 && (s.φ += s.λ'*view(s.x,s.idx.r) + 0.5*s.ρ*view(s.x,s.idx.r)'*view(s.x,s.idx.r))
 
     s.∇φ .= get_∇f(s.model)
     s.∇φ[s.idx.xL] -= s.μ./s.ΔxL
     s.∇φ[s.idx.xU] += s.μ./s.ΔxU
+    s.model.mA > 0 && (s.∇φ[s.idx.r] += s.λ + s.ρ*view(s.x,s.idx.r))
+
 
     # damping
     if s.opts.single_bnds_damping
@@ -638,11 +644,11 @@ end
 Calculate the barrier objective function. When called using the solver, re-calculates the
     objective `f` and the constraints `c`.
 """
-function barrier(f,xl,xL,xu,xU,xls,xLs,xus,xUs,μ,κd)
+function barrier(f,xl,xL,xu,xU,xls,xLs,xus,xUs,μ,κd,r,λ,ρ)
     return (f
             - μ*sum(log.(xl - xL)) - μ*sum(log.(xU - xu))
             + κd*μ*sum(xls - xLs) + κd*μ*sum(xUs - xus)
-            )
+            + λ'*r + 0.5*ρ*r'*r)
 end
 
 function barrier(x,s::Solver)
@@ -654,7 +660,8 @@ function barrier(x,s::Solver)
                    view(x,s.idx.xU),view(s.model.xU,s.idx.xU),
                    view(x,s.idx.xLs),view(s.model.xL,s.idx.xLs),
                    view(x,s.idx.xUs),view(s.model.xU,s.idx.xUs),
-                   s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.)
+                   s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,
+                   view(x,s.idx.r),s.λ,s.ρ)
 end
 
 """
@@ -753,22 +760,22 @@ end
 
 # modify to include Augmented Lagrangian terms
 function get_f(s::Solver,x)
-    (s.opts.nlp_scaling ? s.df*(get_f(s.model,x) + (s.model.mA > 0 ? (s.λ'*view(x,s.idx.r) + 0.5*s.ρ*view(x,s.idx.r)'*view(x,s.idx.r)) : 0.)) : (get_f(s.model,x) + (s.model.mA > 0 ? (s.λ'*view(x,s.idx.r) + 0.5*s.ρ*view(x,s.idx.r)'*view(x,s.idx.r)) : 0.)))
+    (s.opts.nlp_scaling ? s.df*get_f(s.model,x) : get_f(s.model,x))
 end
 
-function eval_∇f!(s::Solver,x)
-    s.model.∇f .= 0.
-    eval_∇f!(s.model,x)
-    s.model.∇f[s.idx.r] += s.λ + s.ρ*view(x,s.idx.r)
-    return nothing
-end
-
-function eval_∇²f!(s::Solver,x)
-    s.model.∇²f .= 0.
-    eval_∇²f!(s.model,x)
-    s.model.mA > 0 && (view(s.model.∇²f,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
-    return return nothing
-end
+# function eval_∇f!(s::Solver,x)
+#     # s.model.∇f .= 0.
+#     eval_∇f!(s.model,x)
+#     # s.model.∇f[s.idx.r] += s.λ + s.ρ*view(x,s.idx.r)
+#     return nothing
+# end
+#
+# function eval_∇²f!(s::Solver,x)
+#     # s.model.∇²f .= 0.
+#     eval_∇²f!(s.model,x)
+#     # s.model.mA > 0 && (view(s.model.∇²f,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
+#     return return nothing
+# end
 
 function get_solution(s::NonConvexSolver)
     return s.s.x[1:s.s.model_opt.n]
