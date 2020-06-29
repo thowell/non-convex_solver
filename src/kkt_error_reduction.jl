@@ -44,7 +44,7 @@ function kkt_error_reduction(s::Solver)
 end
 
 function eval_Fμ(x,y,zL,zU,s)
-    eval_∇f!(s,x)
+    eval_∇f!(s.model,x)
 
     eval_c!(s.model,x)
     get_c_scaled!(s.c,s)
@@ -53,6 +53,7 @@ function eval_Fμ(x,y,zL,zU,s)
     s.∇L .= get_∇f(s.model) + get_∇c(s.model)'*y
     s.∇L[s.idx.xL] -= zL
     s.∇L[s.idx.xU] += zU
+    s.model.mA > 0 && (s.∇L[s.idx.r] += s.λ + s.ρ*view(x,s.idx.r))
 
     # damping
     if s.opts.single_bnds_damping

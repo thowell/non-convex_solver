@@ -739,17 +739,15 @@ end
 function update_quasi_newton!(s; x_update=false, ∇L_update=false)
     if s.opts.quasi_newton != :none
         s.qn.∇L_prev .= s.qn.∇f_prev + s.qn.∇c_prev'*s.y
-        s.qn.∇L_prev[s.idx.xL] -= s.zL
-        s.qn.∇L_prev[s.idx.xU] += s.zU
+        # s.qn.∇L_prev[s.idx.xL] -= s.zL
+        # s.qn.∇L_prev[s.idx.xU] += s.zU
 
         s.qn.∇f_prev .= get_∇f(s.model)
-        s.model.mA > 0 && (view(s.qn.∇f_prev,s.idx.r) .= 0.)
-
         s.qn.∇c_prev .= get_∇c(s.model)
 
         s.qn.∇L = s.qn.∇f_prev + s.qn.∇c_prev'*s.y
-        s.qn.∇L[s.idx.xL] -= s.zL
-        s.qn.∇L[s.idx.xU] += s.zU
+        # s.qn.∇L[s.idx.xL] -= s.zL
+        # s.qn.∇L[s.idx.xU] += s.zU
 
         update_quasi_newton!(s.qn,s.x,x_update=x_update,∇L_update=∇L_update)
         s.∇²L .= get_B(s.qn)
