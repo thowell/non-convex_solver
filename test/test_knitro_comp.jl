@@ -4,7 +4,7 @@ function knitro_comp()
     n = 8
     m = 7
 
-    x0 = ones(n)
+    x0 = rand(n)
 
     xL = zeros(n)
     xU = Inf*ones(n)
@@ -41,7 +41,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         ϵ_tol=1.0e-8,
                         ϵ_al_tol=1.0e-8,
                         nlp_scaling=true,
-                        quasi_newton=:bfgs,
+                        quasi_newton=:lbfgs,
                         quasi_newton_approx=:lagrangian,
                         verbose=true,
                         linear_solver=:MA57)

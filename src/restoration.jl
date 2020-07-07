@@ -5,14 +5,15 @@ function restoration!(s̄::Solver,s::Solver)
         initialize_restoration_solver!(s̄,s)
 
         # solve phase 2
-        solve_restoration!(s̄,s,verbose=true)
+        status = solve_restoration!(s̄,s,verbose=true)
 
         # update phase 1 solver
         update_phase1_solver!(s̄,s)
     else
+        status = true
         s̄.opts.verbose ? println("-KKT error reduction: success") : nothing
     end
-    return nothing
+    return status
 end
 
 function update_phase1_solver!(s̄::Solver,s::Solver)

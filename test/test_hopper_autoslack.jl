@@ -1,6 +1,5 @@
 include("../src/non-convex_solver.jl")
 
-
 mutable struct Hopper{T,S} <: AbstractModel
     mb::T
     ml::T
@@ -22,7 +21,7 @@ nβ = nc*nf
 
 nx = nq+nu+nc+nβ+nc
 np = nq+nβ+4nc
-T = 10 # number of time steps to optimize
+T = 5 # number of time steps to optimize
 
 # Parameters
 g = 9.81 # gravity
@@ -68,11 +67,11 @@ function unpack(x)
     return q,u,y,β,ψ
 end
 
-W = Diagonal([1e-3,1e-3,1e-3,1e-3,1e-3])
+W = Diagonal([1e-1,1e-1,1e-1,1e-1,1e-1])
 R = Diagonal([1.0e-1,1.0e-3])
-Wf = Diagonal(5.0*ones(nq))
+Wf = Diagonal(1.0*ones(nq))
 q0 = [0., r, r, 0., 0.]
-qf = [1., r, r, 0., 0.]
+qf = [1.0, r, r, 0., 0.]
 uf = zeros(nu)
 w = -W*qf
 wf = -Wf*qf
@@ -164,7 +163,7 @@ end
 
 cA_idx_t = zeros(Bool,np)
 cA_idx_t[nc+nc+nq+nβ .+ (1:2nc)] .= 1
-cA_idx = ones(Bool,m)
+cA_idx = zeros(Bool,m)
 
 for t = 1:T
     cA_idx[(t-1)*np .+ (1:np)] .= cA_idx_t
@@ -184,15 +183,17 @@ end
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                        max_iter=1000,
-                       iterative_refinement=true,
-                       relax_bnds=true,
+                       iterative_refinement=false,
+                       relax_bnds=false,
                        max_iterative_refinement=10,
                        ϵ_tol=1.0e-8,
                        ϵ_al_tol=1.0e-8,
                        verbose=true,
-                       quasi_newton=:bfgs,
+                       quasi_newton=:lbfgs,
                        quasi_newton_approx=:lagrangian,
-                       lbfgs_length=10)
+                       lbfgs_length=30)
 
 s = NonConvexSolver(x0,nlp_model,opts=opts)
 @time solve!(s)
+
+s.s.model.n

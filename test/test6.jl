@@ -17,7 +17,7 @@ model = Model(n,m,xL,xU,f_func,c_func,cI_idx=ones(Bool,m))
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                 max_iter=100,
-                quasi_newton=:bfgs,
+                quasi_newton=:lbfgs,
                 ϵ_tol=1.0e-8,
                 ϵ_al_tol=1.0e-8,
                 verbose=true)

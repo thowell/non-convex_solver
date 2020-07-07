@@ -148,7 +148,7 @@ end
 
 qn = LBFGS(n=100,m=10,k=5)
 
-function update_quasi_newton!(qn::LBFGS,x; x_update=false, ∇L_update=false, max_reset_cnt=2)
+function update_quasi_newton!(qn::LBFGS,x; x_update=false, ∇L_update=false, max_reset_cnt=10)
 
     x_update && push!(qn.s,x - qn.x_prev)
 
@@ -187,10 +187,10 @@ end
 function get_B(qn::LBFGS)
     if length(qn.s) > 0
         shift = 0
-        if qn.s[end]'*qn.y[end] <= 0.
-            qn.fail_cnt += 1
-            shift = 1
-        end
+        # if qn.s[end]'*qn.y[end] <= 0.
+        #     qn.fail_cnt += 1
+        #     shift = 1
+        # end
         ls = length(qn.s)-shift
         ly = length(qn.y)-shift
 
@@ -198,7 +198,7 @@ function get_B(qn::LBFGS)
 
         qn.fail_cnt = 0
         n = size(qn.B,1)
-        δ = (qn.y[end-shift]'*qn.y[end-shift])/(qn.s[end-shift]'*qn.y[end-shift])
+        δ = (qn.y[end-shift]'*qn.s[end-shift])/(qn.s[end-shift]'*qn.s[end-shift])
 
         In = sparse(1.0*I,n,n)
 
@@ -226,8 +226,9 @@ function get_B(qn::LBFGS)
         qn.A2[CartesianIndex.(_k .+ (1:_k),_k .+ (1:_k))] = -1.0*qn.D[1:_k]
 
         try
-            qn.B = δ*In - qn.A1[1:n,1:2*_k]*(qn.A2[1:2*_k,1:2*_k]\qn.A1[1:n,1:2*_k]')
+            qn.B = δ*In - qn.A1[1:n,1:2*_k]*inv(qn.A2[1:2*_k,1:2*_k])*qn.A1[1:n,1:2*_k]'
         catch
+            @warn "LBFGS compute failure"
             qn.B = δ*In
         end
 
@@ -237,7 +238,7 @@ end
 
 function reset_quasi_newton!(qn::LBFGS)
     @warn "L-BFGS reset"
-    # qn.B .= sparse(1.0*I,size(qn.B))
+    qn.B .= sparse(1.0*I,size(qn.B))
     empty!(qn.s)
     empty!(qn.y)
     qn.fail_cnt = 0
