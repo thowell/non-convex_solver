@@ -16,10 +16,11 @@ c_func(x) = [-(x[1] -1)^3 + x[2] - 1;
 model = Model(n,m,xL,xU,f_func,c_func,cI_idx=ones(Bool,m),cA_idx=zeros(Bool,m))
 
 s = NonConvexSolver(x0,model,opts=opts=Options{Float64}(kkt_solve=:symmetric,
-                                                        quasi_newton=:lbfgs,
+                                                        quasi_newton=:bfgs,
                                                         quasi_newton_approx=:lagrangian,
                                                         ϵ_tol=1.0e-8,
                                                         ϵ_al_tol=1.0e-8,
                                                         verbose=true,
-                                                        max_iter=250))
+                                                        max_iter=500,
+                                                        lbfgs_length=6))
 @time solve!(s)

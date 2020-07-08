@@ -209,7 +209,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     Dc = init_Dc(opts.g_max,get_∇c(model),m)
 
     μ = copy(opts.μ0)
-    ρ = 1.0/μ
+    ρ = 1.0#1.0/μ
     λ = zeros(mA)
     τ = update_τ(μ,opts.τ_min)
 
@@ -422,6 +422,7 @@ function get_c_scaled!(c,model,Dc,nlp_scaling)
     nlp_scaling && c .= Dc*get_c(model)
     return nothing
 end
+
 function get_c_scaled!(c,s::Solver)
     get_c_scaled!(c,s.model,s.Dc,s.opts.nlp_scaling)
 end
@@ -736,44 +737,49 @@ function NonConvexSolver(x0,model;opts=Options{Float64}()) where T
     NonConvexSolver(s,s̄)
 end
 
-function update_quasi_newton!(s; x_update=false, ∇L_update=false)
+function update_quasi_newton!(s::Solver)
     if s.opts.quasi_newton != :none
         s.qn.∇L_prev .= s.qn.∇f_prev + s.qn.∇c_prev'*s.y
-        # s.qn.∇L_prev[s.idx.xL] -= s.zL
-        # s.qn.∇L_prev[s.idx.xU] += s.zU
+        s.qn.∇L_prev[s.idx.xL] -= s.zL
+        s.qn.∇L_prev[s.idx.xU] += s.zU
+
+        # s.model.mA > 0 && (s.qn.∇L_prev[s.idx.r] += s.λ + s.ρ*view(s.qn.x_prev,s.idx.r))
+        #
+        # # damping
+        # if s.opts.single_bnds_damping
+        #     κd = s.opts.κd
+        #     μ = s.μ
+        #     s.qn.∇L_prev[s.idx.xLs] .+= κd*μ
+        #     s.qn.∇L_prev[s.idx.xUs] .-= κd*μ
+        # end
 
         s.qn.∇f_prev .= get_∇f(s.model)
         s.qn.∇c_prev .= get_∇c(s.model)
 
-        s.qn.∇L = s.qn.∇f_prev + s.qn.∇c_prev'*s.y
-        # s.qn.∇L[s.idx.xL] -= s.zL
-        # s.qn.∇L[s.idx.xU] += s.zU
+        s.qn.∇L .= s.qn.∇f_prev + s.qn.∇c_prev'*s.y
+        s.qn.∇L[s.idx.xL] -= s.zL
+        s.qn.∇L[s.idx.xU] += s.zU
 
-        update_quasi_newton!(s.qn,s.x,x_update=x_update,∇L_update=∇L_update)
-        s.∇²L .= get_B(s.qn)
+        # s.model.mA > 0 && (s.qn.∇L[s.idx.r] += s.λ + s.ρ*view(s.x,s.idx.r))
+        #
+        # # damping
+        # if s.opts.single_bnds_damping
+        #     κd = s.opts.κd
+        #     μ = s.μ
+        #     s.qn.∇L[s.idx.xLs] .+= κd*μ
+        #     s.qn.∇L[s.idx.xUs] .-= κd*μ
+        # end
+
+        update_quasi_newton!(s.qn,s.x)
+        s.∇²L .= copy(get_B(s.qn))
         s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
     end
     return nothing
 end
 
-# modify to include Augmented Lagrangian terms
 function get_f(s::Solver,x)
     (s.opts.nlp_scaling ? s.df*get_f(s.model,x) : get_f(s.model,x))
 end
-
-# function eval_∇f!(s::Solver,x)
-#     # s.model.∇f .= 0.
-#     eval_∇f!(s.model,x)
-#     # s.model.∇f[s.idx.r] += s.λ + s.ρ*view(x,s.idx.r)
-#     return nothing
-# end
-#
-# function eval_∇²f!(s::Solver,x)
-#     # s.model.∇²f .= 0.
-#     eval_∇²f!(s.model,x)
-#     # s.model.mA > 0 && (view(s.model.∇²f,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
-#     return return nothing
-# end
 
 function get_solution(s::NonConvexSolver)
     return s.s.x[1:s.s.model_opt.n]

@@ -22,9 +22,13 @@ function solve!(solver::NonConvexSolver)
 
     # evaluate problem
     eval_step!(s)
-    update_quasi_newton!(s,
-                         x_update=false,
-                         ∇L_update=false)
+
+    # initialize quasi-Newton
+    s.qn.x_prev = copy(s.x)
+    s.qn.∇f_prev = copy(get_∇f(s.model))
+    s.qn.∇c_prev = copy(get_∇c(s.model))
+    s.∇²L = copy(get_B(s.qn))
+    s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
 
     # initialize filter
     push!(s.filter,(s.θ_max,Inf))
@@ -87,9 +91,7 @@ function solve!(solver::NonConvexSolver)
 
             # Calculate everything at the new trial point
             eval_step!(s)
-            update_quasi_newton!(s,
-                                 x_update=true,
-                                 ∇L_update=true)
+            update_quasi_newton!(s)
 
             s.k += 1
             if s.k > s.opts.max_iter
@@ -116,9 +118,6 @@ function solve!(solver::NonConvexSolver)
                 augmented_lagrangian_update!(s)
                 eval_step!(s)
             end
-            update_quasi_newton!(s,
-                                 x_update=false,
-                                 ∇L_update=true)
         end
     end  # outer while loop
 

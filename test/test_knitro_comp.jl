@@ -4,7 +4,7 @@ function knitro_comp()
     n = 8
     m = 7
 
-    x0 = rand(n)
+    x0 = randn(n)
 
     xL = zeros(n)
     xU = Inf*ones(n)
@@ -24,6 +24,7 @@ function knitro_comp()
     cI_idx = zeros(Bool,m)
     cA_idx = zeros(Bool,m)
     cA_idx[5:end] .= 1
+    # cA_idx = ones(Bool,m)
 
     model = Model(n,m,xL,xU,
                   f,∇f!,∇²f!,
@@ -44,7 +45,8 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         quasi_newton=:lbfgs,
                         quasi_newton_approx=:lagrangian,
                         verbose=true,
-                        linear_solver=:MA57)
+                        linear_solver=:MA57,
+                        lbfgs_length=6)
 
 s = NonConvexSolver(knitro_comp()...,opts=opts)
 @time solve!(s)

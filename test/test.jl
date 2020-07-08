@@ -14,7 +14,7 @@ xU[5] = 20.
 f_func(x) = x'*x
 c_func(x) = x[1:m].^2 .- 1.2
 
-model = Model(n,m,xL,xU,f_func,c_func,cA_idx=ones(Bool,m))
+model = Model(n,m,xL,xU,f_func,c_func,cI_idx=zeros(Bool,m),cA_idx=zeros(Bool,m))
 
 opts = Options{Float64}(
                         kkt_solve=:symmetric,
@@ -24,10 +24,10 @@ opts = Options{Float64}(
                         max_iterative_refinement=10,
                         max_iter=250,
                         verbose=true,
-                        quasi_newton=:lbfgs,
+                        quasi_newton=:bfgs,
                         quasi_newton_approx=:lagrangian,
-                        linear_solver=:MA57
-                        )
+                        linear_solver=:MA57,
+                        lbfgs_length=6)
 
 s = NonConvexSolver(x0,model,opts=opts)
 @time solve!(s)
