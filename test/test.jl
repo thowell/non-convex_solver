@@ -24,9 +24,9 @@ opts = Options{Float64}(
                         max_iterative_refinement=10,
                         max_iter=250,
                         verbose=true,
-                        quasi_newton=:bfgs,
+                        quasi_newton=:none,
                         quasi_newton_approx=:lagrangian,
-                        linear_solver=:MA57,
+                        linear_solver=:PARDISO,
                         lbfgs_length=6)
 
 s = NonConvexSolver(x0,model,opts=opts)

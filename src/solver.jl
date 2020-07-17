@@ -199,6 +199,11 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
         F = qdldl(sparse(1.0*I,n+m,n+m))
         inertia = Inertia(0,0,0)
         linear_solver = QDLDLSolver(F,inertia)
+    elseif opts.linear_solver == :PARDISO
+        ps = PardisoSolver()
+        A_pardiso = copy(H_sym)
+        inertia = Inertia(0,0,0)
+        linear_solver = PARDISOSolver(ps,A_pardiso,inertia)
     end
 
     ∇²L = spzeros(n,n)

@@ -6,8 +6,9 @@ mutable struct Inertia
     z::Int  # number of zero eigenvalues
 end
 
+# HSL MA57
 mutable struct MA57Solver{T} <: LinearSolver
-    LBL::Ma57{T}
+    LBL#::Ma57{T}
     inertia::Inertia
 end
 
@@ -41,6 +42,7 @@ function solve!(ls::MA57Solver,d,h)
     return nothing
 end
 
+# QDLDL
 mutable struct QDLDLSolver <: LinearSolver
     F
     inertia::Inertia
@@ -76,5 +78,42 @@ end
 
 function solve!(ls::QDLDLSolver,d,h)
     d .= solve(ls.F,h)
+    return nothing
+end
+
+# PARDISO
+mutable struct PARDISOSolver <: LinearSolver
+    ps
+    A_pardiso
+    inertia::Inertia
+end
+
+function factorize!(ls::PARDISOSolver,H)
+    ls.A_pardiso .= copy(H)
+    return nothing
+end
+
+function compute_inertia!(ls::PARDISOSolver,s)
+    e = eigen(Array(ls.A_pardiso))
+    ls.inertia.m = count(e.values .< 0.0)
+    ls.inertia.n = count(e.values .> 0.0)
+    ls.inertia.z = count(e.values .== 0.0) # TODO get rank info
+    return nothing
+end
+
+function regularization_init!(::PARDISOSolver,s)
+    s.δw = 0.0
+    s.δc = 0.0
+    return nothing
+end
+
+function regularization_init(::PARDISOSolver)
+    δw = 0.0
+    δc = 0.0
+    return δw, δc
+end
+
+function solve!(ls::PARDISOSolver,d,h)
+    pardiso(ls.ps,d,ls.A_pardiso,h)
     return nothing
 end
