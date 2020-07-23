@@ -32,8 +32,8 @@ nq = 3
 nu = 2
 nβ = nc*nf
 
-nx = nq+nu+nc+nβ
-np = 8
+nx = nβ
+np = nβ+nc
 
 dt = 0.1
 
@@ -45,8 +45,8 @@ G(q) = [0; 0; 9.8]
 
 N(q) = [0; 0; 1]
 
-qpp = [0.,0.,10.]
-v0 = [10.,-7.0, 0.]
+qpp = [0.,0.,0.1]
+v0 = [1.0,0.0, 0.]
 v1 = v0 - G(qpp)*dt
 qp = qpp + 0.5*dt*(v0 + v1)
 
@@ -56,24 +56,22 @@ q1 = qp + 0.5*dt*(v1 + v2)
 qf = [0.; 0.; 0.]
 uf = [0.; 0.]
 
-W = Diagonal(10.0*ones(nq))
+W = Diagonal(1.0*ones(nq))
 w = -W*qf
 R = Diagonal(1.0e-1*ones(nu))
 r = -R*uf
 obj_c = 0.5*qf'*W*qf + 0.5*uf'*R*uf
 
+y = 1.0
 function unpack(x)
-    q = x[1:nq]
-    u = x[nq .+ (1:nu)]
-    y = x[nq+nu+nc]
-    β = x[nq+nu+nc .+ (1:nβ)]
+    β = x[1:nβ]
 
-    return q,u,y,β
+    return β
 end
 
 function f(x)
-    q,u,y,β = unpack(x)
-    return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + r'*u + obj_c
+    β = unpack(x)
+	return v0'*P(qpp)'*β/dt
 end
 
 function cone_dif(z)
@@ -82,24 +80,21 @@ function cone_dif(z)
 	[v;s] - vcat(Πsoc(v,s)...)
 end
 
+function cone_dif_alt(z)
+	v = z[1:nβ]
+	s = z[nβ+1]
+	[v;s] #- vcat(Πsoc(v,s)...)
+end
+
 function c(x,λ_i,ρ_i)
-    q,u,y,β = unpack(x)
-    [q[3]-Πp(q[3]);
-     y - Πp(y);
-	 y*q[3];
-	 P(q)*(q-qp)/dt + ForwardDiff.jacobian(cone_dif,[β;y])[:,1:nβ]'*(λ_i + ρ_i*cone_dif([β;y]));
-     (M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + P(q)'*β + N(q)*y);
-    ]
+    β = unpack(x)
+	cone_dif([β;y])
 end
 
 function c_hist(x,λ_i,ρ_i)
-    q,u,y,β = unpack(x)
-    [q[3];
-     y;
-	 y*q[3];
-	 P(q)*(q-qp)/dt + ForwardDiff.jacobian(cone_dif,[β;y])[:,1:nβ]'*(λ_i + ρ_i*[β;y]);
-     (M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + P(q)'*β + N(q)*y);
-    ]
+    β = unpack(x)
+
+	[β;y]
 end
 
 "Augmented Lagrangian"
@@ -121,10 +116,12 @@ function solve(x)
 			_L(z) = L(z,λ,ρ,λ_i,ρ_i)
 			f = _L(x)
 			∇L = ForwardDiff.gradient(_L,x)
+			println("res: $(norm(∇L))")
 			norm(∇L) < 1.0e-5 && break
 			∇²L = ForwardDiff.hessian(_L,x)
 			Δx = -(∇²L + 1.0e-5*I)\∇L
 
+			println("cond: $(cond(∇²L))")
 			α = 1.0
 
 			j = 1
@@ -141,28 +138,46 @@ function solve(x)
 			x .+= α*Δx
 			i += 1
 		end
-		# return x,λ,ρ
-		norm(c(x,λ_i,ρ_i)) < 1.0e-3 && break
 
-		# λ += λ + ρ*c_hist(x,λ_i,ρ_i)
-		# λ[1:2] = Πp(λ[1:2])
-		q,u,y,β = unpack(x)
-		tmp = λ_i + ρ_i*[β;y]
-		λ_i += vcat(Πsoc(tmp[1:end-1],tmp[end])...)
-		# ρ *= 2.0
-		ρ_i *= 10.0
+
+		# return x,λ,ρ
+		# norm(c(x,λ_i,ρ_i)) < 1.0e-3 && break
+
+
+
+		λ += ρ*c_hist(x,λ_i,ρ_i)
+		λ[(1:nβ+1)] = vcat(Πsoc(λ[(1:nβ)],λ[nβ+1])...)
+
+		ρ *= 10.0
+
+		# λ_i += ρ_i*[β;y]
+		# λ_i = vcat(Πsoc(λ_i[1:end-1],λ_i[end])...)
+		#
+		# ρ_i *= 10.0
+		#
+		# λ_i = λ[3nc+nq .+ (1:nβ+1)]
+		# ρ_i = ρ
 
 		k += 1
+
+		println("outer loop: $ρ")
+
+		(norm(c(x,λ_i,ρ_i)) < 1.0e-5 && k > 3) && break
+
 	end
-	q,u,y,β = unpack(x)
-	println("cone_dif: $(cone_dif([β;y]))")
-	return x, λ, ρ
+	k == 10 && (@warn "solve failed")
+	return x, λ, ρ, λ_i, ρ_i
 end
 
-x0 = randn(nx)
-x_sol, λ_sol, ρ_sol = solve(x0)
-@show x_sol
-
-
-q,u,y,β = unpack(x_sol)
-println("cone_dif: $(cone_dif([β;y]))")
+x0 = 1.0*rand(nβ)
+x_sol, λ_sol, ρ_sol, λ_i_sol, ρ_i_sol = solve(copy(x0))
+@show x_sol[1:nβ]
+norm(c(x_sol,λ_i_sol,ρ_i_sol))
+β = unpack(x_sol)
+norm(β) - y
+y
+λ_i_sol
+λ_sol
+ρ_sol
+ρ_i_sol
+(q1-qp)'*P(q)'

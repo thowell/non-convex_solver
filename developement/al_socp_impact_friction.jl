@@ -46,7 +46,7 @@ G(q) = [0; 0; 9.8]
 N(q) = [0; 0; 1]
 
 qpp = [0.,0.,0.1]
-v0 = [10.0,-2.0, 0.]
+v0 = [1.0,0.0, 0.]
 v1 = v0 - G(qpp)*dt
 qp = qpp + 0.5*dt*(v0 + v1)
 
@@ -56,7 +56,7 @@ q1 = qp + 0.5*dt*(v1 + v2)
 qf = [0.; 0.; 0.]
 uf = [0.; 0.]
 
-W = Diagonal(10.0*ones(nq))
+W = Diagonal(1.0*ones(nq))
 w = -W*qf
 R = Diagonal(1.0e-1*ones(nu))
 r = -R*uf
@@ -73,13 +73,20 @@ end
 
 function f(x)
     q,u,y,β = unpack(x)
-    return (q-qp)'*P(q)'*β/dt
+    # return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + r'*u + obj_c
+	return (q-qp)'*P(q)'*β/dt
 end
 
 function cone_dif(z)
 	v = z[1:nβ]
 	s = z[nβ+1]
 	[v;s] - vcat(Πsoc(v,s)...)
+end
+
+function cone_dif_alt(z)
+	v = z[1:nβ]
+	s = z[nβ+1]
+	[v;s] #- vcat(Πsoc(v,s)...)
 end
 
 function c(x,λ_i,ρ_i)
@@ -89,6 +96,8 @@ function c(x,λ_i,ρ_i)
 	 y*q[3];
      (M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + N(q)*y + P(q)'*β);
 	 cone_dif([β;y])
+	 # P(q)*(q-qp)/dt + ForwardDiff.jacobian(cone_dif,[β;y])[:,1:nβ]'*(λ_i + ρ_i*cone_dif([β;y]));
+	 # ForwardDiff.jacobian(cone_dif,[β;y])[:,nβ+1]'*(λ_i + ρ_i*cone_dif([β;y]))
     ]
 end
 
@@ -99,6 +108,9 @@ function c_hist(x,λ_i,ρ_i)
 	 y*q[3];
      (M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + N(q)*y + P(q)'*β);
 	 [β;y]
+	 # P(q)*(q-qp)/dt + ForwardDiff.jacobian(cone_dif,[β;y])[:,1:nβ]'*(λ_i + ρ_i*cone_dif([β;y]));
+	 # P(q)*(q-qp)/dt + ForwardDiff.jacobian(cone_dif_alt,[β;y])[:,1:nβ]'*(λ_i + ρ_i*cone_dif_alt([β;y]));
+	 # ForwardDiff.jacobian(cone_dif_alt,[β;y])[:,nβ+1]'*(λ_i + ρ_i*cone_dif_alt([β;y]))
     ]
 end
 
@@ -111,7 +123,7 @@ function solve(x)
 	λ = zeros(np)
 	ρ = 1.0
 
-	λ_i = zeros(np)
+	λ_i = zeros(nβ+1)
 	ρ_i = 1.0
 
 	k = 1
@@ -121,10 +133,12 @@ function solve(x)
 			_L(z) = L(z,λ,ρ,λ_i,ρ_i)
 			f = _L(x)
 			∇L = ForwardDiff.gradient(_L,x)
+			println("res: $(norm(∇L))")
 			norm(∇L) < 1.0e-5 && break
 			∇²L = ForwardDiff.hessian(_L,x)
 			Δx = -(∇²L + 1.0e-5*I)\∇L
 
+			println("cond: $(cond(∇²L))")
 			α = 1.0
 
 			j = 1
@@ -141,21 +155,47 @@ function solve(x)
 			x .+= α*Δx
 			i += 1
 		end
-		# return x,λ,ρ
-		norm(c(x,λ_i,ρ_i)) < 1.0e-5 && break
 
-		λ += λ + ρ*c_hist(x,λ_i,ρ_i)
+
+		# return x,λ,ρ
+		# norm(c(x,λ_i,ρ_i)) < 1.0e-3 && break
+
+
+
+		λ += ρ*c(x,λ_i,ρ_i)
 		λ[1:2] = Πp(λ[1:2])
 		λ[3nc+nq .+ (1:nβ+1)] = vcat(Πsoc(λ[3nc+nq .+ (1:nβ)],λ[3nc+nq+nβ+1])...)
+
 		ρ *= 10.0
+
+		# λ_i += ρ_i*[β;y]
+		# λ_i = vcat(Πsoc(λ_i[1:end-1],λ_i[end])...)
+		#
+		# ρ_i *= 10.0
+		#
+		# λ_i = λ[3nc+nq .+ (1:nβ+1)]
+		# ρ_i = ρ
+
 		k += 1
+
+		println("outer loop: $ρ")
+
+		(norm(c(x,λ_i,ρ_i)) < 1.0e-3 && k > 3) && break
+
 	end
 	k == 10 && (@warn "solve failed")
-	return x, λ, ρ
+	return x, λ, ρ, λ_i, ρ_i
 end
 
-x0 = [q1;zeros(nu);0.0;zeros(nβ)]
-x_sol, λ_sol, ρ_sol = solve(x0)
-@show x_sol
-x_sol[1:nq]
-norm(c(x_sol,zeros(0),zeros(0)))
+x0 = [q1;1.0*randn(nu);0.0;-1.0*rand(nβ)]
+x_sol, λ_sol, ρ_sol, λ_i_sol, ρ_i_sol = solve(copy(x0))
+@show x_sol[1:nq]
+norm(c(x_sol,λ_i_sol,ρ_i_sol))
+q,u,y,β = unpack(x_sol)
+norm(β) - y
+y
+λ_i_sol
+λ_sol
+ρ_sol
+ρ_i_sol
+(q1-qp)'*P(q)'
