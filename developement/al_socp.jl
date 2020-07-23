@@ -88,20 +88,25 @@ function solve(x)
 			x .+= α*Δx
 			i += 1
 		end
-		norm(cpr(x)) < 1.0e-5 && break
+		norm(cpr(x)) < 1.0e-6 && break
 
 		λ[1:m] += λ[1:m] + ρ*c1(x)
-		λ[m .+ (1:n+1)] = max.(λ[m .+ (1:n+1)] + ρ*c2(x),0.0)
+
+		tmp = λ[m .+ (1:n+1)] + ρ*([x;t])
+		λxp, λtp = Π(tmp[1:n],tmp[n+1])
+		λ[m .+ (1:n+1)] = [λxp;λtp]
+		# λ[m .+ (1:n+1)] = λ[m .+ (1:n+1)] + ρ*c2(x)
+
 		ρ *= 10.0
 
 		k += 1
 	end
 
-	return x
+	return x, λ, ρ
 end
 
-x0 = rand(n)
-x_sol = solve(x0)
+x0 = randn(n)
+x_sol, λ_sol, ρ_sol = solve(x0)
 @show x_sol
 
 norm(x_sol - x.value)
