@@ -32,8 +32,8 @@ nq = 3
 nu = 2
 nβ = nc*nf
 
-nx = nq+nu+nc
-np = 3nc + nq
+nx = nq+nu+nc+nβ
+np = 3nc + nq + nβ+nc
 
 dt = 0.1
 
@@ -46,7 +46,7 @@ G(q) = [0; 0; 9.8]
 N(q) = [0; 0; 1]
 
 qpp = [0.,0.,0.1]
-v0 = [10.,-7.0, 0.]
+v0 = [10.0,-2.0, 0.]
 v1 = v0 - G(qpp)*dt
 qp = qpp + 0.5*dt*(v0 + v1)
 
@@ -66,37 +66,39 @@ function unpack(x)
     q = x[1:nq]
     u = x[nq .+ (1:nu)]
     y = x[nq+nu+nc]
+    β = x[nq+nu+nc .+ (1:nβ)]
 
-    return q,u,y
+    return q,u,y,β
 end
 
 function f(x)
-    q,u,y = unpack(x)
-    # return 0.5*q'*W*q + w'*q + 0.5*u'*R*u + r'*u + obj_c
-	return 0.0
+    q,u,y,β = unpack(x)
+    return (q-qp)'*P(q)'*β/dt
 end
 
-# function cone_dif(z)
-# 	v = z[1:nβ]
-# 	s = z[nβ+1]
-# 	[v;s] - vcat(Πsoc(v,s)...)
-# end
+function cone_dif(z)
+	v = z[1:nβ]
+	s = z[nβ+1]
+	[v;s] - vcat(Πsoc(v,s)...)
+end
 
 function c(x,λ_i,ρ_i)
-    q,u,y = unpack(x)
+    q,u,y,β = unpack(x)
     [q[3]-Πp(q[3]);
      y - Πp(y);
 	 y*q[3];
-     (M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + N(q)*y);
+     (M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + N(q)*y + P(q)'*β);
+	 cone_dif([β;y])
     ]
 end
 
 function c_hist(x,λ_i,ρ_i)
-    q,u,y = unpack(x)
+    q,u,y,β = unpack(x)
     [q[3];
      y;
 	 y*q[3];
-     (M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + N(q)*y);
+     (M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)'*u + N(q)*y + P(q)'*β);
+	 [β;y]
     ]
 end
 
@@ -144,6 +146,7 @@ function solve(x)
 
 		λ += λ + ρ*c_hist(x,λ_i,ρ_i)
 		λ[1:2] = Πp(λ[1:2])
+		λ[3nc+nq .+ (1:nβ+1)] = vcat(Πsoc(λ[3nc+nq .+ (1:nβ)],λ[3nc+nq+nβ+1])...)
 		ρ *= 10.0
 		k += 1
 	end
@@ -151,9 +154,8 @@ function solve(x)
 	return x, λ, ρ
 end
 
-x0 = [q1;zeros(nu);0.0]
+x0 = [q1;zeros(nu);0.0;zeros(nβ)]
 x_sol, λ_sol, ρ_sol = solve(x0)
 @show x_sol
-
 x_sol[1:nq]
 norm(c(x_sol,zeros(0),zeros(0)))
