@@ -8,7 +8,7 @@ end
 
 # HSL MA57
 mutable struct MA57Solver{T} <: LinearSolver
-    LBL#::Ma57{T}
+    LBL::Ma57{T}
     inertia::Inertia
 end
 
@@ -77,7 +77,7 @@ function regularization_init(::QDLDLSolver)
 end
 
 function solve!(ls::QDLDLSolver,d,h)
-    d .= solve(ls.F,h)
+    d .= QDLDL.solve(ls.F,h)
     return nothing
 end
 
