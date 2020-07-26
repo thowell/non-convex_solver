@@ -95,7 +95,6 @@ function solve(x)
 		tmp = λ[m .+ (1:n+1)] + ρ*([x;t])
 		λxp, λtp = Π(tmp[1:n],tmp[n+1])
 		λ[m .+ (1:n+1)] = [λxp;λtp]
-		# λ[m .+ (1:n+1)] = λ[m .+ (1:n+1)] + ρ*c2(x)
 
 		ρ *= 10.0
 
@@ -108,5 +107,4 @@ end
 x0 = randn(n)
 x_sol, λ_sol, ρ_sol = solve(x0)
 @show x_sol
-
 norm(x_sol - x.value)
