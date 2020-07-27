@@ -46,7 +46,7 @@ G(q) = [0; 0; 9.8]
 N(q) = [0; 0; 1]
 
 qpp = [0.,0.,0.1]
-v0 = [10.0,-15.0, 0.]
+v0 = [2.0,-6.5, 0.]
 v1 = v0 - G(qpp)*dt
 qp = qpp + 0.5*dt*(v0 + v1)
 
@@ -142,7 +142,7 @@ function solve(x)
 
 			∇res = ForwardDiff.jacobian(res,[x;y_impact;y_friction])#ForwardDiff.hessian(L,x)
 
-			Δz = -(∇res + 1.0e-5*I)\_res
+			Δz = -(∇res + 1.0e-8*I)\_res
 
 			α = 1.0
 			j = 1
@@ -161,7 +161,7 @@ function solve(x)
 			y_friction .+= α*Δz[nx+m_impact .+ (1:m_friction)]
 			i += 1
 		end
-		norm([c_impact(x);c_friction(x)]) < 1.0e-6 && break
+		norm([c_impact(x);c_friction(x)]) < 1.0e-5 && break
 
 		q,u,y,b = unpack(x)
 
@@ -181,7 +181,7 @@ function solve(x)
 	return x, [λi_impact;λe_impact;λ_friction], ρ
 end
 
-x0 = [q1;1.0e-5*rand(nu);1.0e-5;1.0e-5*rand(nb)]
+x0 = [q1;1.0e-3*rand(nu);1.0e-3;1.0e-3*rand(nb)]
 x_sol, λ_sol, ρ_sol = solve(x0)
 @show x_sol
 
@@ -189,3 +189,6 @@ norm([c_impact(x_sol);c_friction(x_sol)])
 
 q_sol,u_sol,y_sol,b_sol = unpack(x_sol)
 norm(b_sol) - y_sol
+
+y_sol
+b_sol
