@@ -32,8 +32,7 @@ nq = 3
 nu = 2
 nb = nc*nf
 
-nx = nq+nu+nc
-np = 3nc + nq
+nx = nq+nu+nc+nb
 
 dt = 0.1
 
@@ -106,10 +105,14 @@ function c_impact(x)
 	[c̄i(x);ce(x)]
 end
 
+m_impact = 3nc + nq
+
 function c_friction(x)
 	q,u,y,b = unpack(x)
 	[b;y] - vcat(Πsoc(b,y)...)
 end
+
+m_friction = nb + nc
 
 function solve(x)
 	x = copy(x)
@@ -120,26 +123,31 @@ function solve(x)
 
 	ρ = 1.0
 
+	y_impact = zero([λi_impact;λe_impact])
+	y_friction = zero(λ_friction)
+
 	k = 1
 	while k < 10
 		i = 1
 		while i < 25
 
 
-			res(z) = [ForwardDiff.gradient(f_impact,z)[1:(nq+nu+nc)] + ForwardDiff.jacobian(c_impact,z)[:,1:(nq+nu+nc)]'*([λi_impact;λe_impact] + ρ*c_impact(z));
-					  ForwardDiff.gradient(f_friction,z)[nq+nu+nc .+ (1:nb)] + ForwardDiff.jacobian(c_friction,z)[:,nq+nu+nc .+ (1:nb)]'*(λ_friction + ρ*c_friction(z))]
-			_res = res(x)
+			res(z) = [ForwardDiff.gradient(f_impact,z[1:nx])[1:(nq+nu+nc)] + ForwardDiff.jacobian(c_impact,z[1:nx])[:,1:(nq+nu+nc)]'*z[nx .+ (1:m_impact)];
+					  ForwardDiff.gradient(f_friction,z[1:nx])[nq+nu+nc .+ (1:nb)] + ForwardDiff.jacobian(c_friction,z[1:nx])[:,nq+nu+nc .+ (1:nb)]'*z[nx+m_impact .+ (1:m_friction)];
+					  c_impact(z[1:nx]) + 1/ρ*([λi_impact;λe_impact] - z[nx .+ (1:m_impact)]);
+					  c_friction(z[1:nx]) + 1/ρ*(λ_friction - z[nx+m_impact .+ (1:m_friction)])]
 
+			_res = res([x;y_impact;y_friction])
 			norm(_res) < 1.0e-5 && break
 
-			∇res = ForwardDiff.jacobian(res,x)#ForwardDiff.hessian(L,x)
+			∇res = ForwardDiff.jacobian(res,[x;y_impact;y_friction])#ForwardDiff.hessian(L,x)
 
-			Δx = -(∇res + 1.0e-5*I)\_res
+			Δz = -(∇res + 1.0e-5*I)\_res
 
 			α = 1.0
 			j = 1
 			while j < 25
-				if norm(res(x + α*Δx),1)/length(x) <= (1.0-α*0.1)*norm(_res,1)/length(x)
+				if norm(res([x;y_impact;y_friction] + α*Δz),1)/length([x;y_impact;y_friction]) <= (1.0-α*0.1)*norm(_res,1)/length([x;y_impact;y_friction])
 					break
 				else
 					α *= 0.5
@@ -148,7 +156,9 @@ function solve(x)
 			end
 			j == 10 && @warn "line search failed"
 
-			x .+= α*Δx
+			x .+= α*Δz[1:nx]
+			y_impact .+= α*Δz[nx .+ (1:m_impact)]
+			y_friction .+= α*Δz[nx+m_impact .+ (1:m_friction)]
 			i += 1
 		end
 		norm([c_impact(x);c_friction(x)]) < 1.0e-6 && break
