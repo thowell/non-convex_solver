@@ -27,7 +27,7 @@ end
 P = [1. 0. 0.; 0. 1. 0.]
 
 v = [1.;5.;0.]
-n = 0.0
+n = 1.0
 
 function f(x)
     v'*P'*x
@@ -97,3 +97,5 @@ x_sol
 norm(c(x_sol))
 
 norm(x_sol) - n
+
+x_sol

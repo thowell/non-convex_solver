@@ -47,7 +47,7 @@ G(q) = [0; 0; 9.8]
 N(q) = [0; 0; 1]
 
 qpp = [0.,0.,0.1]
-v0 = [10.0,-15.0, 0.]
+v0 = [10.0,-20.0, 0.]
 v1 = v0 - G(qpp)*dt
 qp = qpp + 0.5*dt*(v0 + v1)
 
@@ -59,7 +59,7 @@ uf = [0.; 0.]
 
 W = Diagonal(10.0*ones(nq))
 w = -W*qf
-R = Diagonal(1.0e-1*ones(nu))
+R = Diagonal(10000.0*ones(nu))
 r = -R*uf
 obj_c = 0.5*qf'*W*qf + 0.5*uf'*R*uf
 
@@ -97,7 +97,7 @@ end
 function ce(x)
     q,u,y,b = unpack(x)
     [
-	M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)*u + N(q)*y;
+	M(q)*(2*qp - qpp - q)/dt - G(qp)*dt + B(q)*u + N(q)*y + P(q)'*b;
 	q[3]*y
     ]
 end
@@ -107,6 +107,11 @@ function c_impact(x)
 end
 
 function c_friction(x)
+	q,u,y,b = unpack(x)
+	[b;y] - vcat(Πsoc(b,y)...)
+end
+
+function c_friction_alt(x)
 	q,u,y,b = unpack(x)
 	[b;y] - vcat(Πsoc(b,y)...)
 end
@@ -171,7 +176,7 @@ function solve(x)
 	return x, [λi_impact;λe_impact;λ_friction], ρ
 end
 
-x0 = [q1;1.0e-5*rand(nu);1.0e-5;1.0e-5*rand(nb)]
+x0 = [q1;0.0*rand(nu);0.0;0.0*rand(nb)]
 x_sol, λ_sol, ρ_sol = solve(x0)
 @show x_sol
 
@@ -179,3 +184,8 @@ norm([c_impact(x_sol);c_friction(x_sol)])
 
 q_sol,u_sol,y_sol,b_sol = unpack(x_sol)
 norm(b_sol) - y_sol
+@show b_sol
+@show y_sol
+
+
+u_sol

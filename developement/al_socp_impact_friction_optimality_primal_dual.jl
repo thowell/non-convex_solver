@@ -58,7 +58,7 @@ uf = [0.; 0.]
 
 W = Diagonal(10.0*ones(nq))
 w = -W*qf
-R = Diagonal(1.0e-1*ones(nu))
+R = Diagonal(1000.0*ones(nu))
 r = -R*uf
 obj_c = 0.5*qf'*W*qf + 0.5*uf'*R*uf
 
@@ -96,7 +96,7 @@ end
 function ce(x)
     q,u,y,b = unpack(x)
     [
-	M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)*u + N(q)*y;
+	M(q)*(2*qp - qpp - q)/dt - G(q)*dt + B(q)*u + N(q)*y + P(q)'*b;
 	q[3]*y
     ]
 end
@@ -190,5 +190,5 @@ norm([c_impact(x_sol);c_friction(x_sol)])
 q_sol,u_sol,y_sol,b_sol = unpack(x_sol)
 norm(b_sol) - y_sol
 
-y_sol
-b_sol
+@show y_sol
+@show b_sol
