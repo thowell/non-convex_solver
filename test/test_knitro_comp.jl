@@ -51,12 +51,12 @@ opts = Options{Float64}(kkt_solve=:symmetric,
 s = NonConvexSolver(knitro_comp()...,opts=opts)
 @time solve!(s)
 
-# x = s.s.x
-# x[3]
-# x[6]
-#
-# x[4]
-# x[7]
-#
-# x[5]
-# x[8]
+x = s.s.x
+x[3]
+x[6]
+
+x[4]
+x[7]
+
+x[5]
+x[8]
