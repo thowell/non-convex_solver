@@ -1,3 +1,6 @@
+## About
+Experiments combining interior-point and augmented Lagrangian solvers with cone constraints. 
+
 ## Non-convex solver
 
 This is an infeasible-start, primal-dual augmented-Lagrangian interior-point solver for non-convex optimization problems. The solver implements key algorithms from [Ipopt](https://link.springer.com/content/pdf/10.1007/s10107-004-0559-y.pdf) to handle inequality constraints and a novel primal-dual augmented Lagrangian is employed for equality constraints. Conic constraints, including second-order and positive semidefinite cones, are coming soon.
