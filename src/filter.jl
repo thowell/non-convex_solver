@@ -5,9 +5,9 @@
 Check if the constraint residual `constraint_violation` and the barrier objective `merit` are accepted by the filter.
 To be accepted, the pair must be acceptable to each pair stored in the filter.
 """
-function check_filter(constraint_violation,merit,f)
-    for _f in f
-        if !(constraint_violation < _f[1] || merit < _f[2])
+function check_filter(constraint_violation,merit,filter)
+    for f in filter
+        if !(constraint_violation < f[1] || merit < f[2])
             return false
         end
     end
@@ -15,26 +15,26 @@ function check_filter(constraint_violation,merit,f)
 end
 
 """
-    augment_filter!(constraint_violation,merit,f)
+    augment_filter!(constraint_violation,merit,filter)
 
 Add the pair `(constraint_violation,merit)` to the filter `f` (a vector of pairs)
 """
-function augment_filter!(constraint_violation,merit,f)
-    if isempty(f)
-        push!(f,(constraint_violation,merit))
+function augment_filter!(constraint_violation,merit,filter)
+    if isempty(filter)
+        push!(filter,(constraint_violation,merit))
         return nothing
     # remove filter points dominated by new point
-    elseif check_filter(constraint_violation,merit,f)
-        _f = copy(f)
-        empty!(f)
-        push!(f,(constraint_violation,merit))
-        for _p in _f
-            if !(_p[1] >= constraint_violation && _p[2] >= merit)
-                push!(f,_p)
+    elseif check_filter(constraint_violation,merit,filter)
+        filter_copy = copy(filter)
+        empty!(filter)
+        push!(filter,(constraint_violation,merit))
+        for f in filter_copy
+            if !(f[1] >= constraint_violation && f[2] >= merit)
+                push!(filter, f)
             end
         end
     end
-    return nothing
+    return
 end
 
 """
