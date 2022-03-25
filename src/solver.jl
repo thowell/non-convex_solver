@@ -711,49 +711,8 @@ function NCSolver(x0,model;opts=Options{Float64}()) where T
         _x0 = x0
     end
     s = Solver(_x0,model_s,model,opts=opts)
-    # s̄ = RestorationSolver(s)
 
     NCSolver(s)
-end
-
-function update_quasi_newton!(s::Solver)
-    if s.opts.quasi_newton != :none
-        s.qn.∇L_prev .= s.qn.∇f_prev + s.qn.∇c_prev'*s.y
-        s.qn.∇L_prev[s.idx.xL] -= s.zL
-        s.qn.∇L_prev[s.idx.xU] += s.zU
-
-        # s.model.mA > 0 && (s.qn.∇L_prev[s.idx.r] += s.λ + s.ρ*view(s.qn.x_prev,s.idx.r))
-        #
-        # # damping
-        # if s.opts.single_bnds_damping
-        #     κd = s.opts.κd
-        #     μ = s.μ
-        #     s.qn.∇L_prev[s.idx.xLs] .+= κd*μ
-        #     s.qn.∇L_prev[s.idx.xUs] .-= κd*μ
-        # end
-
-        s.qn.∇f_prev .= get_∇f(s.model)
-        s.qn.∇c_prev .= get_∇c(s.model)
-
-        s.qn.∇L .= s.qn.∇f_prev + s.qn.∇c_prev'*s.y
-        s.qn.∇L[s.idx.xL] -= s.zL
-        s.qn.∇L[s.idx.xU] += s.zU
-
-        # s.model.mA > 0 && (s.qn.∇L[s.idx.r] += s.λ + s.ρ*view(s.x,s.idx.r))
-        #
-        # # damping
-        # if s.opts.single_bnds_damping
-        #     κd = s.opts.κd
-        #     μ = s.μ
-        #     s.qn.∇L[s.idx.xLs] .+= κd*μ
-        #     s.qn.∇L[s.idx.xUs] .-= κd*μ
-        # end
-
-        update_quasi_newton!(s.qn,s.x)
-        s.∇²L .= copy(get_B(s.qn))
-        s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
-    end
-    return nothing
 end
 
 function get_f(s::Solver,x)

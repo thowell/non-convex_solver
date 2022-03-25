@@ -5,9 +5,6 @@ function solve!(solver::NCSolver)
     # evaluate problem
     eval_step!(s)
 
-    # s.∇²L = copy(get_B(s.qn))
-    s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
-
     # initialize filter
     push!(s.filter,(s.θ_max,Inf))
 
@@ -34,7 +31,6 @@ function solve!(solver::NCSolver)
 
             # Calculate everything at the new trial point
             eval_step!(s)
-            update_quasi_newton!(s)
 
             s.k += 1
             if s.k > s.opts.max_iter
