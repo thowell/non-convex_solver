@@ -15,7 +15,7 @@ function solve!(solver::NCSolver)
             search_direction!(s)
     
             if !line_search(s)
-                if s.θ < s.opts.ϵ_tol && s.opts.quasi_newton == :none
+                if s.θ < s.opts.ϵ_tol
                     @error "infeasibility detected"
                     return
                 else

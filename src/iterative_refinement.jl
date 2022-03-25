@@ -9,7 +9,6 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
     s.res .= -s.h - s.H*d
 
     res_norm = norm(s.res,Inf)
-    res_norm_init = copy(res_norm)
 
     while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement) || iter < s.opts.min_iterative_refinement
         if s.opts.kkt_solve == :fullspace

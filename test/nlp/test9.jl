@@ -18,7 +18,6 @@ opts = Options{Float64}(
                         ϵ_al_tol=1.0e-5,
                         max_iter=250,
                         verbose=true,
-                        quasi_newton=:none,
                         linear_solver=:QDLDL,
                         )
 

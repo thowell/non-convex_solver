@@ -43,7 +43,6 @@
     κ1::T = 1.0e-2
     κ2::T = 1.0e-2
 
-    single_bnds_damping::Bool = true
     κd::T = 1.0e-4
 
     kkt_solve::Symbol = :symmetric # :symmetric, :fullspace, custom
@@ -61,15 +60,6 @@
     g_max::T = 100.
     nlp_scaling::Bool = true
 
-    watch_dog_iters::Int = 2
-
     max_fail_cnt::Int = 4
     ϵ_mach::T = 1.0e-16
-
-    quasi_newton::Symbol = :none # :none, :bfgs, :lbfgs, :custom
-    lbfgs_length::Int = 6
-    quasi_newton_approx::Symbol = :lagrangian
-    bfgs_max_fail_cnt::Int = 2
-
-    restoration::Bool=true
 end

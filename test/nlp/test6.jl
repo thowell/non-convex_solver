@@ -15,12 +15,10 @@ model = Model(n,m,xL,xU,f_func,c_func,cI_idx=ones(Bool,m),cA_idx=zeros(Bool,m))
 
 opts = Options{Float64}(kkt_solve=:symmetric,
                 max_iter=100,
-                # quasi_newton=:bfgs,
                 ϵ_tol=1.0e-5,
                 ϵ_al_tol=1.0e-5,
                 verbose=true,
                 linear_solver=:QDLDL,
-                # lbfgs_length=6
                 )
 
 s = NCSolver(x0,model,opts=opts)

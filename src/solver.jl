@@ -131,8 +131,6 @@ mutable struct Solver{T}
     ρ::T
     λ::Vector{T}
 
-    # qn::QuasiNewton
-
     opts::Options{T}
 end
 
@@ -304,12 +302,6 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     res_zL = view(res,idx.zL)
     res_zU = view(res,idx.zU)
 
-    # if opts.quasi_newton == :lbfgs
-    #     qn = LBFGS(n=model.n,m=model.m,k=opts.lbfgs_length)
-    # else
-    #     qn = BFGS(n=model.n,m=model.m)
-    # end
-
     Solver(model,model_opt,
            x,xl,xu,xx,xs,xr,
            x⁺,
@@ -380,14 +372,8 @@ Evaluate the objective value and it's first and second-order derivatives
 """
 function eval_objective!(s::Solver)
     eval_∇f!(s.model,s.x)
-
-    if s.opts.quasi_newton == :none
-        eval_∇²f!(s.model,s.x)
-    else
-        if s.opts.quasi_newton_approx == :constraints
-            eval_∇²f!(s.model,s.x)
-        end
-    end
+    eval_∇²f!(s.model,s.x)
+    
     return nothing
 end
 
@@ -403,13 +389,8 @@ function eval_constraints!(s::Solver)
 
     eval_∇c!(s.model,s.x)
 
-    if s.opts.quasi_newton == :none
-        eval_∇²cy!(s.model,s.x,s.y)
-    else
-        if s.opts.quasi_newton == :objective
-            eval_∇²cy!(s.model,s.x,s.y)
-        end
-    end
+    eval_∇²cy!(s.model,s.x,s.y)
+   
     s.θ = norm(s.c,1)
     return nothing
 end
@@ -435,19 +416,8 @@ function eval_lagrangian!(s::Solver)
     s.∇L[s.idx.xU] += s.zU
     s.model.mA > 0 && (s.∇L[s.idx.r] += s.λ + s.ρ*view(s.x,s.idx.r))
 
-    # damping
-    if s.opts.single_bnds_damping
-        κd = s.opts.κd
-        μ = s.μ
-        s.∇L[s.idx.xLs] .+= κd*μ
-        s.∇L[s.idx.xUs] .-= κd*μ
-    end
-
-    if s.opts.quasi_newton == :none
-        s.∇²L .= get_∇²f(s.model) + get_∇²cy(s.model)
-        s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
-
-    end
+    s.∇²L .= get_∇²f(s.model) + get_∇²cy(s.model)
+    s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
     return nothing
 end
 
@@ -466,18 +436,7 @@ function eval_barrier!(s::Solver)
     s.∇φ[s.idx.xL] -= s.μ./s.ΔxL
     s.∇φ[s.idx.xU] += s.μ./s.ΔxU
     s.model.mA > 0 && (s.∇φ[s.idx.r] += s.λ + s.ρ*view(s.x,s.idx.r))
-
-
-    # damping
-    if s.opts.single_bnds_damping
-        κd = s.opts.κd
-        μ = s.μ
-
-        s.φ += κd*μ*sum(view(s.x,s.idx.xLs) - view(s.model.xL,s.idx.xLs))
-        s.φ += κd*μ*sum(view(s.model.xU,s.idx.xUs) - view(s.x,s.idx.xUs))
-        s.∇φ[s.idx.xLs] .+= κd*μ
-        s.∇φ[s.idx.xUs] .-= κd*μ
-    end
+    
     return nothing
 end
 
@@ -657,7 +616,7 @@ function barrier(x,s::Solver)
                    view(x,s.idx.xU),view(s.model.xU,s.idx.xU),
                    view(x,s.idx.xLs),view(s.model.xL,s.idx.xLs),
                    view(x,s.idx.xUs),view(s.model.xU,s.idx.xUs),
-                   s.μ,s.opts.single_bnds_damping ? s.opts.κd : 0.,
+                   s.μ,0.,
                    view(x,s.idx.r),s.λ,s.ρ)
 end
 
