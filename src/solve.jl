@@ -29,9 +29,8 @@ function solve!(solver::NCSolver)
                 augment_filter!(s)
                 accept_step!(s)
             end
-            # end
 
-            s.opts.z_reset && reset_z!(s)
+            # s.opts.z_reset && reset_z!(s)
 
             # Calculate everything at the new trial point
             eval_step!(s)
@@ -40,7 +39,6 @@ function solve!(solver::NCSolver)
             s.k += 1
             if s.k > s.opts.max_iter
                 @error "max iterations"
-                # @logmsg InnerLoop "max. iterations"
                 return
             end
 
