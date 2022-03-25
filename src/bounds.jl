@@ -1,4 +1,4 @@
-function bounds_mask(xL,xU,bnd_tol)
+function bounds_mask(xL,xU,max_bound)
     n = length(xL)
     xL_bool = zeros(Bool,n)
     xU_bool = zeros(Bool,n)
@@ -7,13 +7,13 @@ function bounds_mask(xL,xU,bnd_tol)
 
     for i = 1:n
         # boolean bounds
-        if xL[i] < -1.0*bnd_tol
+        if xL[i] < -1.0*max_bound
             xL_bool[i] = 0
         else
             xL_bool[i] = 1
         end
 
-        if xU[i] > bnd_tol
+        if xU[i] > max_bound
             xU_bool[i] = 0
         else
             xU_bool[i] = 1

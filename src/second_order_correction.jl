@@ -33,7 +33,7 @@ function second_order_correction(s::Solver)
     while true
         if check_filter(s.constraint_violation_candidate,s.φ⁺,s.filter)  # A-5.7
             # case 1
-            if (s.constraint_violation <= s.min_constraint_violation && switching_condition(s.∇φ,view(s.d_copy_2,s.idx.x),maximum_step_size,s.options.sφ,s.options.regularization,s.constraint_violation,s.options.sconstraint_violation))  # A-5.8
+            if (s.constraint_violation <= s.min_constraint_violation && switching_condition(s.∇φ,view(s.d_copy_2,s.idx.x),maximum_step_size,s.options.exponent_merit,s.options.regularization,s.constraint_violation,s.options.sconstraint_violation))  # A-5.8
                 if armijo(s)
                     status = true
                     break
@@ -50,7 +50,7 @@ function second_order_correction(s::Solver)
             break
         end
 
-        if s.p == s.options.p_max || s.constraint_violation_candidate > s.options.κ_soc*s.constraint_violation_correction
+        if s.p == s.options.max_second_order_correction || s.constraint_violation_candidate > s.options.soc_tolerance*s.constraint_violation_correction
             s.step_size = 0.5*maximum_step_size
             break
         else  # A-5.9 Next second-order correction

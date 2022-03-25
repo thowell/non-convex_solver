@@ -161,7 +161,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
     options.relax_bnds && relax_bounds!(xL,xU,xL_bool,xU_bool,n,options.residual_tolerance)
 
     for i = 1:n
-        x[i] = initialize_variables(x0[i],xL[i],xU[i],options.κ1,options.κ2)
+        x[i] = initialize_variables(x0[i],xL[i],xU[i],options.bound_tolerance1,options.bound_tolerance2)
     end
 
     zL = options.zL0*ones(nL)
@@ -191,7 +191,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
     σU = zeros(nU)
 
     eval_∇c!(model,x)
-    Dc = constraint_scaling(options.g_max,get_∇c(model),m)
+    Dc = constraint_scaling(options.scaling_tolerance,get_∇c(model),m)
 
     central_path = copy(options.central_path_initial)
     penalty = 1.0
@@ -199,7 +199,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
     τ = fraction_to_boundary(central_path,options.min_fraction_to_boundary)
 
     eval_∇f!(model,x)
-    df = objective_gradient_scaling(options.g_max,get_∇f(model))
+    df = objective_gradient_scaling(options.scaling_tolerance,get_∇f(model))
 
     φ = 0.
     φ⁺ = 0.
@@ -212,7 +212,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
     c_tmp = zeros(m)
 
     eval_c!(model,x)
-    get_c_scaled!(c,model,Dc,options.nlp_scaling)
+    get_c_scaled!(c,model,Dc,options.scaling)
 
     d = zeros(n+m+nL+nU)
     d_soc = zeros(n+m+nL+nU)
@@ -370,13 +370,13 @@ function eval_constraints!(s::Solver)
     return nothing
 end
 
-function get_c_scaled!(c,model,Dc,nlp_scaling)
-    nlp_scaling && (c .= Dc*get_c(model))
+function get_c_scaled!(c,model,Dc,scaling)
+    scaling && (c .= Dc*get_c(model))
     return nothing
 end
 
 function get_c_scaled!(c,s::Solver)
-    get_c_scaled!(c,s.model,s.Dc,s.options.nlp_scaling)
+    get_c_scaled!(c,s.model,s.Dc,s.options.scaling)
 end
 
 """
@@ -433,14 +433,14 @@ function step!(s::Solver)
 end
 
 """
-    central_path(central_path, κcentral_path, θcentral_path, residual_tolerance)
+    central_path(central_path, scaling_central_path, exponent_central_path, residual_tolerance)
     central_path(s::Solver)
 
-Update the penalty parameter (Eq. 7) with constants κcentral_path ∈ (0,1), θcentral_path ∈ (1,2)
+Update the penalty parameter (Eq. 7) with constants scaling_central_path ∈ (0,1), exponent_central_path ∈ (1,2)
 """
-central_path(central_path, κcentral_path, θcentral_path, residual_tolerance) = max(residual_tolerance/10.,min(κcentral_path*central_path,central_path^θcentral_path))
+central_path(central_path, scaling_central_path, exponent_central_path, residual_tolerance) = max(residual_tolerance/10.,min(scaling_central_path*central_path,central_path^exponent_central_path))
 function central_path!(s::Solver)
-    s.central_path = central_path(s.central_path, s.options.κcentral_path, s.options.θcentral_path, s.options.residual_tolerance)
+    s.central_path = central_path(s.central_path, s.options.scaling_central_path, s.options.exponent_central_path, s.options.residual_tolerance)
     return nothing
 end
 
@@ -477,15 +477,15 @@ function initialize_min_constraint_violation(constraint_violation)
 end
 
 """
-    initialize_variables(x, xL, xU, κ1, κ2)
+    initialize_variables(x, xL, xU, bound_tolerance1, bound_tolerance2)
 
 Initilize the primal variables with a feasible guess wrt the bound constraints, projecting
-the provided guess `x0` slightly inside of the feasible region, with `κ1`, `κ2` ∈ (0,0.5)
+the provided guess `x0` slightly inside of the feasible region, with `bound_tolerance1`, `bound_tolerance2` ∈ (0,0.5)
 determining how far into the interior the value is projected.
 """
-function initialize_variables(x,xL,xU,κ1,κ2)
-    pl = min(κ1*max(1.0,abs(xL)),κ2*(xU-xL))
-    pu = min(κ1*max(1.0,abs(xU)),κ2*(xU-xL))
+function initialize_variables(x,xL,xU,bound_tolerance1,bound_tolerance2)
+    pl = min(bound_tolerance1*max(1.0,abs(xL)),bound_tolerance2*(xU-xL))
+    pu = min(bound_tolerance1*max(1.0,abs(xU)),bound_tolerance2*(xU-xL))
 
     # projection
     if x < xL+pl
@@ -508,16 +508,16 @@ function constraint_violation(x,s::Solver)
 end
 
 """
-    barrier(x, xL, xU, xL_bool, xU_bool, xLs_bool xUs_bool, central_path, κd, f, penalty, yA, cA)
+    barrier(x, xL, xU, xL_bool, xU_bool, xLs_bool xUs_bool, central_path, barrier_tolerance, f, penalty, yA, cA)
     barrier(x, s::Solver)
 
 Calculate the barrier objective function. When called using the solver, re-calculates the
     objective `f` and the constraints `c`.
 """
-function barrier(f,xl,xL,xu,xU,xls,xLs,xus,xUs,central_path,κd,r,dual,penalty)
+function barrier(f,xl,xL,xu,xU,xls,xLs,xus,xUs,central_path,barrier_tolerance,r,dual,penalty)
     return (f
             - central_path*sum(log.(xl - xL)) - central_path*sum(log.(xU - xu))
-            + κd*central_path*sum(xls - xLs) + κd*central_path*sum(xUs - xus)
+            + barrier_tolerance*central_path*sum(xls - xLs) + barrier_tolerance*central_path*sum(xUs - xus)
             + dual'*r + 0.5*penalty*r'*r)
 end
 
@@ -550,7 +550,7 @@ end
 function Solver(x0,model;options=Options{Float64}()) where T
     if model.mI > 0 || model.mA > 0
         # slack model
-        model_s = slack_model(model,bnd_tol=options.bnd_tol)
+        model_s = slack_model(model,max_bound=options.max_bound)
 
         # initialize slacks
         eval_c!(model,x0)
@@ -566,7 +566,7 @@ function Solver(x0,model;options=Options{Float64}()) where T
 end
 
 function get_f(s::Solver,x)
-    (s.options.nlp_scaling ? s.df*get_f(s.model,x) : get_f(s.model,x))
+    (s.options.scaling ? s.df*get_f(s.model,x) : get_f(s.model,x))
 end
 
 function get_solution(s::Solver)

@@ -45,7 +45,7 @@ to ensure sufficient decrease (Eq. 18).
 """
 function augment_filter!(s::Solver)
     if !switching_condition(s) || !armijo(s)
-        augment_filter!((1.0-s.options.constraint_violation_tolerance)*s.constraint_violation, s.φ - s.options.γφ*s.constraint_violation, s.filter)
+        augment_filter!((1.0-s.options.constraint_violation_tolerance)*s.constraint_violation, s.φ - s.options.merit_tolerance*s.constraint_violation, s.filter)
     end
     return nothing
 end

@@ -29,7 +29,7 @@ model = Model(n,m,xL,xU,
                 cI_idx=cI_idx,cA_idx=cA_idx)
 
 options = Options{Float64}(
-                        kkt_solve=:symmetric,
+                        linear_solve_type=:symmetric,
                         max_residual_iterations=1000,
                         residual_tolerance=1.0e-5,
                         equality_tolerance=1.0e-5,

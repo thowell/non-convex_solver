@@ -17,7 +17,7 @@ c_func(x) = [x[1]^2 - x[2] - 1.0;
 model = Model(n,m,xL,xU,f_func,c_func,cA_idx=ones(Bool,m))
 
 options = Options{Float64}(
-                        kkt_solve=:symmetric,
+                        linear_solve_type=:symmetric,
                         iterative_refinement=true,
                         residual_tolerance=1.0e-5,
                         equality_tolerance=1.0e-5,

@@ -71,11 +71,11 @@ function candidate_step!(s::Solver)
     return nothing
 end
 
-function minimum_step_size(d,constraint_violation,∇φ,min_constraint_violation,regularization,step_size_tolerance,constraint_violation_tolerance,γφ,sθ,sφ)
+function minimum_step_size(d,constraint_violation,∇φ,min_constraint_violation,regularization,step_size_tolerance,constraint_violation_tolerance,merit_tolerance,exponent_constraint_violation,exponent_merit)
     if ∇φ'*d < 0. && constraint_violation <= min_constraint_violation
-        return step_size_tolerance*min(constraint_violation_tolerance,γφ*constraint_violation/(-∇φ'*d),regularization*(constraint_violation^sθ)/(-∇φ'*d)^sφ)
+        return step_size_tolerance*min(constraint_violation_tolerance,merit_tolerance*constraint_violation/(-∇φ'*d),regularization*(constraint_violation^exponent_constraint_violation)/(-∇φ'*d)^exponent_merit)
     elseif ∇φ'*d < 0. && constraint_violation > min_constraint_violation
-        return step_size_tolerance*min(constraint_violation_tolerance,γφ*constraint_violation/(-∇φ'*d))
+        return step_size_tolerance*min(constraint_violation_tolerance,merit_tolerance*constraint_violation/(-∇φ'*d))
     else
         return step_size_tolerance*constraint_violation_tolerance
     end
@@ -87,7 +87,7 @@ end
 Compute the minimum step length (Eq. 23)
 """
 function minimum_step_size!(s::Solver)
-    s.minimum_step_size = minimum_step_size(s.dx,s.constraint_violation,s.∇φ,s.min_constraint_violation,s.options.regularization,s.options.step_size_tolerance,s.options.constraint_violation_tolerance,s.options.γφ,s.options.sθ,s.options.sφ)
+    s.minimum_step_size = minimum_step_size(s.dx,s.constraint_violation,s.∇φ,s.min_constraint_violation,s.options.regularization,s.options.step_size_tolerance,s.options.constraint_violation_tolerance,s.options.merit_tolerance,s.options.exponent_constraint_violation,s.options.exponent_merit)
     return nothing
 end
 
@@ -120,17 +120,17 @@ function maximum_dual_step_size!(s::Solver)
     return nothing
 end
 
-switching_condition(∇φ,d,step_size,sφ,regularization,constraint_violation,sθ) = (∇φ'*d < 0. && step_size*(-∇φ'*d)^sφ > regularization*constraint_violation^sθ)
+switching_condition(∇φ,d,step_size,exponent_merit,regularization,constraint_violation,exponent_constraint_violation) = (∇φ'*d < 0. && step_size*(-∇φ'*d)^exponent_merit > regularization*constraint_violation^exponent_constraint_violation)
 function switching_condition(s::Solver)
-    return switching_condition(s.∇φ,s.dx,s.step_size,s.options.sφ,s.options.regularization,s.constraint_violation,s.options.sθ)
+    return switching_condition(s.∇φ,s.dx,s.step_size,s.options.exponent_merit,s.options.regularization,s.constraint_violation,s.options.exponent_constraint_violation)
 end
 
-sufficient_progress(constraint_violation_candidate,constraint_violation,φ⁺,φ,constraint_violation_tolerance,γφ,machine_tolerance) = (constraint_violation_candidate - 10.0*machine_tolerance*abs(constraint_violation) <= (1-constraint_violation_tolerance)*constraint_violation || φ⁺ - 10.0*machine_tolerance*abs(φ) <= φ - γφ*constraint_violation)
+sufficient_progress(constraint_violation_candidate,constraint_violation,φ⁺,φ,constraint_violation_tolerance,merit_tolerance,machine_tolerance) = (constraint_violation_candidate - 10.0*machine_tolerance*abs(constraint_violation) <= (1-constraint_violation_tolerance)*constraint_violation || φ⁺ - 10.0*machine_tolerance*abs(φ) <= φ - merit_tolerance*constraint_violation)
 function sufficient_progress(s::Solver)
-    return sufficient_progress(s.constraint_violation_candidate,s.constraint_violation,s.φ⁺,s.φ,s.options.constraint_violation_tolerance,s.options.γφ,
+    return sufficient_progress(s.constraint_violation_candidate,s.constraint_violation,s.φ⁺,s.φ,s.options.constraint_violation_tolerance,s.options.merit_tolerance,
         s.options.machine_tolerance)
 end
 
-armijo(φ⁺,φ,η,step_size,∇φ,d,machine_tolerance) = (φ⁺ - φ - 10.0*machine_tolerance*abs(φ) <= η*step_size*∇φ'*d)
-armijo(s::Solver) = armijo(s.φ⁺,s.φ,s.options.ηφ,s.step_size,s.∇φ,s.dx,
+armijo(φ⁺,φ,tolerance,step_size,∇φ,d,machine_tolerance) = (φ⁺ - φ - 10.0*machine_tolerance*abs(φ) <= tolerance*step_size*∇φ'*d)
+armijo(s::Solver) = armijo(s.φ⁺,s.φ,s.options.armijo_tolerace,s.step_size,s.∇φ,s.dx,
     s.options.machine_tolerance)

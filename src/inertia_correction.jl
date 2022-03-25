@@ -18,14 +18,14 @@ function inertia_correction!(s::Solver)
     # IC-2
     if s.linear_solver.inertia.z != 0
         s.options.verbose ? (@warn "$(s.linear_solver.inertia.z) zero eigen values - rank deficient constraints") : nothing
-        s.dual_regularization = s.options.dual_regularization*s.central_path^s.options.κc
+        s.dual_regularization = s.options.dual_regularization*s.central_path^s.options.exponent_dual_regularization
     end
 
     # IC-3
     if s.primal_regularization_last == 0.
         s.primal_regularization = s.options.primal_regularization_initial
     else
-        s.primal_regularization = max(s.options.primal_regularization_min, s.options.κw⁻*s.primal_regularization_last)
+        s.primal_regularization = max(s.options.primal_regularization_min, s.options.scaling_regularization_last*s.primal_regularization_last)
     end
 
     while !inertia(s)
@@ -38,9 +38,9 @@ function inertia_correction!(s::Solver)
         else
             # IC-5
             if s.primal_regularization_last == 0
-                s.primal_regularization = s.options.κw⁺_*s.primal_regularization
+                s.primal_regularization = s.options.scaling_regularization_initial*s.primal_regularization
             else
-                s.primal_regularization = s.options.κw⁺*s.primal_regularization
+                s.primal_regularization = s.options.scaling_regularization*s.primal_regularization
             end
         end
 
