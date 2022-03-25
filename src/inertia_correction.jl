@@ -4,7 +4,7 @@
 Implementation of Algorithm IC. Increase the regularization of the symmetric KKT system
 until it has the correct inertia.
 """
-function inertia_correction!(s::Solver; restoration=false)
+function inertia_correction!(s::Solver)
 
     regularization_init!(s.linear_solver,s)
 

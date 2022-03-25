@@ -1,7 +1,4 @@
-function solve!(solver::NCSolver)
-    # phase 1 solver
-    s = solver.s
-
+function solve!(solver::Solver)
     # evaluate problem
     eval_step!(s)
 
@@ -27,8 +24,6 @@ function solve!(solver::NCSolver)
                 accept_step!(s)
             end
 
-            # s.opts.z_reset && reset_z!(s)
-
             # Calculate everything at the new trial point
             eval_step!(s)
 
@@ -38,8 +33,7 @@ function solve!(solver::NCSolver)
                 return
             end
 
-        end  # inner while loop
-
+        end
 
         if eval_Eμ(0.0,s) <= s.opts.ϵ_tol && norm(s.xr,Inf) <= s.opts.ϵ_al_tol
             break

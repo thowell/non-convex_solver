@@ -21,6 +21,6 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                 linear_solver=:QDLDL,
                 )
 
-s = NCSolver(x0,model,opts=opts)
+s = Solver(x0,model,opts=opts)
 
 @time solve!(s)

@@ -107,10 +107,6 @@ mutable struct Solver{T}
     l::Int   # line search
     p::Int   # second order corrections
     t::Int
-    small_search_direction_cnt::Int
-
-    restoration::Bool
-    DR::SparseMatrixCSC{T,Int}  # QUESTION: isn't this Diagonal?
 
     x_copy::Vector{T}
     y_copy::Vector{T}
@@ -241,8 +237,6 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
 
     y = zeros(m)
 
-    # opts.y_init_ls ? init_y!(y,H_sym,h_sym,d,zL,zU,get_∇f(model),get_∇c(model),n,m,xL_bool,xU_bool,opts.y_max,linear_solver) : zeros(m)
-
     sd = init_sd(y,[zL;zU],n,m,opts.s_max)
     sc = init_sc([zL;zU],n,opts.s_max)
 
@@ -253,11 +247,6 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     l = 0
     p = 0
     t = 0
-
-    small_search_direction_cnt = 0
-
-    restoration = false
-    DR = spzeros(0,0)
 
     x_copy = zeros(n)
     y_copy = zeros(m)
@@ -325,8 +314,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            sd,sc,
            μ,τ,
            filter,
-           j,k,l,p,t,small_search_direction_cnt,
-           restoration,DR,
+           j,k,l,p,t,
            x_copy,y_copy,zL_copy,zU_copy,d_copy,d_copy_2,
            Fμ,
            idx,
@@ -491,29 +479,6 @@ function fraction_to_boundary_bnds(xl,xL,xu,xU,dxL,dxU,α,τ)
     return all((xU-(xu + α*dxU)) .>= (1 - τ)*(xU-xu)) && all(((xl + α*dxL)-xL) .>= (1 - τ)*(xl-xL))
 end
 
-"""
-    reset_z(z, x, μ, κΣ)
-    reset_z(s::Solver)
-
-Reset the bound duals `z` according to (Eq. 16) to ensure global convergence, where `κΣ` is
-some constant > 1, usually very large (e.g. 10^10).
-"""
-reset_z(z,x,μ,κΣ) = max(min(z,κΣ*μ/x),μ/(κΣ*x))
-
-function reset_z!(s::Solver)
-    s.ΔxL .= s.xl - view(s.model.xL,s.idx.xL)
-    s.ΔxU .= view(s.model.xU,s.idx.xU) - s.xu
-
-    for i = 1:s.model.nL
-        s.zL[i] = reset_z(s.zL[i],s.ΔxL[i],s.μ,s.opts.κΣ)
-    end
-
-    for i = 1:s.model.nU
-        s.zU[i] = reset_z(s.zU[i],s.ΔxU[i],s.μ,s.opts.κΣ)
-    end
-    return nothing
-end
-
 function init_θ_max(θ)
     θ_max = 1.0e4*max(1.0,θ)
     return θ_max
@@ -542,44 +507,6 @@ function init_x0(x,xL,xU,κ1,κ2)
         x = xU-pu
     end
     return x
-end
-
-"""
-    init_y!
-
-Solve for the initial dual variables for the equality constraints (Eq. 36)
-"""
-function init_y!(y,H,h,d,zL,zU,∇f,∇c,n,m,xL_bool,xU_bool,y_max,linear_solver)
-
-    if m > 0
-        H[CartesianIndex.((1:n),(1:n))] .= 1.0
-        H[1:n,n .+ (1:m)] .= ∇c'
-        H[n .+ (1:m),1:n] .= ∇c
-
-        h[1:n] = ∇f
-        h[(1:n)[xL_bool]] -= zL
-        h[(1:n)[xU_bool]] += zU
-        h[n+1:end] .= 0.
-
-
-        δ = zeros(n+m)
-        δw, δc = regularization_init(linear_solver)
-        δ[1:n] .= δw
-        δ[n .+ (1:m)] .= -δc
-
-        factorize!(linear_solver,H + Diagonal(δ))
-        solve!(linear_solver,view(d,1:(n+m)),-h)
-        y .= d[n .+ (1:m)]
-
-        if norm(y,Inf) > y_max || any(isnan.(y))
-            @warn "least-squares y init failure:\n y_max = $(norm(y,Inf))"
-            y .= 0.
-        end
-    else
-        y .= 0.
-    end
-    H .= 0.
-    return nothing
 end
 
 """
@@ -642,20 +569,7 @@ function small_search_direction(s::Solver)
     return (maximum(abs.(s.dx)./(1.0 .+ abs.(s.x))) < 10.0*s.opts.ϵ_mach)
 end
 
-"""
-    NCSolver{T}
-
-Complete interior point solver as described by the Ipopt paper.
-
-# Fields
-- `s`: interior point solver for the original problem
-- `s`: interior point solver for the restoration phase
-"""
-struct NCSolver{T}
-    s::Solver{T}
-end
-
-function NCSolver(x0,model;opts=Options{Float64}()) where T
+function Solver(x0,model;opts=Options{Float64}()) where T
     if model.mI > 0 || model.mA > 0
         # slack model
         model_s = slack_model(model,bnd_tol=opts.bnd_tol)
@@ -669,15 +583,14 @@ function NCSolver(x0,model;opts=Options{Float64}()) where T
         model_s = model
         _x0 = x0
     end
-    s = Solver(_x0,model_s,model,opts=opts)
-
-    NCSolver(s)
+    
+    return Solver(_x0,model_s,model,opts=opts)
 end
 
 function get_f(s::Solver,x)
     (s.opts.nlp_scaling ? s.df*get_f(s.model,x) : get_f(s.model,x))
 end
 
-function get_solution(s::NCSolver)
-    return s.s.x[1:s.s.model_opt.n]
+function get_solution(s::Solver)
+    return s.x[1:s.model_opt.n]
 end

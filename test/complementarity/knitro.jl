@@ -37,10 +37,10 @@ opts = Options{Float64}(
                         linear_solver=:QDLDL,
                         )
 
-s = NCSolver(x0,model,opts=opts)
+s = Solver(x0,model,opts=opts)
 @time solve!(s)
 
-x = s.s.x
+x = s.x
 x[3]
 x[6]
 

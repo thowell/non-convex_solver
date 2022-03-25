@@ -38,7 +38,7 @@ end
 
 function search_direction_fullspace!(s::Solver)
     kkt_hessian_symmetric!(s)
-    inertia_correction!(s,restoration=s.restoration)
+    inertia_correction!(s)
 
     kkt_hessian_fullspace!(s)
 
@@ -72,8 +72,7 @@ function search_direction_symmetric!(s::Solver)
     kkt_hessian_symmetric!(s)
     kkt_gradient_symmetric!(s)
 
-    inertia_correction!(s,restoration=s.restoration)
-    # s.dxy .= ma57_solve(s.LBL, -s.h_sym)
+    inertia_correction!(s)
     solve!(s.linear_solver,s.dxy,-s.h_sym)
     s.dzL .= -s.σL.*s.dxL - s.zL + s.μ./(s.ΔxL .- s.δc)
     s.dzU .= s.σU.*s.dxU - s.zU + s.μ./(s.ΔxU .- s.δc)

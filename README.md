@@ -112,7 +112,7 @@ model = Model(n,m,xL,xU,f_func,c_func)
 opts = Options{Float64}()
 
 # solver
-s = NCSolver(x0,model,opts=opts)
+s = Solver(x0,model,opts=opts)
 
 # solve
 solve!(s)

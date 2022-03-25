@@ -14,7 +14,7 @@ c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f_func,c_func,cI_idx=ones(Bool,m),cA_idx=zeros(Bool,m))
 
-s = NCSolver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,
+s = Solver(x0,model,opts=Options{Float64}(kkt_solve=:symmetric,
                                                         ϵ_tol=1.0e-5,
                                                         ϵ_al_tol=1.0e-5,
                                                         linear_solver=:QDLDL,
