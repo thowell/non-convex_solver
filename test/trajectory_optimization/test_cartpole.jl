@@ -1,5 +1,3 @@
-include("../src/non-convex_solver.jl")
-
 """ Cartpole example
     -control limits
     -initial condition
@@ -96,7 +94,7 @@ function c_func(z)
         q = z[(t-1)*nx .+ (1:nq)]
         u = z[(t-1)*nx + nq .+ (1:nu)]
         q⁺ = z[t*nx .+ (1:nq)]
-        c[(t-1)*np .+ (1:np)] = midpoint_implicit(model,q⁺,q,u,dt)
+        c[(t-1)*np .+ (1:np)] = discrete_dynamics(model,q⁺,q,u,dt)
     end
     c[(T-1)*np .+ (1:nq)] = z[(1:nq)] - q0 # initial condition
     c[(T-1)*np + nq.+ (1:nq)] = z[(T-1)*nx .+ (1:nq)] - qf # goal constraint
@@ -141,14 +139,15 @@ for t = 1:T
 end
 
 # standard solve using MA57 and second derivatives of constraints
-opts = Options{Float64}(kkt_solve=:symmetric,
-                       max_iter=250,
-                       iterative_refinement=true,
-                       relax_bnds=true,
-                       max_iterative_refinement=10,
-                       ϵ_tol=1.0e-6,
-                       ϵ_al_tol=1.0e-6,
-                       verbose=true)
+# opts = Options{Float64}(kkt_solve=:symmetric,
+#                        max_iter=250,
+#                        iterative_refinement=true,
+#                        relax_bnds=true,
+#                        max_iterative_refinement=10,
+#                        linear_solver=:QDLDL,
+#                        ϵ_tol=1.0e-5,
+#                        ϵ_al_tol=1.0e-5,
+#                        verbose=true)
 
 
 # QDLDL needs some help (almost works) with regularization
@@ -167,32 +166,32 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                       # )
 
 # L-BFGS usually works could be tuned a bit
-opts = Options{Float64}(kkt_solve=:symmetric,
-                      max_iter=500,
-                      iterative_refinement=true,
-                      relax_bnds=true,
-                      max_iterative_refinement=10,
-                      ϵ_tol=1.0e-6,
-                      ϵ_al_tol=1.0e-6,
-                      verbose=true,#,
-                      quasi_newton=:lbfgs,
-                      quasi_newton_approx=:lagrangian,
-                      lbfgs_length=6,
-                      )
+# opts = Options{Float64}(kkt_solve=:symmetric,
+#                       max_iter=500,
+#                       iterative_refinement=true,
+#                       relax_bnds=true,
+#                       max_iterative_refinement=10,
+#                       ϵ_tol=1.0e-6,
+#                       ϵ_al_tol=1.0e-6,
+#                       verbose=true,#,
+#                       quasi_newton=:lbfgs,
+#                       quasi_newton_approx=:lagrangian,
+#                       lbfgs_length=6,
+#                       )
 
 # BFGS is typically more reliable than L-BFGS
-opts = Options{Float64}(kkt_solve=:symmetric,
-                    max_iter=500,
-                    iterative_refinement=true,
-                    relax_bnds=true,
-                    max_iterative_refinement=10,
-                    ϵ_tol=1.0e-6,
-                    ϵ_al_tol=1.0e-6,
-                    verbose=true,#,
-                    quasi_newton=:bfgs,
-                    )
+# opts = Options{Float64}(kkt_solve=:symmetric,
+#                     max_iter=500,
+#                     iterative_refinement=true,
+#                     relax_bnds=true,
+#                     max_iterative_refinement=10,
+#                     ϵ_tol=1.0e-6,
+#                     ϵ_al_tol=1.0e-6,
+#                     verbose=true,#,
+#                     quasi_newton=:bfgs,
+#                     )
 
-s = NonConvexSolver(x0,nlp_model,opts=opts)
+s = NCSolver(x0,nlp_model,opts=opts)
 @time solve!(s)
 
 q_sol = [s.s.x[(t-1)*nx .+ (1:nq)] for t = 1:T]

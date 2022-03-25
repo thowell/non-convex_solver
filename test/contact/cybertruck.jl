@@ -1,5 +1,3 @@
-include("../src/non-convex_solver.jl")
-
 nc = 1
 nf = 2
 nq = 4
@@ -106,7 +104,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         verbose=true,
                         lbfgs_length=6)
 
-s = NonConvexSolver(x0,nlp_model,opts=opts)
+s = NCSolver(x0,nlp_model,opts=opts)
 @time solve!(s)
 
 s.s.x[5:6]

@@ -1,6 +1,10 @@
+module NonConvexSolver
+
 using LinearAlgebra, ForwardDiff, SparseArrays, Parameters
 using SolverLogging, Logging, Crayons
-using HSL, QDLDL, Pardiso
+# using HSL
+using QDLDL
+# using Pardiso
 
 include("options.jl")
 include("indices.jl")
@@ -23,3 +27,5 @@ include("line_search.jl")
 include("augmented_lagrangian.jl")
 include("solve.jl")
 include("utils.jl")
+
+end # module

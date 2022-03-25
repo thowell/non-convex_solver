@@ -1,6 +1,4 @@
 # NOTE: Ipopt fails to converge on this problem.
-include("../src/non-convex_solver.jl")
-
 n = 3
 m = 2
 
@@ -20,18 +18,19 @@ model = Model(n,m,xL,xU,f_func,c_func)
 
 opts = Options{Float64}(
                         kkt_solve=:symmetric,
-                        iterative_refinement=true,
-                        ϵ_tol=1.0e-8,
-                        ϵ_al_tol=1.0e-8,
-                        max_iterative_refinement=10,
+                        # iterative_refinement=true,
+                        ϵ_tol=1.0e-5,
+                        ϵ_al_tol=1.0e-5,
+                        # max_iterative_refinement=10,
                         max_iter=250,
                         verbose=true,
-                        quasi_newton=:bfgs,
-                        quasi_newton_approx=:lagrangian,
-                        linear_solver=:MA57,
-                        lbfgs_length=6)
+                        # quasi_newton=:bfgs,
+                        # quasi_newton_approx=:lagrangian,
+                        linear_solver=:QDLDL,
+                        # lbfgs_length=6
+                        )
 
-s = NonConvexSolver(x0,model,opts=opts)
+s = NCSolver(x0,model,opts=opts)
 @time solve!(s)
 
 # ######

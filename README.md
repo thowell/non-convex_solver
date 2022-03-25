@@ -112,7 +112,7 @@ model = Model(n,m,xL,xU,f_func,c_func)
 opts = Options{Float64}()
 
 # solver
-s = NonConvexSolver(x0,model,opts=opts)
+s = NCSolver(x0,model,opts=opts)
 
 # solve
 solve!(s)

@@ -19,8 +19,11 @@ function knitro_comp()
     f, ∇f!, ∇²f! = objective_functions(f_func)
     c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
+    # cI_idx = zeros(Bool,m)
+    # cA_idx = ones(Bool,m)
     cI_idx = zeros(Bool,m)
-    cA_idx = ones(Bool,m)
+    cA_idx = zeros(Bool,m)
+    cA_idx[5:end] .= 1
     model = Model(n,m,xL,xU,
                   f,∇f!,∇²f!,
                   c!,∇c!,∇²cy!,

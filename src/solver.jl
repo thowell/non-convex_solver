@@ -709,7 +709,7 @@ function relax_bounds!(s::Solver)
 end
 
 """
-    NonConvexSolver{T}
+    NCSolver{T}
 
 Complete interior point solver as described by the Ipopt paper.
 
@@ -717,12 +717,12 @@ Complete interior point solver as described by the Ipopt paper.
 - `s`: interior point solver for the original problem
 - `s`: interior point solver for the restoration phase
 """
-struct NonConvexSolver{T}
+struct NCSolver{T}
     s::Solver{T}
     s̄::Solver{T}
 end
 
-function NonConvexSolver(x0,model;opts=Options{Float64}()) where T
+function NCSolver(x0,model;opts=Options{Float64}()) where T
     if model.mI > 0 || model.mA > 0
         # slack model
         model_s = slack_model(model,bnd_tol=opts.bnd_tol)
@@ -739,7 +739,7 @@ function NonConvexSolver(x0,model;opts=Options{Float64}()) where T
     s = Solver(_x0,model_s,model,opts=opts)
     s̄ = RestorationSolver(s)
 
-    NonConvexSolver(s,s̄)
+    NCSolver(s,s̄)
 end
 
 function update_quasi_newton!(s::Solver)
@@ -786,6 +786,6 @@ function get_f(s::Solver,x)
     (s.opts.nlp_scaling ? s.df*get_f(s.model,x) : get_f(s.model,x))
 end
 
-function get_solution(s::NonConvexSolver)
+function get_solution(s::NCSolver)
     return s.s.x[1:s.s.model_opt.n]
 end

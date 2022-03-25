@@ -1,4 +1,4 @@
-function solve!(solver::NonConvexSolver)
+function solve!(solver::NCSolver)
     # phase 1 solver
     s = solver.s
 
@@ -15,10 +15,10 @@ function solve!(solver::NonConvexSolver)
         println()
     end
 
-    # set up logger
-    logger = SolverLogger(s.opts.verbose ? InnerLoop : Logging.Info)
-    add_level!(logger, InnerLoop, print_color=:red)
-    with_logger(logger) do
+    # # set up logger
+    # logger = SolverLogger(s.opts.verbose ? InnerLoop : Logging.Info)
+    # add_level!(logger, InnerLoop, print_color=:red)
+    # with_logger(logger) do
 
     # evaluate problem
     eval_step!(s)
@@ -33,9 +33,9 @@ function solve!(solver::NonConvexSolver)
     # initialize filter
     push!(s.filter,(s.θ_max,Inf))
 
-    # Print initial stats
-    log_stats(s)
-    print_level(InnerLoop)
+    # # Print initial stats
+    # log_stats(s)
+    # print_level(InnerLoop)
 
     while eval_Eμ(0.0,s) > s.opts.ϵ_tol
 
@@ -49,7 +49,7 @@ function solve!(solver::NonConvexSolver)
                 if s.small_search_direction_cnt == s.opts.small_search_direction_max
                     s.small_search_direction_cnt = 0
                     if s.μ < 0.1*s.opts.ϵ_tol
-                        @logmsg InnerLoop "small search direction"
+                        # @logmsg InnerLoop "small search direction"
                         return
                     else
                         break
@@ -67,17 +67,17 @@ function solve!(solver::NonConvexSolver)
                     if s.θ < s.opts.ϵ_tol && s.opts.quasi_newton == :none
                         @error "infeasibility detected"
 
-                        @logmsg InnerLoop "infeasibility detected"
+                        # @logmsg InnerLoop "infeasibility detected"
                         return
                     else
                         augment_filter!(s)
                         if s.opts.restoration
                             if !restoration!(solver.s̄,s)
-                                @logmsg InnerLoop "restoration failed"
+                                # @logmsg InnerLoop "restoration failed"
                                 return
                             end
                         else
-                            @logmsg InnerLoop "restoration mode turned off"
+                            # @logmsg InnerLoop "restoration mode turned off"
                             return
                         end
                     end
@@ -96,12 +96,12 @@ function solve!(solver::NonConvexSolver)
             s.k += 1
             if s.k > s.opts.max_iter
                 @error "max iterations"
-                @logmsg InnerLoop "max. iterations"
+                # @logmsg InnerLoop "max. iterations"
                 return
             end
 
-            log_stats(s)
-            print_level(InnerLoop)
+            # log_stats(s)
+            # print_level(InnerLoop)
 
         end  # inner while loop
 
@@ -133,7 +133,7 @@ function solve!(solver::NonConvexSolver)
         s.model.mA > 0  && println("   norm(r,Inf): $(norm(s.xr,Inf))")
     end
 
-    end # logger
+    # end # logger
 end
 
 function barrier_update!(s::Solver)
@@ -145,13 +145,13 @@ function barrier_update!(s::Solver)
     push!(s.filter,(s.θ_max,Inf))
 end
 
-function log_stats(s)
-    @logmsg InnerLoop :j value=s.j width=3
-    @logmsg InnerLoop :k value=s.k width=3
-    @logmsg InnerLoop :θ value=s.θ width=10
-    @logmsg InnerLoop :φ value=s.φ width=10
-    @logmsg InnerLoop :Eμ value=eval_Eμ(s.μ, s)
-    @logmsg InnerLoop :f value=get_f(s,s.x) width=10
-    @logmsg InnerLoop :μ value=s.μ width=10
-    @logmsg InnerLoop :α value=s.α
-end
+# function log_stats(s)
+#     @logmsg InnerLoop :j value=s.j width=3
+#     @logmsg InnerLoop :k value=s.k width=3
+#     @logmsg InnerLoop :θ value=s.θ width=10
+#     @logmsg InnerLoop :φ value=s.φ width=10
+#     @logmsg InnerLoop :Eμ value=eval_Eμ(s.μ, s)
+#     @logmsg InnerLoop :f value=get_f(s,s.x) width=10
+#     @logmsg InnerLoop :μ value=s.μ width=10
+#     @logmsg InnerLoop :α value=s.α
+# end

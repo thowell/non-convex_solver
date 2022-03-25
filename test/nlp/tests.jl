@@ -1,42 +1,47 @@
-include("nlp_problems.jl")
-# opts = Options{Float64}(kkt_solve=:symmetric,
-#                         max_iter=1000,
-#                         verbose=true,
-# 						quasi_newton=:bfgs)
+include("problems.jl")
+opts = Options{Float64}(
+						kkt_solve=:symmetric,
+						linear_solver=:QDLDL,
+                        max_iter=1000,
+                        verbose=true,
+						ϵ_tol=1.0e-5,
+						ϵ_al_tol=1.0e-5,
+						# quasi_newton=:bfgs
+						)
 @testset "NLP problems" begin
-	solver = NonConvexSolver(wachter()...,opts=opts)
+	solver = NCSolver(wachter()...,opts=opts)
 	solve!(solver)
 	@test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
 
-	solver = NonConvexSolver(wachter_reform()...,opts=opts)
+	solver = NCSolver(wachter_reform()...,opts=opts)
 	solve!(solver)
 	@test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
 
-	solver = NonConvexSolver(problem1()...,opts=opts)
+	solver = NCSolver(problem1()...,opts=opts)
 	solve!(solver)
 	@test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
 
-	solver = NonConvexSolver(problem2()...,opts=opts)
+	solver = NCSolver(problem2()...,opts=opts)
 	solve!(solver)
 	@test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
 
-	solver = NonConvexSolver(problem3()...,opts=opts)
+	solver = NCSolver(problem3()...,opts=opts)
 	solve!(solver)
 	@test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
 
-	solver = NonConvexSolver(problem4()...,opts=opts)
+	solver = NCSolver(problem4()...,opts=opts)
 	solve!(solver)
 	@test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
 
-	solver = NonConvexSolver(problem6()...,opts=opts)
+	solver = NCSolver(problem6()...,opts=opts)
 	solve!(solver)
 	@test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
 
-	solver = NonConvexSolver(problem7()...,opts=opts)
+	solver = NCSolver(problem7()...,opts=opts)
 	solve!(solver)
 	@test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
 
-	solver = NonConvexSolver(problem8()...,opts=opts)
+	solver = NCSolver(problem8()...,opts=opts)
 	solve!(solver)
 	@test eval_Eμ(0.0,solver.s) <= solver.s.opts.ϵ_tol
 end

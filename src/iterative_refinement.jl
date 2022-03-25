@@ -32,7 +32,7 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
         iter += 1
     end
 
-    @logmsg InnerLoop "res: $(round(res_norm_init, sigdigits=1)) -> $(round(res_norm, sigdigits=1))"
+    # @logmsg InnerLoop "res: $(round(res_norm_init, sigdigits=1)) -> $(round(res_norm, sigdigits=1))"
 
     if res_norm < s.opts.ϵ_iterative_refinement
         return true

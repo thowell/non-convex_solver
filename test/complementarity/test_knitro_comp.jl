@@ -1,5 +1,3 @@
-include("../src/non-convex_solver.jl")
-
 function knitro_comp()
     n = 8
     m = 7
@@ -34,21 +32,23 @@ function knitro_comp()
     return x0,model
 end
 
-opts = Options{Float64}(kkt_solve=:symmetric,
-                        relax_bnds=true,
-                        single_bnds_damping=true,
-                        iterative_refinement=true,
+opts = Options{Float64}(
+                        kkt_solve=:symmetric,
+                        # relax_bnds=true,
+                        # single_bnds_damping=true,
+                        # iterative_refinement=true,
                         max_iter=1000,
-                        ϵ_tol=1.0e-8,
-                        ϵ_al_tol=1.0e-8,
-                        nlp_scaling=true,
-                        quasi_newton=:lbfgs,
-                        quasi_newton_approx=:lagrangian,
+                        ϵ_tol=1.0e-5,
+                        ϵ_al_tol=1.0e-5,
+                        # nlp_scaling=true,
+                        # quasi_newton=:lbfgs,
+                        # quasi_newton_approx=:lagrangian,
                         verbose=true,
-                        linear_solver=:MA57,
-                        lbfgs_length=6)
+                        linear_solver=:QDLDL,
+                        # lbfgs_length=6
+                        )
 
-s = NonConvexSolver(knitro_comp()...,opts=opts)
+s = NCSolver(knitro_comp()...,opts=opts)
 @time solve!(s)
 
 x = s.s.x

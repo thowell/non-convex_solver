@@ -185,7 +185,7 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                        quasi_newton_approx=:lagrangian,
                        lbfgs_length=6)
 
-s = NonConvexSolver(x0,nlp_model,opts=opts)
+s = NCSolver(x0,nlp_model,opts=opts)
 @time solve!(s)
 
 x_sol = get_solution(s)

@@ -101,5 +101,5 @@ opts = Options{Float64}(kkt_solve=:symmetric,
                         verbose=true,
                         lbfgs_length=6)
 
-s = NonConvexSolver(x0,nlp_model,opts=opts)
+s = NCSolver(x0,nlp_model,opts=opts)
 @time solve!(s)

@@ -34,7 +34,7 @@ function inertia_correction!(s::Solver; restoration=false)
         factorize_regularized_kkt!(s)
 
         if inertia(s)
-            @logmsg InnerLoop "(n,m,z)+: ($(s.linear_solver.inertia.n)/$(s.model.n),$(s.linear_solver.inertia.m)/$(s.model.m),$(s.linear_solver.inertia.z)/0)"
+            # @logmsg InnerLoop "(n,m,z)+: ($(s.linear_solver.inertia.n)/$(s.model.n),$(s.linear_solver.inertia.m)/$(s.model.m),$(s.linear_solver.inertia.z)/0)"
             break
         else
             # IC-5
@@ -47,8 +47,8 @@ function inertia_correction!(s::Solver; restoration=false)
 
         # IC-6
         if s.δw > s.opts.δw_max
-            @logmsg InnerLoop "(n,m,z)+: ($(s.linear_solver.inertia.n)/$(s.model.n),$(s.linear_solver.inertia.m)/$(s.model.m),$(s.linear_solver.inertia.z)/0)"
-            @logmsg InnerLoop "s.δw: $(s.δw)"
+            # @logmsg InnerLoop "(n,m,z)+: ($(s.linear_solver.inertia.n)/$(s.model.n),$(s.linear_solver.inertia.m)/$(s.model.m),$(s.linear_solver.inertia.z)/0)"
+            # @logmsg InnerLoop "s.δw: $(s.δw)"
             # TODO: handle inertia correction failure gracefully
             error("inertia correction failure")
         end

@@ -36,26 +36,26 @@ function second_order_correction(s::Solver)
             if (s.θ <= s.θ_min && switching_condition(s.∇φ,view(s.d_copy_2,s.idx.x),α_max,s.opts.sφ,s.opts.δ,s.θ,s.opts.sθ))  # A-5.8
                 if armijo(s)
                     status = true
-                    @logmsg InnerLoop "soc: +"
+                    # @logmsg InnerLoop "soc: +"
                     break
                 end
             # case 2
             else
                 if sufficient_progress(s)
                     status = true
-                    @logmsg InnerLoop "soc: +"
+                    # @logmsg InnerLoop "soc: +"
                     break
                 end
             end
         else
             s.α = 0.5*α_max
-            @logmsg InnerLoop "soc: x"
+            # @logmsg InnerLoop "soc: x"
             break
         end
 
         if s.p == s.opts.p_max || s.θ⁺ > s.opts.κ_soc*s.θ_soc
             s.α = 0.5*α_max
-            @logmsg InnerLoop "soc: x"
+            # @logmsg InnerLoop "soc: x"
             break
         else  # A-5.9 Next second-order correction
             s.p += 1
