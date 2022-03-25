@@ -719,7 +719,7 @@ Complete interior point solver as described by the Ipopt paper.
 """
 struct NCSolver{T}
     s::Solver{T}
-    s̄::Solver{T}
+    # s̄::Solver{T}
 end
 
 function NCSolver(x0,model;opts=Options{Float64}()) where T
@@ -737,9 +737,9 @@ function NCSolver(x0,model;opts=Options{Float64}()) where T
         _x0 = x0
     end
     s = Solver(_x0,model_s,model,opts=opts)
-    s̄ = RestorationSolver(s)
+    # s̄ = RestorationSolver(s)
 
-    NCSolver(s,s̄)
+    NCSolver(s)
 end
 
 function update_quasi_newton!(s::Solver)

@@ -34,7 +34,7 @@ function line_search(s::Solver)
         # TODO: the else here should go directly to A-5.10
 
         # A-5.5 Initialize the second-order correction
-        if s.l > 0 || s.θ⁺ < s.θ || s.restoration == true
+        if s.l > 0 || s.θ⁺ < s.θ #|| true
             # A-5.10 Choose new trail step size
             if s.l == 0
                 s.fail_cnt += 1
@@ -49,24 +49,6 @@ function line_search(s::Solver)
                 s.fail_cnt += 1
             end
         end
-
-        # # accelerating heuristics
-        # if s.fail_cnt == s.opts.max_fail_cnt
-        #     s.fail_cnt = 0
-        #     if s.θ_max > 0.1*s.θ⁺
-        #         s.θ_max *= 0.1
-        #         empty!(s.filter)
-        #         push!(s.filter,(s.θ_max,Inf))
-        #         s.opts.verbose && @warn "acceleration heuristic: resetting filter, reducing θ_max"
-        #     else
-        #         # @warn "WATCH DOG : UNTESTED"
-        #         # if watch_dog!(s)
-        #         #     s.opts.verbose && @warn "acceleration heuristic: watch dog -success"
-        #         #     status = true
-        #         #     break
-        #         # end
-        #     end
-        # end
 
         trial_step!(s)
 
