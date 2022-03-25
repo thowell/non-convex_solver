@@ -50,23 +50,23 @@ function line_search(s::Solver)
             end
         end
 
-        # accelerating heuristics
-        if s.fail_cnt == s.opts.max_fail_cnt
-            s.fail_cnt = 0
-            if s.θ_max > 0.1*s.θ⁺
-                s.θ_max *= 0.1
-                empty!(s.filter)
-                push!(s.filter,(s.θ_max,Inf))
-                s.opts.verbose && @warn "acceleration heuristic: resetting filter, reducing θ_max"
-            else
-                # @warn "WATCH DOG : UNTESTED"
-                # if watch_dog!(s)
-                #     s.opts.verbose && @warn "acceleration heuristic: watch dog -success"
-                #     status = true
-                #     break
-                # end
-            end
-        end
+        # # accelerating heuristics
+        # if s.fail_cnt == s.opts.max_fail_cnt
+        #     s.fail_cnt = 0
+        #     if s.θ_max > 0.1*s.θ⁺
+        #         s.θ_max *= 0.1
+        #         empty!(s.filter)
+        #         push!(s.filter,(s.θ_max,Inf))
+        #         s.opts.verbose && @warn "acceleration heuristic: resetting filter, reducing θ_max"
+        #     else
+        #         # @warn "WATCH DOG : UNTESTED"
+        #         # if watch_dog!(s)
+        #         #     s.opts.verbose && @warn "acceleration heuristic: watch dog -success"
+        #         #     status = true
+        #         #     break
+        #         # end
+        #     end
+        # end
 
         trial_step!(s)
 
