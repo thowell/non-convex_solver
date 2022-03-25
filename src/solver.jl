@@ -332,10 +332,10 @@ end
 Evaluate the optimality error.
 """
 function eval_Eμ(zL,zU,ΔxL,ΔxU,c,∇L,μ,sd,sc)
-    return max(norm(∇L,Inf)/sd,
+    return max(norm(∇L,Inf),
                norm(c,Inf),
-               norm(ΔxL.*zL .- μ,Inf)/sc,
-               norm(ΔxU.*zU .- μ,Inf)/sc)
+               norm(ΔxL.*zL .- μ,Inf),
+               norm(ΔxU.*zU .- μ,Inf))
 end
 
 eval_Eμ(μ,s::Solver) = eval_Eμ(s.zL,s.zU,s.ΔxL,s.ΔxU,s.c,s.∇L,μ,s.sd,s.sc)

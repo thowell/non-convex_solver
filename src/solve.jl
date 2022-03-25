@@ -11,12 +11,14 @@ function solve!(solver::Solver)
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
             search_direction!(s)
     
-            if !line_search(s)
+            if !line_search!(s)
                 if s.θ < s.opts.ϵ_tol
+                    status(s)
                     @error "infeasibility detected"
                     return
                 else
                     augment_filter!(s)
+                    status(s)
                     return
                 end
             else  # successful line search
@@ -29,6 +31,7 @@ function solve!(solver::Solver)
 
             s.k += 1
             if s.k > s.opts.max_iter
+                status(s)
                 @error "max iterations"
                 return
             end
@@ -49,7 +52,19 @@ function solve!(solver::Solver)
             end
         end
     end  # outer while loop
+    status(s)
+end
 
+function barrier_update!(s::Solver)
+    update_μ!(s)
+    update_τ!(s)
+
+    s.j += 1
+    empty!(s.filter)
+    push!(s.filter,(s.θ_max,Inf))
+end
+
+function status(s::Solver)
     if s.opts.verbose
         println(crayon"red bold underline", "\nSolve Summary")
         println(crayon"reset", "   status: complete")
@@ -61,13 +76,4 @@ function solve!(solver::Solver)
         println("   norm(c,Inf): $(norm(s.c,Inf))")
         s.model.mA > 0  && println("   norm(r,Inf): $(norm(s.xr,Inf))")
     end
-end
-
-function barrier_update!(s::Solver)
-    update_μ!(s)
-    update_τ!(s)
-
-    s.j += 1
-    empty!(s.filter)
-    push!(s.filter,(s.θ_max,Inf))
 end

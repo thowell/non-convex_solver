@@ -1,4 +1,4 @@
-function line_search(s::Solver)
+function line_search!(s::Solver)
     # A-5.1 Initilize the line search
     # compute α, αz
     α_min!(s)  # update s.α_min
