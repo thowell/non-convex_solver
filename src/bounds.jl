@@ -1,4 +1,4 @@
-function bool_bounds(xL,xU,bnd_tol)
+function bounds_mask(xL,xU,bnd_tol)
     n = length(xL)
     xL_bool = zeros(Bool,n)
     xU_bool = zeros(Bool,n)
@@ -35,7 +35,7 @@ function bool_bounds(xL,xU,bnd_tol)
     return xL_bool,xU_bool,xLs_bool,xUs_bool
 end
 
-function relax_bounds_init!(xL,xU,xL_bool,xU_bool,n,ϵ)
+function relax_bounds!(xL,xU,xL_bool,xU_bool,n,ϵ)
    for i in (1:n)[xL_bool]
        xL[i] = relax_bound(xL[i],ϵ,:L)
    end

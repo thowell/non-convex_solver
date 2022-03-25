@@ -1,18 +1,18 @@
 function solve!(solver::Solver)
     # evaluate problem
-    eval_step!(s)
+    step!(s)
 
     # initialize filter
-    push!(s.filter,(s.θ_max,Inf))
+    push!(s.filter,(s.max_constraint_violation,Inf))
 
-    while eval_Eμ(0.0,s) > s.opts.ϵ_tol
+    while tolerance(0.0,s) > s.opts.residual_tolerance
 
         # Converge the interior point sub-problem
-        while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
+        while tolerance(s.central_path,s) > s.opts.κϵ*s.central_path
             search_direction!(s)
     
             if !line_search!(s)
-                if s.θ < s.opts.ϵ_tol
+                if s.constraint_violation < s.opts.residual_tolerance
                     status(s)
                     @error "infeasibility detected"
                     return
@@ -27,10 +27,10 @@ function solve!(solver::Solver)
             end
 
             # Calculate everything at the new trial point
-            eval_step!(s)
+            step!(s)
 
             s.k += 1
-            if s.k > s.opts.max_iter
+            if s.k > s.opts.max_residual_iterations
                 status(s)
                 @error "max iterations"
                 return
@@ -38,17 +38,17 @@ function solve!(solver::Solver)
 
         end
 
-        if eval_Eμ(0.0,s) <= s.opts.ϵ_tol && norm(s.xr,Inf) <= s.opts.ϵ_al_tol
+        if tolerance(0.0,s) <= s.opts.residual_tolerance && norm(s.xr,Inf) <= s.opts.equality_tolerance
             break
         else
             barrier_update!(s)
             augmented_lagrangian_update!(s)
-            eval_step!(s)
+            step!(s)
 
             if s.k == 0
                 barrier_update!(s)
                 augmented_lagrangian_update!(s)
-                eval_step!(s)
+                step!(s)
             end
         end
     end  # outer while loop
@@ -56,12 +56,12 @@ function solve!(solver::Solver)
 end
 
 function barrier_update!(s::Solver)
-    update_μ!(s)
-    update_τ!(s)
+    central_path!(s)
+    fraction_to_boundary!(s)
 
     s.j += 1
     empty!(s.filter)
-    push!(s.filter,(s.θ_max,Inf))
+    push!(s.filter,(s.max_constraint_violation,Inf))
 end
 
 function status(s::Solver)
@@ -71,8 +71,8 @@ function status(s::Solver)
         println("   iteration ($(s.j),$(s.k)):")
         s.model.n < 5 &&  println("   x: $(s.x)")
         println("   f: $(get_f(s,s.x))")
-        println("   θ: $(s.θ), φ: $(s.φ)")
-        println("   E0: $(eval_Eμ(0.0,s))")
+        println("   constraint_violation: $(s.constraint_violation), φ: $(s.φ)")
+        println("   E0: $(tolerance(0.0,s))")
         println("   norm(c,Inf): $(norm(s.c,Inf))")
         s.model.mA > 0  && println("   norm(r,Inf): $(norm(s.xr,Inf))")
     end

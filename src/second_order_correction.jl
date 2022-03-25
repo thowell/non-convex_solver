@@ -2,7 +2,7 @@
     second_order_correction(s::Solver)
 
 Implementation of A-5.7-9. Computes the second-order correction at the current trial point
-`s.x⁺` and step size `s.α` and constraint values `s.c`. Corrected step is stored in `s.x⁺`.
+`s.x⁺` and step size `s.step_size` and constraint values `s.c`. Corrected step is stored in `s.x⁺`.
 
 Returns `true` if the correction was successful and `false` otherwise.
 """
@@ -10,30 +10,30 @@ function second_order_correction(s::Solver)
     status = false
 
     s.d_copy_2 .= s.d
-    α_max = copy(s.α_max)
-
+    maximum_step_size = copy(s.maximum_step_size)
+    
     s.p = 1
-    s.θ_soc = copy(s.θ)
+    s.constraint_violation_correction = copy(s.constraint_violation)
 
     # Compute c_soc (Eq. 27)
     eval_c!(s.model,s.x⁺)
     get_c_scaled!(s.c_soc,s)
 
-    s.c_soc .+= α_max*s.c
+    s.c_soc .+= maximum_step_size*s.c
 
     # Compute the corrected search direction
     search_direction_soc!(s)
 
-    # Calculate α_soc
-    α_max!(s)
+    # Calculate step_size_soc
+    maximum_step_size!(s)
 
-    # Use α_soc to calculate the new step and the filter values
-    trial_step!(s)
+    # Use step_size_soc to calculate the new step and the filter values
+    candidate_step!(s)
 
     while true
-        if check_filter(s.θ⁺,s.φ⁺,s.filter)  # A-5.7
+        if check_filter(s.constraint_violation_candidate,s.φ⁺,s.filter)  # A-5.7
             # case 1
-            if (s.θ <= s.θ_min && switching_condition(s.∇φ,view(s.d_copy_2,s.idx.x),α_max,s.opts.sφ,s.opts.δ,s.θ,s.opts.sθ))  # A-5.8
+            if (s.constraint_violation <= s.min_constraint_violation && switching_condition(s.∇φ,view(s.d_copy_2,s.idx.x),maximum_step_size,s.opts.sφ,s.opts.regularization,s.constraint_violation,s.opts.sconstraint_violation))  # A-5.8
                 if armijo(s)
                     status = true
                     break
@@ -46,12 +46,12 @@ function second_order_correction(s::Solver)
                 end
             end
         else
-            s.α = 0.5*α_max
+            s.step_size = 0.5*maximum_step_size
             break
         end
 
-        if s.p == s.opts.p_max || s.θ⁺ > s.opts.κ_soc*s.θ_soc
-            s.α = 0.5*α_max
+        if s.p == s.opts.p_max || s.constraint_violation_candidate > s.opts.κ_soc*s.constraint_violation_correction
+            s.step_size = 0.5*maximum_step_size
             break
         else  # A-5.9 Next second-order correction
             s.p += 1
@@ -59,13 +59,13 @@ function second_order_correction(s::Solver)
             eval_c!(s.model,s.x⁺)
             get_c_scaled!(s.c,s)
 
-            s.c_soc .= s.α*s.c_soc + s.c
-            s.θ_soc = s.θ⁺
+            s.c_soc .= s.step_size*s.c_soc + s.c
+            s.constraint_violation_correction = s.constraint_violation_candidate
 
             search_direction_soc!(s)
 
-            α_max!(s)
-            trial_step!(s)
+            maximum_step_size!(s)
+            candidate_step!(s)
         end
     end
 

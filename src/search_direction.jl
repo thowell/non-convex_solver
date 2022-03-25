@@ -12,7 +12,7 @@ function search_direction!(s::Solver)
     else
         error("KKT solve not implemented")
     end
-    return small_search_direction(s)
+    return
 end
 
 function kkt_hessian_fullspace!(s::Solver)
@@ -31,8 +31,8 @@ end
 function kkt_gradient_fullspace!(s::Solver)
     s.h[s.idx.x] = s.∇L
     s.h[s.idx.y] = s.c
-    s.h[s.idx.zL] = s.zL.*s.ΔxL .- s.μ
-    s.h[s.idx.zU] = s.zU.*s.ΔxU .- s.μ
+    s.h[s.idx.zL] = s.zL.*s.ΔxL .- s.central_path
+    s.h[s.idx.zU] = s.zU.*s.ΔxU .- s.central_path
     return nothing
 end
 
@@ -42,7 +42,7 @@ function search_direction_fullspace!(s::Solver)
 
     kkt_hessian_fullspace!(s)
 
-    s.d .= lu(s.H + Diagonal(s.δ))\(-s.h)
+    s.d .= lu(s.H + Diagonal(s.regularization))\(-s.h)
 
     s.opts.iterative_refinement && iterative_refinement(s.d,s)
 
@@ -61,8 +61,8 @@ end
 
 function kkt_gradient_symmetric!(s::Solver)
     s.h_sym[s.idx.x] .= copy(view(s.h,s.idx.x))
-    s.h_sym[s.idx.xL] .+= view(s.h,s.idx.zL)./(s.ΔxL .- s.δc)
-    s.h_sym[s.idx.xU] .-= view(s.h,s.idx.zU)./(s.ΔxU .- s.δc)
+    s.h_sym[s.idx.xL] .+= view(s.h,s.idx.zL)./(s.ΔxL .- s.dual_regularization)
+    s.h_sym[s.idx.xU] .-= view(s.h,s.idx.zU)./(s.ΔxU .- s.dual_regularization)
     s.h_sym[s.idx.y] .= copy(view(s.h,s.idx.y))
 
     return nothing
@@ -74,8 +74,8 @@ function search_direction_symmetric!(s::Solver)
 
     inertia_correction!(s)
     solve!(s.linear_solver,s.dxy,-s.h_sym)
-    s.dzL .= -s.σL.*s.dxL - s.zL + s.μ./(s.ΔxL .- s.δc)
-    s.dzU .= s.σU.*s.dxU - s.zU + s.μ./(s.ΔxU .- s.δc)
+    s.dzL .= -s.σL.*s.dxL - s.zL + s.central_path./(s.ΔxL .- s.dual_regularization)
+    s.dzU .= s.σU.*s.dxU - s.zU + s.central_path./(s.ΔxU .- s.dual_regularization)
 
     if s.opts.iterative_refinement
         kkt_hessian_fullspace!(s)

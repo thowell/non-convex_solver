@@ -10,16 +10,16 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
 
     res_norm = norm(s.res,Inf)
 
-    while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.ϵ_iterative_refinement) || iter < s.opts.min_iterative_refinement
+    while (iter < s.opts.max_iterative_refinement && res_norm > s.opts.iterative_refinement_tolerance) || iter < s.opts.min_iterative_refinement
         if s.opts.kkt_solve == :fullspace
-            s.Δ .= (s.H+Diagonal(s.δ))\s.res
+            s.Δ .= (s.H+Diagonal(s.regularization))\s.res
         elseif s.opts.kkt_solve == :symmetric
-            s.res_xL .+= s.res_zL./(s.ΔxL .- s.δc)
-            s.res_xU .-= s.res_zU./(s.ΔxU .- s.δc)
+            s.res_xL .+= s.res_zL./(s.ΔxL .- s.dual_regularization)
+            s.res_xU .-= s.res_zU./(s.ΔxU .- s.dual_regularization)
 
             solve!(s.linear_solver,s.Δ_xy,Array(s.res_xy))
-            s.Δ_zL .= -s.σL.*s.Δ_xL + s.res_zL./(s.ΔxL .- s.δc)
-            s.Δ_zU .= s.σU.*s.Δ_xU + s.res_zU./(s.ΔxU .- s.δc)
+            s.Δ_zL .= -s.σL.*s.Δ_xL + s.res_zL./(s.ΔxL .- s.dual_regularization)
+            s.Δ_zU .= s.σU.*s.Δ_xU + s.res_zU./(s.ΔxU .- s.dual_regularization)
         end
 
         d .+= s.Δ
@@ -30,7 +30,7 @@ function iterative_refinement(d::Vector{T},s::Solver) where T
         iter += 1
     end
 
-    if res_norm < s.opts.ϵ_iterative_refinement
+    if res_norm < s.opts.iterative_refinement_tolerance
         return true
     else
         d .= s.d_copy

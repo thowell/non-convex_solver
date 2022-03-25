@@ -30,9 +30,9 @@ model = Model(n,m,xL,xU,
 
 opts = Options{Float64}(
                         kkt_solve=:symmetric,
-                        max_iter=1000,
-                        ϵ_tol=1.0e-5,
-                        ϵ_al_tol=1.0e-5,
+                        max_residual_iterations=1000,
+                        residual_tolerance=1.0e-5,
+                        equality_tolerance=1.0e-5,
                         verbose=true,
                         linear_solver=:QDLDL,
                         )

@@ -14,9 +14,9 @@ model = Model(n,m,xL,xU,f_func,c_func,cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m))
 opts = Options{Float64}(
                         kkt_solve=:symmetric,
                         iterative_refinement=false,
-                        ϵ_tol=1.0e-5,
-                        ϵ_al_tol=1.0e-5,
-                        max_iter=250,
+                        residual_tolerance=1.0e-5,
+                        equality_tolerance=1.0e-5,
+                        max_residual_iterations=250,
                         verbose=true,
                         linear_solver=:QDLDL,
                         )

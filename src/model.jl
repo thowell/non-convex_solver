@@ -70,7 +70,7 @@ function Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²
     mE = convert(Int,sum(cE_idx))
     mA = convert(Int,sum(cA_idx))
 
-    xL_bool, xU_bool, xLs_bool, xUs_bool = bool_bounds(xL,xU,bnd_tol)
+    xL_bool, xU_bool, xLs_bool, xUs_bool = bounds_mask(xL,xU,bnd_tol)
 
     nL = convert(Int,sum(xL_bool))
     nU = convert(Int,sum(xU_bool))
@@ -218,7 +218,7 @@ function slack_model(model::Model;bnd_tol=1.0e8)
     # slack bounds
     xL_slack = [zeros(model.mI);-Inf*ones(model.mA)]
     xU_slack = Inf*ones(model.mI+model.mA)
-    xL_bool_slack, xU_bool_slack, xLs_bool_slack, xUs_bool_slack = bool_bounds(xL_slack,xU_slack,bnd_tol)
+    xL_bool_slack, xU_bool_slack, xLs_bool_slack, xUs_bool_slack = bounds_mask(xL_slack,xU_slack,bnd_tol)
 
     xL = [model.xL;xL_slack]
     xU = [model.xU;xU_slack]

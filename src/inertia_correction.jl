@@ -6,10 +6,10 @@ until it has the correct inertia.
 """
 function inertia_correction!(s::Solver)
 
-    regularization_init!(s.linear_solver,s)
+    initialize_regularization!(s.linear_solver,s)
 
     # IC-1
-    factorize_regularized_kkt!(s)
+    factorize_regularized_matrix!(s)
 
     if inertia(s)
         return nothing
@@ -18,40 +18,40 @@ function inertia_correction!(s::Solver)
     # IC-2
     if s.linear_solver.inertia.z != 0
         s.opts.verbose ? (@warn "$(s.linear_solver.inertia.z) zero eigen values - rank deficient constraints") : nothing
-        s.δc = s.opts.δc*s.μ^s.opts.κc
+        s.dual_regularization = s.opts.dual_regularization*s.central_path^s.opts.κc
     end
 
     # IC-3
-    if s.δw_last == 0.
-        s.δw = s.opts.δw0
+    if s.primal_regularization_last == 0.
+        s.primal_regularization = s.opts.primal_regularization_initial
     else
-        s.δw = max(s.opts.δw_min, s.opts.κw⁻*s.δw_last)
+        s.primal_regularization = max(s.opts.primal_regularization_min, s.opts.κw⁻*s.primal_regularization_last)
     end
 
     while !inertia(s)
 
         # IC-4
-        factorize_regularized_kkt!(s)
+        factorize_regularized_matrix!(s)
 
         if inertia(s)
             break
         else
             # IC-5
-            if s.δw_last == 0
-                s.δw = s.opts.κw⁺_*s.δw
+            if s.primal_regularization_last == 0
+                s.primal_regularization = s.opts.κw⁺_*s.primal_regularization
             else
-                s.δw = s.opts.κw⁺*s.δw
+                s.primal_regularization = s.opts.κw⁺*s.primal_regularization
             end
         end
 
         # IC-6
-        if s.δw > s.opts.δw_max
+        if s.primal_regularization > s.opts.primal_regularization_max
             # TODO: handle inertia correction failure gracefully
             error("inertia correction failure")
         end
     end
 
-    s.δw_last = s.δw
+    s.primal_regularization_last = s.primal_regularization
 
     return nothing
 end
@@ -62,15 +62,15 @@ end
 Compute the LDL factorization of the symmetric KKT matrix and update the inertia values.
 Uses the Ma57 algorithm from HSL.
 """
-function factorize_regularized_kkt!(s::Solver)
-    s.δ[s.idx.x] .= s.δw
-    s.δ[s.idx.y] .= -s.δc
+function factorize_regularized_matrix!(s::Solver)
+    s.regularization[s.idx.x] .= s.primal_regularization
+    s.regularization[s.idx.y] .= -s.dual_regularization
 
-    s.σL .= s.zL./(s.ΔxL .- s.δc)
-    s.σU .= s.zU./(s.ΔxU .- s.δc)
+    s.σL .= s.zL./(s.ΔxL .- s.dual_regularization)
+    s.σU .= s.zU./(s.ΔxU .- s.dual_regularization)
 
     kkt_hessian_symmetric!(s)
-    factorize!(s.linear_solver,s.H_sym + Diagonal(view(s.δ,s.idx.xy)))
+    factorize!(s.linear_solver,s.H_sym + Diagonal(view(s.regularization,s.idx.xy)))
     compute_inertia!(s.linear_solver,s)
 
     return nothing

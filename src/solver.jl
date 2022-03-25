@@ -73,32 +73,27 @@ mutable struct Solver{T}
     res_zU::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
 
     # Line search values
-    α::T
-    αz::T
-    α_max::T
-    α_min::T
-    β::T
+    step_size::T
+    dual_step_size::T
+    maximum_step_size::T
+    minimum_step_size::T
 
     # Regularization
-    δ::Vector{T}
-    δw::T
-    δw_last::T
-    δc::T
+    regularization::Vector{T}
+    primal_regularization::T
+    primal_regularization_last::T
+    dual_regularization::T
 
     # Constraint violation
-    θ::T          # 1-norm of constraint violation
-    θ⁺::T
-    θ_min::T
-    θ_max::T
-    θ_soc::T
-
-    # Scaling factors
-    sd::T
-    sc::T
+    constraint_violation::T          # 1-norm of constraint violation
+    constraint_violation_candidate::T
+    min_constraint_violation::T
+    max_constraint_violation::T
+    constraint_violation_correction::T
 
     # Penalty values
-    μ::T
-    τ::T
+    central_path::T
+    fraction_to_boundary::T
     filter::Vector{Tuple}
 
     # iteration counts
@@ -115,7 +110,7 @@ mutable struct Solver{T}
     d_copy::Vector{T}
     d_copy_2::Vector{T}
 
-    Fμ::Vector{T}
+    Fcentral_path::Vector{T}
 
     idx::Indices
 
@@ -124,8 +119,8 @@ mutable struct Solver{T}
     df::T
     Dc::SparseMatrixCSC{T,Int}
 
-    ρ::T
-    λ::Vector{T}
+    penalty::T
+    dual::Vector{T}
 
     opts::Options{T}
 end
@@ -163,10 +158,10 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     ΔxL = zeros(nL)
     ΔxU = zeros(nU)
 
-    opts.relax_bnds && relax_bounds_init!(xL,xU,xL_bool,xU_bool,n,opts.ϵ_tol)
+    opts.relax_bnds && relax_bounds!(xL,xU,xL_bool,xU_bool,n,opts.residual_tolerance)
 
     for i = 1:n
-        x[i] = init_x0(x0[i],xL[i],xU[i],opts.κ1,opts.κ2)
+        x[i] = initialize_variables(x0[i],xL[i],xU[i],opts.κ1,opts.κ2)
     end
 
     zL = opts.zL0*ones(nL)
@@ -196,16 +191,15 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     σU = zeros(nU)
 
     eval_∇c!(model,x)
-    Dc = init_Dc(opts.g_max,get_∇c(model),m)
+    Dc = constraint_scaling(opts.g_max,get_∇c(model),m)
 
-    μ = copy(opts.μ0)
-    ρ = 1.0#1.0/μ
-    λ = zeros(mA)
-    τ = update_τ(μ,opts.τ_min)
+    central_path = copy(opts.central_path_initial)
+    penalty = 1.0
+    dual = zeros(mA)
+    τ = fraction_to_boundary(central_path,opts.min_fraction_to_boundary)
 
     eval_∇f!(model,x)
-    # model.∇f[idx.r] += λ + ρ*view(x,idx.r)
-    df = init_df(opts.g_max,get_∇f(model))
+    df = objective_gradient_scaling(opts.g_max,get_∇f(model))
 
     φ = 0.
     φ⁺ = 0.
@@ -223,22 +217,17 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     d = zeros(n+m+nL+nU)
     d_soc = zeros(n+m+nL+nU)
 
-    α = 1.0
-    αz = 1.0
-    α_max = 1.0
-    α_min = 1.0
-    α_soc = 1.0
-    β = 1.0
+    step_size = 1.0
+    dual_step_size = 1.0
+    maximum_step_size = 1.0
+    minimum_step_size = 1.0
 
-    δ = zero(d)
-    δw = 0.
-    δw_last = 0.
-    δc = 0.
+    regularization = zero(d)
+    primal_regularization = 0.
+    primal_regularization_last = 0.
+    dual_regularization = 0.
 
     y = zeros(m)
-
-    sd = init_sd(y,[zL;zU],n,m,opts.s_max)
-    sc = init_sc([zL;zU],n,opts.s_max)
 
     filter = Tuple[]
 
@@ -255,19 +244,19 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     d_copy = zero(d)
     d_copy_2 = zero(d)
 
-    Fμ = zeros(n+m+nL+nU)
+    Fcentral_path = zeros(n+m+nL+nU)
 
     fail_cnt = 0
 
     Hv = H_fullspace_views(H,idx)
     Hv_sym = H_symmetric_views(H_sym,idx)
 
-    θ = norm(c,1)
-    θ⁺ = copy(θ)
-    θ_min = init_θ_min(θ)
-    θ_max = init_θ_max(θ)
+    constraint_violation = norm(c,1)
+    constraint_violation_candidate = copy(constraint_violation)
+    min_constraint_violation = initialize_min_constraint_violation(constraint_violation)
+    max_constraint_violation = initialize_max_constraint_violation(constraint_violation)
 
-    θ_soc = 0.
+    constraint_violation_correction = 0.
 
     dx = view(d,idx.x)
     dxL = view(d,idx.xL)
@@ -308,48 +297,46 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            d,dx,dxL,dxU,dy,dxy,dzL,dzU,
            Δ,Δ_xL,Δ_xU,Δ_xy,Δ_zL,Δ_zU,
            res,res_xL,res_xU,res_xy,res_zL,res_zU,
-           α,αz,α_max,α_min,β,
-           δ,δw,δw_last,δc,
-           θ,θ⁺,θ_min,θ_max,θ_soc,
-           sd,sc,
-           μ,τ,
+           step_size,dual_step_size,maximum_step_size,minimum_step_size,
+           regularization,primal_regularization,primal_regularization_last,dual_regularization,
+           constraint_violation,constraint_violation_candidate,min_constraint_violation,max_constraint_violation,constraint_violation_correction,
+           central_path,τ,
            filter,
            j,k,l,p,t,
            x_copy,y_copy,zL_copy,zU_copy,d_copy,d_copy_2,
-           Fμ,
+           Fcentral_path,
            idx,
            fail_cnt,
            df,Dc,
-           ρ,λ,
-        #    qn,
+           penalty,dual,
            opts)
 end
 
 """
-    eval_Eμ(x, y, zL, zU, ∇xL, ∇xU, c, ∇L, μ, sd, sc, ρ, λ, yA, cA)
-    eval_Eμ(solver::Solver)
+    tolerance(x, y, zL, zU, ∇xL, ∇xU, c, ∇L, central_path, sd, sc, penalty, dual, yA, cA)
+    tolerance(solver::Solver)
 
 Evaluate the optimality error.
 """
-function eval_Eμ(zL,zU,ΔxL,ΔxU,c,∇L,μ,sd,sc)
+function tolerance(zL,zU,ΔxL,ΔxU,c,∇L,central_path)
     return max(norm(∇L,Inf),
                norm(c,Inf),
-               norm(ΔxL.*zL .- μ,Inf),
-               norm(ΔxU.*zU .- μ,Inf))
+               norm(ΔxL.*zL .- central_path,Inf),
+               norm(ΔxU.*zU .- central_path,Inf))
 end
 
-eval_Eμ(μ,s::Solver) = eval_Eμ(s.zL,s.zU,s.ΔxL,s.ΔxU,s.c,s.∇L,μ,s.sd,s.sc)
+tolerance(central_path,s::Solver) = tolerance(s.zL,s.zU,s.ΔxL,s.ΔxU,s.c,s.∇L,central_path)
 
 """
-    eval_bounds!(s::Solver)
+    bounds!(s::Solver)
 
 Evaluate the bound constraints and their sigma values
 """
-function eval_bounds!(s::Solver)
+function bounds!(s::Solver)
     s.ΔxL .= s.xl - view(s.model.xL,s.idx.xL)
     s.ΔxU .= view(s.model.xU,s.idx.xU) - s.xu
-    s.σL .= s.zL./(s.ΔxL .- s.δc)
-    s.σU .= s.zU./(s.ΔxU .- s.δc)
+    s.σL .= s.zL./(s.ΔxL .- s.dual_regularization)
+    s.σU .= s.zU./(s.ΔxU .- s.dual_regularization)
     return nothing
 end
 
@@ -369,7 +356,7 @@ end
     eval_constraints!(s::Solver)
 
 Evaluate the constraints and their first and second-order derivatives. Also compute the
-constraint residual `θ`.
+constraint residual `constraint_violation`.
 """
 function eval_constraints!(s::Solver)
     eval_c!(s.model,s.x)
@@ -379,12 +366,12 @@ function eval_constraints!(s::Solver)
 
     eval_∇²cy!(s.model,s.x,s.y)
    
-    s.θ = norm(s.c,1)
+    s.constraint_violation = norm(s.c,1)
     return nothing
 end
 
 function get_c_scaled!(c,model,Dc,nlp_scaling)
-    nlp_scaling && c .= Dc*get_c(model)
+    nlp_scaling && (c .= Dc*get_c(model))
     return nothing
 end
 
@@ -402,10 +389,10 @@ function eval_lagrangian!(s::Solver)
     s.∇L .+= get_∇c(s.model)'*s.y
     s.∇L[s.idx.xL] -= s.zL
     s.∇L[s.idx.xU] += s.zU
-    s.model.mA > 0 && (s.∇L[s.idx.r] += s.λ + s.ρ*view(s.x,s.idx.r))
+    s.model.mA > 0 && (s.∇L[s.idx.r] += s.dual + s.penalty*view(s.x,s.idx.r))
 
     s.∇²L .= get_∇²f(s.model) + get_∇²cy(s.model)
-    s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
+    s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.penalty)
     return nothing
 end
 
@@ -416,27 +403,27 @@ Evaluate barrier objective and it's gradient
 """
 function eval_barrier!(s::Solver)
     s.φ = get_f(s,s.x)
-    s.φ -= s.μ*sum(log.(s.ΔxL))
-    s.φ -= s.μ*sum(log.(s.ΔxU))
-    s.model.mA > 0 && (s.φ += s.λ'*view(s.x,s.idx.r) + 0.5*s.ρ*view(s.x,s.idx.r)'*view(s.x,s.idx.r))
+    s.φ -= s.central_path*sum(log.(s.ΔxL))
+    s.φ -= s.central_path*sum(log.(s.ΔxU))
+    s.model.mA > 0 && (s.φ += s.dual'*view(s.x,s.idx.r) + 0.5*s.penalty*view(s.x,s.idx.r)'*view(s.x,s.idx.r))
 
     s.∇φ .= get_∇f(s.model)
-    s.∇φ[s.idx.xL] -= s.μ./s.ΔxL
-    s.∇φ[s.idx.xU] += s.μ./s.ΔxU
-    s.model.mA > 0 && (s.∇φ[s.idx.r] += s.λ + s.ρ*view(s.x,s.idx.r))
+    s.∇φ[s.idx.xL] -= s.central_path./s.ΔxL
+    s.∇φ[s.idx.xU] += s.central_path./s.ΔxU
+    s.model.mA > 0 && (s.∇φ[s.idx.r] += s.dual + s.penalty*view(s.x,s.idx.r))
     
     return nothing
 end
 
 """
-    eval_step!(s::Solver)
+    step!(s::Solver)
 
 Evaluate all critical values for the current iterate stored in `s.x` and `s.y`, including
 bound constraints, objective, constraints, Lagrangian, and barrier objective, and their
 required derivatives.
 """
-function eval_step!(s::Solver)
-    eval_bounds!(s)
+function step!(s::Solver)
+    bounds!(s)
     eval_objective!(s)
     eval_constraints!(s)
     eval_lagrangian!(s)
@@ -446,57 +433,57 @@ function eval_step!(s::Solver)
 end
 
 """
-    update_μ(μ, κμ, θμ, ϵ_tol)
-    update_μ(s::Solver)
+    central_path(central_path, κcentral_path, θcentral_path, residual_tolerance)
+    central_path(s::Solver)
 
-Update the penalty parameter (Eq. 7) with constants κμ ∈ (0,1), θμ ∈ (1,2)
+Update the penalty parameter (Eq. 7) with constants κcentral_path ∈ (0,1), θcentral_path ∈ (1,2)
 """
-update_μ(μ, κμ, θμ, ϵ_tol) = max(ϵ_tol/10.,min(κμ*μ,μ^θμ))
-function update_μ!(s::Solver)
-    s.μ = update_μ(s.μ, s.opts.κμ, s.opts.θμ, s.opts.ϵ_tol)
+central_path(central_path, κcentral_path, θcentral_path, residual_tolerance) = max(residual_tolerance/10.,min(κcentral_path*central_path,central_path^θcentral_path))
+function central_path!(s::Solver)
+    s.central_path = central_path(s.central_path, s.opts.κcentral_path, s.opts.θcentral_path, s.opts.residual_tolerance)
     return nothing
 end
 
 """
-    update_τ(μ, τ_min)
-    update_τ(s::Solver)
+    fraction_to_boundary(central_path, min_fraction_to_boundary)
+    fraction_to_boundary(s::Solver)
 
-Update the "fraction-to-boundary" parameter (Eq. 8) where τ_min ∈ (0,1) is it's minimum value.
+Update the "fraction-to-boundary" parameter (Eq. 8) where min_fraction_to_boundary ∈ (0,1) is it's minimum value.
 """
-update_τ(μ,τ_min) = max(τ_min,1.0-μ)
-function update_τ!(s::Solver)
-    s.τ = update_τ(s.μ,s.opts.τ_min)
+fraction_to_boundary(central_path,min_fraction_to_boundary) = max(min_fraction_to_boundary,1.0-central_path)
+function fraction_to_boundary!(s::Solver)
+    s.fraction_to_boundary = fraction_to_boundary(s.central_path,s.opts.min_fraction_to_boundary)
     return nothing
 end
 
 """
-    fraction_to_boundary(x, d, α, τ)
+    fraction_to_boundary(x, d, step_size, fraction_to_boundary)
 
 Check if the `x` satisfies the "fraction-to-boundary" rule (Eq. 15)
 """
-fraction_to_boundary(x,d,α,τ) = all(x + α*d .>= (1 - τ)*x)
-function fraction_to_boundary_bnds(xl,xL,xu,xU,dxL,dxU,α,τ)
-    return all((xU-(xu + α*dxU)) .>= (1 - τ)*(xU-xu)) && all(((xl + α*dxL)-xL) .>= (1 - τ)*(xl-xL))
+fraction_to_boundary(x,d,step_size,fraction_to_boundary) = all(x + step_size*d .>= (1 - fraction_to_boundary)*x)
+function fraction_to_boundary_bounds(xl,xL,xu,xU,dxL,dxU,step_size,fraction_to_boundary)
+    return all((xU-(xu + step_size*dxU)) .>= (1 - fraction_to_boundary)*(xU-xu)) && all(((xl + step_size*dxL)-xL) .>= (1 - fraction_to_boundary)*(xl-xL))
 end
 
-function init_θ_max(θ)
-    θ_max = 1.0e4*max(1.0,θ)
-    return θ_max
+function initialize_max_constraint_violation(constraint_violation)
+    max_constraint_violation = 1.0e4*max(1.0,constraint_violation)
+    return max_constraint_violation
 end
 
-function init_θ_min(θ)
-    θ_min = 1.0e-4*max(1.0,θ)
-    return θ_min
+function initialize_min_constraint_violation(constraint_violation)
+    min_constraint_violation = 1.0e-4*max(1.0,constraint_violation)
+    return min_constraint_violation
 end
 
 """
-    init_x0(x, xL, xU, κ1, κ2)
+    initialize_variables(x, xL, xU, κ1, κ2)
 
 Initilize the primal variables with a feasible guess wrt the bound constraints, projecting
 the provided guess `x0` slightly inside of the feasible region, with `κ1`, `κ2` ∈ (0,0.5)
 determining how far into the interior the value is projected.
 """
-function init_x0(x,xL,xU,κ1,κ2)
+function initialize_variables(x,xL,xU,κ1,κ2)
     pl = min(κ1*max(1.0,abs(xL)),κ2*(xU-xL))
     pu = min(κ1*max(1.0,abs(xU)),κ2*(xU-xL))
 
@@ -510,28 +497,28 @@ function init_x0(x,xL,xU,κ1,κ2)
 end
 
 """
-    θ(x, s::Solver)
+    constraint_violation(x, s::Solver)
 
 Calculate the 1-norm of the constraints
 """
-function θ(x,s::Solver)
+function constraint_violation(x,s::Solver)
     eval_c!(s.model,x)
     get_c_scaled!(s.c_tmp,s)
     return norm(s.c_tmp,1)
 end
 
 """
-    barrier(x, xL, xU, xL_bool, xU_bool, xLs_bool xUs_bool, μ, κd, f, ρ, yA, cA)
+    barrier(x, xL, xU, xL_bool, xU_bool, xLs_bool xUs_bool, central_path, κd, f, penalty, yA, cA)
     barrier(x, s::Solver)
 
 Calculate the barrier objective function. When called using the solver, re-calculates the
     objective `f` and the constraints `c`.
 """
-function barrier(f,xl,xL,xu,xU,xls,xLs,xus,xUs,μ,κd,r,λ,ρ)
+function barrier(f,xl,xL,xu,xU,xls,xLs,xus,xUs,central_path,κd,r,dual,penalty)
     return (f
-            - μ*sum(log.(xl - xL)) - μ*sum(log.(xU - xu))
-            + κd*μ*sum(xls - xLs) + κd*μ*sum(xUs - xus)
-            + λ'*r + 0.5*ρ*r'*r)
+            - central_path*sum(log.(xl - xL)) - central_path*sum(log.(xU - xu))
+            + κd*central_path*sum(xls - xLs) + κd*central_path*sum(xUs - xus)
+            + dual'*r + 0.5*penalty*r'*r)
 end
 
 function barrier(x,s::Solver)
@@ -543,8 +530,8 @@ function barrier(x,s::Solver)
                    view(x,s.idx.xU),view(s.model.xU,s.idx.xU),
                    view(x,s.idx.xLs),view(s.model.xL,s.idx.xLs),
                    view(x,s.idx.xUs),view(s.model.xU,s.idx.xUs),
-                   s.μ,0.,
-                   view(x,s.idx.r),s.λ,s.ρ)
+                   s.central_path,0.,
+                   view(x,s.idx.r),s.dual,s.penalty)
 end
 
 """
@@ -554,19 +541,10 @@ Accept the current step, copying the candidate primals and duals into the curren
 """
 function accept_step!(s::Solver)
     s.x .= s.x⁺
-    s.y .+= s.α*s.dy
-    s.zL .+= s.αz*s.dzL
-    s.zU .+= s.αz*s.dzU
+    s.y .+= s.step_size*s.dy
+    s.zL .+= s.dual_step_size*s.dzL
+    s.zU .+= s.dual_step_size*s.dzU
     return nothing
-end
-
-"""
-    small_search_direction(s::Solver)
-
-Check if the current step is small (Sec. 3.9).
-"""
-function small_search_direction(s::Solver)
-    return (maximum(abs.(s.dx)./(1.0 .+ abs.(s.x))) < 10.0*s.opts.ϵ_mach)
 end
 
 function Solver(x0,model;opts=Options{Float64}()) where T

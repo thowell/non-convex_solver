@@ -28,16 +28,10 @@ function compute_inertia!(ls::QDLDLSolver,s)
     return nothing
 end
 
-function regularization_init!(::QDLDLSolver,s)
-    s.δw = 1.0e-7
-    s.δc = 1.0e-7
+function initialize_regularization!(::QDLDLSolver,s)
+    s.primal_regularization = 1.0e-7
+    s.dual_regularization = 1.0e-7
     return nothing
-end
-
-function regularization_init(::QDLDLSolver)
-    δw = 1.0e-7
-    δc = 1.0e-7
-    return δw, δc
 end
 
 function solve!(ls::QDLDLSolver,d,h)
