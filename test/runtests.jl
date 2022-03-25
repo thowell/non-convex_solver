@@ -1,5 +1,6 @@
-using Test
-using BenchmarkTools
+using Pkg 
+Pkg.activate(joinpath(@__DIR__, ".."))
+using NonConvexSolver 
 
 include("nlp/test0.jl")
 include("nlp/test1.jl")

@@ -22,10 +22,8 @@ include("restoration.jl")
 include("inertia_correction.jl")
 include("iterative_refinement.jl")
 include("search_direction.jl")
-include("watch_dog.jl")
 include("line_search.jl")
 include("augmented_lagrangian.jl")
 include("solve.jl")
-include("utils.jl")
 
 end # module
