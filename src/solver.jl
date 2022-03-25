@@ -122,7 +122,6 @@ mutable struct Solver{T}
     Fμ::Vector{T}
 
     idx::Indices
-    idx_r::RestorationIndices
 
     fail_cnt::Int
 
@@ -156,7 +155,6 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     nU = model.nU
 
     idx = indices(model,model_opt)
-    idx_r = restoration_indices()
 
     # initialize primals
     x = zeros(n)
@@ -191,19 +189,12 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     H_sym = spzeros(n+m,n+m)
     h_sym = zeros(n+m)
 
-    if opts.linear_solver == :MA57
-        LBL = Ma57(H_sym)
-        inertia = Inertia(0,0,0)
-        linear_solver = MA57Solver(LBL,inertia)
-    elseif opts.linear_solver == :QDLDL
+    if opts.linear_solver == :QDLDL
         F = qdldl(sparse(1.0*I,n+m,n+m))
         inertia = Inertia(0,0,0)
         linear_solver = QDLDLSolver(F,inertia)
-    elseif opts.linear_solver == :PARDISO
-        ps = PardisoSolver()
-        A_pardiso = copy(H_sym)
-        inertia = Inertia(0,0,0)
-        linear_solver = PARDISOSolver(ps,A_pardiso,inertia)
+    else
+        @error("linear solver not supported")
     end
 
     ∇²L = spzeros(n,n)
@@ -346,7 +337,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            restoration,DR,
            x_copy,y_copy,zL_copy,zU_copy,d_copy,d_copy_2,
            Fμ,
-           idx,idx_r,
+           idx,
            fail_cnt,
            df,Dc,
            ρ,λ,

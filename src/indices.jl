@@ -38,34 +38,3 @@ function indices(model,model_opt)
     xy = 1:(model.n+model.m)
     Indices(x,s,r,xL,xU,xLs,xUs,y,yI,yE,yA,zL,zU,xy)
 end
-
-struct RestorationIndices
-    p::UnitRange{Int}
-    n::UnitRange{Int}
-    zL::UnitRange{Int}
-    zp::UnitRange{Int}
-    zn::UnitRange{Int}
-    zU::UnitRange{Int}
-    xy::Vector{Int}
-    zLL::UnitRange{Int}
-    zLp::UnitRange{Int}
-    zLn::UnitRange{Int}
-    zUU::UnitRange{Int}
-end
-
-function restoration_indices()
-    p = 0:0
-    n = 0:0
-    zL = 0:0
-    zp = 0:0
-    zn = 0:0
-    zU = 0:0
-    xy = [0]
-
-    zLL = 0:0
-    zLp = 0:0
-    zLn = 0:0
-    zUU = 0:0
-
-    RestorationIndices(p,n,zL,zp,zn,zU,xy,zLL,zLp,zLn,zUU)
-end
