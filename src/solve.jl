@@ -15,27 +15,8 @@ function solve!(solver::NCSolver)
 
         # Converge the interior point sub-problem
         while eval_Eμ(s.μ,s) > s.opts.κϵ*s.μ
-            s.opts.relax_bnds && relax_bounds!(s)
-
-            # solve for the search direction and check if it's small
             search_direction!(s)
-            #     s.small_search_direction_cnt += 1
-            #     if s.small_search_direction_cnt == s.opts.small_search_direction_max
-            #         s.small_search_direction_cnt = 0
-            #         if s.μ < 0.1*s.opts.ϵ_tol
-            #             return
-            #         else
-            #             break
-            #         end
-            #     end
-            #     α_max!(s)
-            #     αz_max!(s)
-            #     augment_filter!(s)
-            #     accept_step!(s)
-            # else
-            #     s.small_search_direction_cnt = 0
-
-                # Perform line search and check if it fails
+    
             if !line_search(s)
                 if s.θ < s.opts.ϵ_tol && s.opts.quasi_newton == :none
                     @error "infeasibility detected"

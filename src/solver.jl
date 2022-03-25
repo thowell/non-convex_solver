@@ -692,22 +692,6 @@ function small_search_direction(s::Solver)
     return (maximum(abs.(s.dx)./(1.0 .+ abs.(s.x))) < 10.0*s.opts.ϵ_mach)
 end
 
-function relax_bounds!(s::Solver)
-    for i in s.idx.xLs
-        if s.x[i] - s.model.xL[i] < s.opts.ϵ_mach*s.μ
-            s.model.xL[i] -= (s.opts.ϵ_mach^0.75)*max(1.0,s.model.xL[i])
-            @warn "lower bound needs to be relaxed"
-        end
-    end
-
-    for i in s.idx.xUs
-        if s.model.xU[i] - s.x[i] < s.opts.ϵ_mach*s.μ
-            s.model.xU[i] += (s.opts.ϵ_mach^0.75)*max(1.0,s.model.xU[i])
-            @warn "upper bound needs to be relaxed"
-        end
-    end
-end
-
 """
     NCSolver{T}
 
