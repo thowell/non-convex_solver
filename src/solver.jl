@@ -132,7 +132,7 @@ mutable struct Solver{T}
     ρ::T
     λ::Vector{T}
 
-    qn::QuasiNewton
+    # qn::QuasiNewton
 
     opts::Options{T}
 end
@@ -313,11 +313,11 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     res_zL = view(res,idx.zL)
     res_zU = view(res,idx.zU)
 
-    if opts.quasi_newton == :lbfgs
-        qn = LBFGS(n=model.n,m=model.m,k=opts.lbfgs_length)
-    else
-        qn = BFGS(n=model.n,m=model.m)
-    end
+    # if opts.quasi_newton == :lbfgs
+    #     qn = LBFGS(n=model.n,m=model.m,k=opts.lbfgs_length)
+    # else
+    #     qn = BFGS(n=model.n,m=model.m)
+    # end
 
     Solver(model,model_opt,
            x,xl,xu,xx,xs,xr,
@@ -350,7 +350,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            fail_cnt,
            df,Dc,
            ρ,λ,
-           qn,
+        #    qn,
            opts)
 end
 

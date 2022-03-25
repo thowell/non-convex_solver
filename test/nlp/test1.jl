@@ -18,6 +18,7 @@ model = Model(n,m,xL,xU,f_func,c_func,cA_idx=ones(Bool,m))
 
 opts = Options{Float64}(
                         kkt_solve=:symmetric,
+                        iterative_refinement=true,
                         ϵ_tol=1.0e-5,
                         ϵ_al_tol=1.0e-5,
                         max_iter=250,

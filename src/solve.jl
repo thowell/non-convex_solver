@@ -5,7 +5,7 @@ function solve!(solver::NCSolver)
     # evaluate problem
     eval_step!(s)
 
-    s.∇²L = copy(get_B(s.qn))
+    # s.∇²L = copy(get_B(s.qn))
     s.model.mA > 0 && (view(s.∇²L,CartesianIndex.(s.idx.r,s.idx.r)) .+= s.ρ)
 
     # initialize filter
