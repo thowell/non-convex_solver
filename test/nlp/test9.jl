@@ -1,18 +1,15 @@
-n = 50
-m = 30
+n = 2
+m = 1
 
-x0 = ones(n)
+x0 = [2.0; 1.0]
 
 xL = -Inf*ones(n)
-xL[1] = -10.
-xL[2] = -5.
 xU = Inf*ones(n)
-xU[5] = 20.
 
-f_func(x) = x'*x
-c_func(x) = x[1:m].^2 .- 1.2
+f_func(x) = 2.0 * (x[1]^2 + x[2]^2 - 1.0) - x[1]
+c_func(x) = [x[1]^2 + x[2]^2 - 1.0]
 
-model = Model(n,m,xL,xU,f_func,c_func,cI_idx=zeros(Bool,m),cA_idx=zeros(Bool,m))
+model = Model(n,m,xL,xU,f_func,c_func,cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m))
 
 opts = Options{Float64}(
                         kkt_solve=:symmetric,
