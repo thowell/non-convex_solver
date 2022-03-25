@@ -31,9 +31,9 @@ function second_order_correction(s::Solver)
     candidate_step!(s)
 
     while true
-        if check_filter(s.constraint_violation_candidate,s.φ⁺,s.filter)  # A-5.7
+        if check_filter(s.constraint_violation_candidate,s.merit⁺,s.filter)  # A-5.7
             # case 1
-            if (s.constraint_violation <= s.min_constraint_violation && switching_condition(s.∇φ,view(s.d_copy_2,s.idx.x),maximum_step_size,s.options.exponent_merit,s.options.regularization,s.constraint_violation,s.options.sconstraint_violation))  # A-5.8
+            if (s.constraint_violation <= s.min_constraint_violation && switching_condition(s.merit_gradient,view(s.d_copy_2,s.idx.x),maximum_step_size,s.options.exponent_merit,s.options.regularization,s.constraint_violation,s.options.sconstraint_violation))  # A-5.8
                 if armijo(s)
                     status = true
                     break

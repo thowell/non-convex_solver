@@ -13,7 +13,7 @@ function line_search!(s::Solver)
 
     while s.step_size > s.minimum_step_size
         # A-5.3 Check acceptability to the filter
-        if check_filter(s.constraint_violation_candidate,s.φ⁺,s.filter)
+        if check_filter(s.constraint_violation_candidate,s.merit⁺,s.filter)
             if s.l == 0
                 s.fail_cnt = 0
             end
@@ -67,15 +67,15 @@ Evaluate the constraint norm and the barrier objective at the new candidate.
 function candidate_step!(s::Solver)
     s.candidate .= s.x + s.step_size*s.dx
     s.constraint_violation_candidate = constraint_violation(s.candidate,s)
-    s.φ⁺ = barrier(s.candidate,s)
+    s.merit⁺ = barrier(s.candidate,s)
     return nothing
 end
 
-function minimum_step_size(d,constraint_violation,∇φ,min_constraint_violation,regularization,step_size_tolerance,constraint_violation_tolerance,merit_tolerance,exponent_constraint_violation,exponent_merit)
-    if ∇φ'*d < 0. && constraint_violation <= min_constraint_violation
-        return step_size_tolerance*min(constraint_violation_tolerance,merit_tolerance*constraint_violation/(-∇φ'*d),regularization*(constraint_violation^exponent_constraint_violation)/(-∇φ'*d)^exponent_merit)
-    elseif ∇φ'*d < 0. && constraint_violation > min_constraint_violation
-        return step_size_tolerance*min(constraint_violation_tolerance,merit_tolerance*constraint_violation/(-∇φ'*d))
+function minimum_step_size(d,constraint_violation,merit_gradient,min_constraint_violation,regularization,step_size_tolerance,constraint_violation_tolerance,merit_tolerance,exponent_constraint_violation,exponent_merit)
+    if merit_gradient'*d < 0. && constraint_violation <= min_constraint_violation
+        return step_size_tolerance*min(constraint_violation_tolerance,merit_tolerance*constraint_violation/(-merit_gradient'*d),regularization*(constraint_violation^exponent_constraint_violation)/(-merit_gradient'*d)^exponent_merit)
+    elseif merit_gradient'*d < 0. && constraint_violation > min_constraint_violation
+        return step_size_tolerance*min(constraint_violation_tolerance,merit_tolerance*constraint_violation/(-merit_gradient'*d))
     else
         return step_size_tolerance*constraint_violation_tolerance
     end
@@ -87,7 +87,7 @@ end
 Compute the minimum step length (Eq. 23)
 """
 function minimum_step_size!(s::Solver)
-    s.minimum_step_size = minimum_step_size(s.dx,s.constraint_violation,s.∇φ,s.min_constraint_violation,s.options.regularization,s.options.step_size_tolerance,s.options.constraint_violation_tolerance,s.options.merit_tolerance,s.options.exponent_constraint_violation,s.options.exponent_merit)
+    s.minimum_step_size = minimum_step_size(s.dx,s.constraint_violation,s.merit_gradient,s.min_constraint_violation,s.options.regularization,s.options.step_size_tolerance,s.options.constraint_violation_tolerance,s.options.merit_tolerance,s.options.exponent_constraint_violation,s.options.exponent_merit)
     return nothing
 end
 
@@ -120,17 +120,17 @@ function maximum_dual_step_size!(s::Solver)
     return nothing
 end
 
-switching_condition(∇φ,d,step_size,exponent_merit,regularization,constraint_violation,exponent_constraint_violation) = (∇φ'*d < 0. && step_size*(-∇φ'*d)^exponent_merit > regularization*constraint_violation^exponent_constraint_violation)
+switching_condition(merit_gradient,d,step_size,exponent_merit,regularization,constraint_violation,exponent_constraint_violation) = (merit_gradient'*d < 0. && step_size*(-merit_gradient'*d)^exponent_merit > regularization*constraint_violation^exponent_constraint_violation)
 function switching_condition(s::Solver)
-    return switching_condition(s.∇φ,s.dx,s.step_size,s.options.exponent_merit,s.options.regularization,s.constraint_violation,s.options.exponent_constraint_violation)
+    return switching_condition(s.merit_gradient,s.dx,s.step_size,s.options.exponent_merit,s.options.regularization,s.constraint_violation,s.options.exponent_constraint_violation)
 end
 
-sufficient_progress(constraint_violation_candidate,constraint_violation,φ⁺,φ,constraint_violation_tolerance,merit_tolerance,machine_tolerance) = (constraint_violation_candidate - 10.0*machine_tolerance*abs(constraint_violation) <= (1-constraint_violation_tolerance)*constraint_violation || φ⁺ - 10.0*machine_tolerance*abs(φ) <= φ - merit_tolerance*constraint_violation)
+sufficient_progress(constraint_violation_candidate,constraint_violation,merit⁺,merit,constraint_violation_tolerance,merit_tolerance,machine_tolerance) = (constraint_violation_candidate - 10.0*machine_tolerance*abs(constraint_violation) <= (1-constraint_violation_tolerance)*constraint_violation || merit⁺ - 10.0*machine_tolerance*abs(merit) <= merit - merit_tolerance*constraint_violation)
 function sufficient_progress(s::Solver)
-    return sufficient_progress(s.constraint_violation_candidate,s.constraint_violation,s.φ⁺,s.φ,s.options.constraint_violation_tolerance,s.options.merit_tolerance,
+    return sufficient_progress(s.constraint_violation_candidate,s.constraint_violation,s.merit⁺,s.merit,s.options.constraint_violation_tolerance,s.options.merit_tolerance,
         s.options.machine_tolerance)
 end
 
-armijo(φ⁺,φ,tolerance,step_size,∇φ,d,machine_tolerance) = (φ⁺ - φ - 10.0*machine_tolerance*abs(φ) <= tolerance*step_size*∇φ'*d)
-armijo(s::Solver) = armijo(s.φ⁺,s.φ,s.options.armijo_tolerace,s.step_size,s.∇φ,s.dx,
+armijo(merit⁺,merit,tolerance,step_size,merit_gradient,d,machine_tolerance) = (merit⁺ - merit - 10.0*machine_tolerance*abs(merit) <= tolerance*step_size*merit_gradient'*d)
+armijo(s::Solver) = armijo(s.merit⁺,s.merit,s.options.armijo_tolerace,s.step_size,s.merit_gradient,s.dx,
     s.options.machine_tolerance)

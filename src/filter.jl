@@ -1,13 +1,13 @@
 
 """
-    check_filter(constraint_violation, φ, f)
+    check_filter(constraint_violation, merit, f)
 
-Check if the constraint residual `constraint_violation` and the barrier objective `φ` are accepted by the filter.
+Check if the constraint residual `constraint_violation` and the barrier objective `merit` are accepted by the filter.
 To be accepted, the pair must be acceptable to each pair stored in the filter.
 """
-function check_filter(constraint_violation,φ,f)
+function check_filter(constraint_violation,merit,f)
     for _f in f
-        if !(constraint_violation < _f[1] || φ < _f[2])
+        if !(constraint_violation < _f[1] || merit < _f[2])
             return false
         end
     end
@@ -15,21 +15,21 @@ function check_filter(constraint_violation,φ,f)
 end
 
 """
-    augment_filter!(constraint_violation,φ,f)
+    augment_filter!(constraint_violation,merit,f)
 
-Add the pair `(constraint_violation,φ)` to the filter `f` (a vector of pairs)
+Add the pair `(constraint_violation,merit)` to the filter `f` (a vector of pairs)
 """
-function augment_filter!(constraint_violation,φ,f)
+function augment_filter!(constraint_violation,merit,f)
     if isempty(f)
-        push!(f,(constraint_violation,φ))
+        push!(f,(constraint_violation,merit))
         return nothing
     # remove filter points dominated by new point
-    elseif check_filter(constraint_violation,φ,f)
+    elseif check_filter(constraint_violation,merit,f)
         _f = copy(f)
         empty!(f)
-        push!(f,(constraint_violation,φ))
+        push!(f,(constraint_violation,merit))
         for _p in _f
-            if !(_p[1] >= constraint_violation && _p[2] >= φ)
+            if !(_p[1] >= constraint_violation && _p[2] >= merit)
                 push!(f,_p)
             end
         end
@@ -45,7 +45,8 @@ to ensure sufficient decrease (Eq. 18).
 """
 function augment_filter!(s::Solver)
     if !switching_condition(s) || !armijo(s)
-        augment_filter!((1.0-s.options.constraint_violation_tolerance)*s.constraint_violation, s.φ - s.options.merit_tolerance*s.constraint_violation, s.filter)
+        augment_filter!((1.0-s.options.constraint_violation_tolerance)*s.constraint_violation, s.merit - s.options.merit_tolerance*s.constraint_violation, s.filter)
     end
     return nothing
 end
+

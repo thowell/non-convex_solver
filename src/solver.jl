@@ -22,9 +22,9 @@ mutable struct Solver{T}
     σL::Vector{T}
     σU::Vector{T}
 
-    φ::T                            # barrier objective value
-    φ⁺::T                           # next barrier objective value
-    ∇φ::Vector{T}                   # gradient of barrier objective
+    merit::T                            # barrier objective value
+    merit⁺::T                           # next barrier objective value
+    merit_gradient::Vector{T}                   # gradient of barrier objective
 
     ∇L::Vector{T}                   # gradient of the Lagrangian
     ∇²L::SparseMatrixCSC{T,Int}     # Hessian of the Lagrangian
@@ -201,9 +201,9 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
     eval_∇f!(model,x)
     df = objective_gradient_scaling(options.scaling_tolerance,get_∇f(model))
 
-    φ = 0.
-    φ⁺ = 0.
-    ∇φ = zeros(n)
+    merit = 0.
+    merit⁺ = 0.
+    merit_gradient = zeros(n)
 
     ∇L = zeros(n)
 
@@ -286,7 +286,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
            ΔxL,ΔxU,
            y,
            zL,zU,σL,σU,
-           φ,φ⁺,∇φ,
+           merit,merit⁺,merit_gradient,
            ∇L,∇²L,
            c,c_soc,c_tmp,
            H,H_sym,
@@ -402,15 +402,15 @@ end
 Evaluate barrier objective and it's gradient
 """
 function eval_barrier!(s::Solver)
-    s.φ = get_f(s,s.x)
-    s.φ -= s.central_path*sum(log.(s.ΔxL))
-    s.φ -= s.central_path*sum(log.(s.ΔxU))
-    s.model.mA > 0 && (s.φ += s.dual'*view(s.x,s.idx.r) + 0.5*s.penalty*view(s.x,s.idx.r)'*view(s.x,s.idx.r))
+    s.merit = get_f(s,s.x)
+    s.merit -= s.central_path*sum(log.(s.ΔxL))
+    s.merit -= s.central_path*sum(log.(s.ΔxU))
+    s.model.mA > 0 && (s.merit += s.dual'*view(s.x,s.idx.r) + 0.5*s.penalty*view(s.x,s.idx.r)'*view(s.x,s.idx.r))
 
-    s.∇φ .= get_∇f(s.model)
-    s.∇φ[s.idx.xL] -= s.central_path./s.ΔxL
-    s.∇φ[s.idx.xU] += s.central_path./s.ΔxU
-    s.model.mA > 0 && (s.∇φ[s.idx.r] += s.dual + s.penalty*view(s.x,s.idx.r))
+    s.merit_gradient .= get_∇f(s.model)
+    s.merit_gradient[s.idx.xL] -= s.central_path./s.ΔxL
+    s.merit_gradient[s.idx.xU] += s.central_path./s.ΔxU
+    s.model.mA > 0 && (s.merit_gradient[s.idx.r] += s.dual + s.penalty*view(s.x,s.idx.r))
     
     return nothing
 end
