@@ -6,7 +6,7 @@ Base.@kwdef mutable struct Options{T}
     zL0::T = 1.0
     zU0::T = 1.0
     central_path_initial::T = 0.1
-    κϵ::T = 10.
+    central_path_tolerance::T = 10.
     κcentral_path::T = 0.2
     θcentral_path::T = 1.5
     min_fraction_to_boundary::T = 0.99

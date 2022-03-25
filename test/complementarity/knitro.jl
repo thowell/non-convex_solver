@@ -28,7 +28,7 @@ model = Model(n,m,xL,xU,
                 c!,∇c!,∇²cy!,
                 cI_idx=cI_idx,cA_idx=cA_idx)
 
-opts = Options{Float64}(
+options = Options{Float64}(
                         kkt_solve=:symmetric,
                         max_residual_iterations=1000,
                         residual_tolerance=1.0e-5,
@@ -37,7 +37,7 @@ opts = Options{Float64}(
                         linear_solver=:QDLDL,
                         )
 
-s = Solver(x0,model,opts=opts)
+s = Solver(x0,model,options=options)
 @time solve!(s)
 
 x = s.x

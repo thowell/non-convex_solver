@@ -1,18 +1,16 @@
 function solve!(solver::Solver)
-    # evaluate problem
+    # initiali step
     step!(s)
 
     # initialize filter
     push!(s.filter,(s.max_constraint_violation,Inf))
 
-    while tolerance(0.0,s) > s.opts.residual_tolerance
-
-        # Converge the interior point sub-problem
-        while tolerance(s.central_path,s) > s.opts.κϵ*s.central_path
+    while tolerance(0.0,s) > s.options.residual_tolerance
+        while tolerance(s.central_path,s) > s.options.central_path_tolerance*s.central_path
             search_direction!(s)
     
             if !line_search!(s)
-                if s.constraint_violation < s.opts.residual_tolerance
+                if s.constraint_violation < s.options.residual_tolerance
                     status(s)
                     @error "infeasibility detected"
                     return
@@ -30,7 +28,7 @@ function solve!(solver::Solver)
             step!(s)
 
             s.k += 1
-            if s.k > s.opts.max_residual_iterations
+            if s.k > s.options.max_residual_iterations
                 status(s)
                 @error "max iterations"
                 return
@@ -38,7 +36,7 @@ function solve!(solver::Solver)
 
         end
 
-        if tolerance(0.0,s) <= s.opts.residual_tolerance && norm(s.xr,Inf) <= s.opts.equality_tolerance
+        if tolerance(0.0,s) <= s.options.residual_tolerance && norm(s.xr,Inf) <= s.options.equality_tolerance
             break
         else
             barrier_update!(s)
@@ -65,14 +63,14 @@ function barrier_update!(s::Solver)
 end
 
 function status(s::Solver)
-    if s.opts.verbose
+    if s.options.verbose
         println(crayon"red bold underline", "\nSolve Summary")
         println(crayon"reset", "   status: complete")
         println("   iteration ($(s.j),$(s.k)):")
         s.model.n < 5 &&  println("   x: $(s.x)")
-        println("   f: $(get_f(s,s.x))")
+        println("   objective: $(get_f(s,s.x))")
         println("   constraint_violation: $(s.constraint_violation), φ: $(s.φ)")
-        println("   E0: $(tolerance(0.0,s))")
+        println("   tolerance: $(tolerance(0.0,s))")
         println("   norm(c,Inf): $(norm(s.c,Inf))")
         s.model.mA > 0  && println("   norm(r,Inf): $(norm(s.xr,Inf))")
     end

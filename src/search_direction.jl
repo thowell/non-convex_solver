@@ -5,9 +5,9 @@ Compute the search direction `s.d` by solving the KKT system. Includes both iner
 correction and iterative refinement.
 """
 function search_direction!(s::Solver)
-    if s.opts.kkt_solve == :symmetric
+    if s.options.kkt_solve == :symmetric
         search_direction_symmetric!(s)
-    elseif s.opts.kkt_solve == :fullspace
+    elseif s.options.kkt_solve == :fullspace
         search_direction_fullspace!(s)
     else
         error("KKT solve not implemented")
@@ -44,7 +44,7 @@ function search_direction_fullspace!(s::Solver)
 
     s.d .= lu(s.H + Diagonal(s.regularization))\(-s.h)
 
-    s.opts.iterative_refinement && iterative_refinement(s.d,s)
+    s.options.iterative_refinement && iterative_refinement(s.d,s)
 
     return nothing
 end
@@ -77,7 +77,7 @@ function search_direction_symmetric!(s::Solver)
     s.dzL .= -s.σL.*s.dxL - s.zL + s.central_path./(s.ΔxL .- s.dual_regularization)
     s.dzU .= s.σU.*s.dxU - s.zU + s.central_path./(s.ΔxU .- s.dual_regularization)
 
-    if s.opts.iterative_refinement
+    if s.options.iterative_refinement
         kkt_hessian_fullspace!(s)
         iterative_refinement(s.d,s)
     end

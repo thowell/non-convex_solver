@@ -9,7 +9,7 @@ function line_search!(s::Solver)
     status = false
 
     # A-5.2 Compute the new trial point
-    candidate_step!(s)  # update s.x⁺
+    candidate_step!(s)  # update s.candidate
 
     while s.step_size > s.minimum_step_size
         # A-5.3 Check acceptability to the filter
@@ -65,9 +65,9 @@ Calculate the new candidate primal variables using the current step size and ste
 Evaluate the constraint norm and the barrier objective at the new candidate.
 """
 function candidate_step!(s::Solver)
-    s.x⁺ .= s.x + s.step_size*s.dx
-    s.constraint_violation_candidate = constraint_violation(s.x⁺,s)
-    s.φ⁺ = barrier(s.x⁺,s)
+    s.candidate .= s.x + s.step_size*s.dx
+    s.constraint_violation_candidate = constraint_violation(s.candidate,s)
+    s.φ⁺ = barrier(s.candidate,s)
     return nothing
 end
 
@@ -87,7 +87,7 @@ end
 Compute the minimum step length (Eq. 23)
 """
 function minimum_step_size!(s::Solver)
-    s.minimum_step_size = minimum_step_size(s.dx,s.constraint_violation,s.∇φ,s.min_constraint_violation,s.opts.regularization,s.opts.step_size_tolerance,s.opts.constraint_violation_tolerance,s.opts.γφ,s.opts.sθ,s.opts.sφ)
+    s.minimum_step_size = minimum_step_size(s.dx,s.constraint_violation,s.∇φ,s.min_constraint_violation,s.options.regularization,s.options.step_size_tolerance,s.options.constraint_violation_tolerance,s.options.γφ,s.options.sθ,s.options.sφ)
     return nothing
 end
 
@@ -122,15 +122,15 @@ end
 
 switching_condition(∇φ,d,step_size,sφ,regularization,constraint_violation,sθ) = (∇φ'*d < 0. && step_size*(-∇φ'*d)^sφ > regularization*constraint_violation^sθ)
 function switching_condition(s::Solver)
-    return switching_condition(s.∇φ,s.dx,s.step_size,s.opts.sφ,s.opts.regularization,s.constraint_violation,s.opts.sθ)
+    return switching_condition(s.∇φ,s.dx,s.step_size,s.options.sφ,s.options.regularization,s.constraint_violation,s.options.sθ)
 end
 
 sufficient_progress(constraint_violation_candidate,constraint_violation,φ⁺,φ,constraint_violation_tolerance,γφ,machine_tolerance) = (constraint_violation_candidate - 10.0*machine_tolerance*abs(constraint_violation) <= (1-constraint_violation_tolerance)*constraint_violation || φ⁺ - 10.0*machine_tolerance*abs(φ) <= φ - γφ*constraint_violation)
 function sufficient_progress(s::Solver)
-    return sufficient_progress(s.constraint_violation_candidate,s.constraint_violation,s.φ⁺,s.φ,s.opts.constraint_violation_tolerance,s.opts.γφ,
-        s.opts.machine_tolerance)
+    return sufficient_progress(s.constraint_violation_candidate,s.constraint_violation,s.φ⁺,s.φ,s.options.constraint_violation_tolerance,s.options.γφ,
+        s.options.machine_tolerance)
 end
 
 armijo(φ⁺,φ,η,step_size,∇φ,d,machine_tolerance) = (φ⁺ - φ - 10.0*machine_tolerance*abs(φ) <= η*step_size*∇φ'*d)
-armijo(s::Solver) = armijo(s.φ⁺,s.φ,s.opts.ηφ,s.step_size,s.∇φ,s.dx,
-    s.opts.machine_tolerance)
+armijo(s::Solver) = armijo(s.φ⁺,s.φ,s.options.ηφ,s.step_size,s.∇φ,s.dx,
+    s.options.machine_tolerance)

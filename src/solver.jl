@@ -9,7 +9,7 @@ mutable struct Solver{T}
     xs::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
     xr::SubArray{T,1,Array{T,1},Tuple{UnitRange{Int}},true}
 
-    x⁺::Vector{T}
+    candidate::Vector{T}
 
     ΔxL::Vector{T}                  # lower bounds error (nL,)
     ΔxU::Vector{T}                  # upper bounds error (nU,)
@@ -122,10 +122,10 @@ mutable struct Solver{T}
     penalty::T
     dual::Vector{T}
 
-    opts::Options{T}
+    options::Options{T}
 end
 
-function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Float64}())
+function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options{Float64}())
     n = model.n
     m = model.m
     mI = model.mI
@@ -153,19 +153,19 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     xs = view(x,idx.s)
     xr = view(x,idx.r)
 
-    x⁺ = zeros(n)
+    candidate = zeros(n)
 
     ΔxL = zeros(nL)
     ΔxU = zeros(nU)
 
-    opts.relax_bnds && relax_bounds!(xL,xU,xL_bool,xU_bool,n,opts.residual_tolerance)
+    options.relax_bnds && relax_bounds!(xL,xU,xL_bool,xU_bool,n,options.residual_tolerance)
 
     for i = 1:n
-        x[i] = initialize_variables(x0[i],xL[i],xU[i],opts.κ1,opts.κ2)
+        x[i] = initialize_variables(x0[i],xL[i],xU[i],options.κ1,options.κ2)
     end
 
-    zL = opts.zL0*ones(nL)
-    zU = opts.zU0*ones(nU)
+    zL = options.zL0*ones(nL)
+    zU = options.zU0*ones(nU)
 
     H = spzeros(n+m+nL+nU,n+m+nL+nU)
     h = zeros(n+m+nL+nU)
@@ -178,7 +178,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     H_sym = spzeros(n+m,n+m)
     h_sym = zeros(n+m)
 
-    if opts.linear_solver == :QDLDL
+    if options.linear_solver == :QDLDL
         F = qdldl(sparse(1.0*I,n+m,n+m))
         inertia = Inertia(0,0,0)
         linear_solver = QDLDLSolver(F,inertia)
@@ -191,15 +191,15 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     σU = zeros(nU)
 
     eval_∇c!(model,x)
-    Dc = constraint_scaling(opts.g_max,get_∇c(model),m)
+    Dc = constraint_scaling(options.g_max,get_∇c(model),m)
 
-    central_path = copy(opts.central_path_initial)
+    central_path = copy(options.central_path_initial)
     penalty = 1.0
     dual = zeros(mA)
-    τ = fraction_to_boundary(central_path,opts.min_fraction_to_boundary)
+    τ = fraction_to_boundary(central_path,options.min_fraction_to_boundary)
 
     eval_∇f!(model,x)
-    df = objective_gradient_scaling(opts.g_max,get_∇f(model))
+    df = objective_gradient_scaling(options.g_max,get_∇f(model))
 
     φ = 0.
     φ⁺ = 0.
@@ -212,7 +212,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
     c_tmp = zeros(m)
 
     eval_c!(model,x)
-    get_c_scaled!(c,model,Dc,opts.nlp_scaling)
+    get_c_scaled!(c,model,Dc,options.nlp_scaling)
 
     d = zeros(n+m+nL+nU)
     d_soc = zeros(n+m+nL+nU)
@@ -282,7 +282,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
 
     Solver(model,model_opt,
            x,xl,xu,xx,xs,xr,
-           x⁺,
+           candidate,
            ΔxL,ΔxU,
            y,
            zL,zU,σL,σU,
@@ -309,7 +309,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;opts=Options{Fl
            fail_cnt,
            df,Dc,
            penalty,dual,
-           opts)
+           options)
 end
 
 """
@@ -376,7 +376,7 @@ function get_c_scaled!(c,model,Dc,nlp_scaling)
 end
 
 function get_c_scaled!(c,s::Solver)
-    get_c_scaled!(c,s.model,s.Dc,s.opts.nlp_scaling)
+    get_c_scaled!(c,s.model,s.Dc,s.options.nlp_scaling)
 end
 
 """
@@ -440,7 +440,7 @@ Update the penalty parameter (Eq. 7) with constants κcentral_path ∈ (0,1), θ
 """
 central_path(central_path, κcentral_path, θcentral_path, residual_tolerance) = max(residual_tolerance/10.,min(κcentral_path*central_path,central_path^θcentral_path))
 function central_path!(s::Solver)
-    s.central_path = central_path(s.central_path, s.opts.κcentral_path, s.opts.θcentral_path, s.opts.residual_tolerance)
+    s.central_path = central_path(s.central_path, s.options.κcentral_path, s.options.θcentral_path, s.options.residual_tolerance)
     return nothing
 end
 
@@ -452,7 +452,7 @@ Update the "fraction-to-boundary" parameter (Eq. 8) where min_fraction_to_bounda
 """
 fraction_to_boundary(central_path,min_fraction_to_boundary) = max(min_fraction_to_boundary,1.0-central_path)
 function fraction_to_boundary!(s::Solver)
-    s.fraction_to_boundary = fraction_to_boundary(s.central_path,s.opts.min_fraction_to_boundary)
+    s.fraction_to_boundary = fraction_to_boundary(s.central_path,s.options.min_fraction_to_boundary)
     return nothing
 end
 
@@ -540,17 +540,17 @@ end
 Accept the current step, copying the candidate primals and duals into the current iterate.
 """
 function accept_step!(s::Solver)
-    s.x .= s.x⁺
+    s.x .= s.candidate
     s.y .+= s.step_size*s.dy
     s.zL .+= s.dual_step_size*s.dzL
     s.zU .+= s.dual_step_size*s.dzU
     return nothing
 end
 
-function Solver(x0,model;opts=Options{Float64}()) where T
+function Solver(x0,model;options=Options{Float64}()) where T
     if model.mI > 0 || model.mA > 0
         # slack model
-        model_s = slack_model(model,bnd_tol=opts.bnd_tol)
+        model_s = slack_model(model,bnd_tol=options.bnd_tol)
 
         # initialize slacks
         eval_c!(model,x0)
@@ -562,11 +562,11 @@ function Solver(x0,model;opts=Options{Float64}()) where T
         _x0 = x0
     end
     
-    return Solver(_x0,model_s,model,opts=opts)
+    return Solver(_x0,model_s,model,options=options)
 end
 
 function get_f(s::Solver,x)
-    (s.opts.nlp_scaling ? s.df*get_f(s.model,x) : get_f(s.model,x))
+    (s.options.nlp_scaling ? s.df*get_f(s.model,x) : get_f(s.model,x))
 end
 
 function get_solution(s::Solver)

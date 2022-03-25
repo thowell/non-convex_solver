@@ -109,10 +109,10 @@ c_func(x) = [x[1]^2 - x[2] - 1.0;
 model = Model(n,m,xL,xU,f_func,c_func)
 
 # options
-opts = Options{Float64}()
+options = Options{Float64}()
 
 # solver
-s = Solver(x0,model,opts=opts)
+s = Solver(x0,model,options=options)
 
 # solve
 solve!(s)
