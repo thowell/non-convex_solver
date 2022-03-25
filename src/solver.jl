@@ -703,7 +703,6 @@ Complete interior point solver as described by the Ipopt paper.
 """
 struct NCSolver{T}
     s::Solver{T}
-    # s̄::Solver{T}
 end
 
 function NCSolver(x0,model;opts=Options{Float64}()) where T
