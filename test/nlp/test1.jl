@@ -14,7 +14,7 @@ f_func(x) = x[1]
 c_func(x) = [x[1]^2 - x[2] - 1.0;
              x[1] - x[3] - 0.5]
 
-model = Model(n,m,xL,xU,f_func,c_func)
+model = Model(n,m,xL,xU,f_func,c_func,cA_idx=ones(Bool,m))
 
 opts = Options{Float64}(
                         kkt_solve=:symmetric,

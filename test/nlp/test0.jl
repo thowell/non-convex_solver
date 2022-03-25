@@ -12,7 +12,7 @@ xU[5] = 20.
 f_func(x) = x'*x
 c_func(x) = x[1:m].^2 .- 1.2
 
-model = Model(n,m,xL,xU,f_func,c_func,cI_idx=zeros(Bool,m),cA_idx=zeros(Bool,m))
+model = Model(n,m,xL,xU,f_func,c_func,cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m))
 
 opts = Options{Float64}(
                         kkt_solve=:symmetric,
