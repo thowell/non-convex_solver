@@ -21,9 +21,9 @@ Base.@kwdef mutable struct Options{T}
     max_second_order_correction::Int = 4
     max_bound::T = 1.0e8
 
-    primal_regularization_min::T = 1.0e-20
+    min_regularization::T = 1.0e-20
     primal_regularization_initial::T = 1.0e-4
-    primal_regularization_max::T = 1.0e40
+    max_regularization::T = 1.0e40
     dual_regularization::T = 1.0e-8
     scaling_regularization_initial::T = 100.0
     scaling_regularization::T = 8.0

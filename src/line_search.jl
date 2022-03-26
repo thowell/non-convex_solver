@@ -13,7 +13,7 @@ function line_search!(s::Solver)
 
     while s.step_size > s.minimum_step_size
         # A-5.3 Check acceptability to the filter
-        if check_filter(s.constraint_violation_candidate,s.merit⁺,s.filter)
+        if check_filter(s.constraint_violation_candidate,s.merit_candidate,s.filter)
             if s.l == 0
                 s.fail_cnt = 0
             end
@@ -67,7 +67,7 @@ Evaluate the constraint norm and the barrier objective at the new candidate.
 function candidate_step!(s::Solver)
     s.candidate .= s.x + s.step_size*s.dx
     s.constraint_violation_candidate = constraint_violation(s.candidate,s)
-    s.merit⁺ = barrier(s.candidate,s)
+    s.merit_candidate = barrier(s.candidate,s)
     return nothing
 end
 
@@ -125,12 +125,12 @@ function switching_condition(s::Solver)
     return switching_condition(s.merit_gradient,s.dx,s.step_size,s.options.exponent_merit,s.options.regularization,s.constraint_violation,s.options.exponent_constraint_violation)
 end
 
-sufficient_progress(constraint_violation_candidate,constraint_violation,merit⁺,merit,constraint_violation_tolerance,merit_tolerance,machine_tolerance) = (constraint_violation_candidate - 10.0*machine_tolerance*abs(constraint_violation) <= (1-constraint_violation_tolerance)*constraint_violation || merit⁺ - 10.0*machine_tolerance*abs(merit) <= merit - merit_tolerance*constraint_violation)
+sufficient_progress(constraint_violation_candidate,constraint_violation,merit_candidate,merit,constraint_violation_tolerance,merit_tolerance,machine_tolerance) = (constraint_violation_candidate - 10.0*machine_tolerance*abs(constraint_violation) <= (1-constraint_violation_tolerance)*constraint_violation || merit_candidate - 10.0*machine_tolerance*abs(merit) <= merit - merit_tolerance*constraint_violation)
 function sufficient_progress(s::Solver)
-    return sufficient_progress(s.constraint_violation_candidate,s.constraint_violation,s.merit⁺,s.merit,s.options.constraint_violation_tolerance,s.options.merit_tolerance,
+    return sufficient_progress(s.constraint_violation_candidate,s.constraint_violation,s.merit_candidate,s.merit,s.options.constraint_violation_tolerance,s.options.merit_tolerance,
         s.options.machine_tolerance)
 end
 
-armijo(merit⁺,merit,tolerance,step_size,merit_gradient,d,machine_tolerance) = (merit⁺ - merit - 10.0*machine_tolerance*abs(merit) <= tolerance*step_size*merit_gradient'*d)
-armijo(s::Solver) = armijo(s.merit⁺,s.merit,s.options.armijo_tolerace,s.step_size,s.merit_gradient,s.dx,
+armijo(merit_candidate,merit,tolerance,step_size,merit_gradient,d,machine_tolerance) = (merit_candidate - merit - 10.0*machine_tolerance*abs(merit) <= tolerance*step_size*merit_gradient'*d)
+armijo(s::Solver) = armijo(s.merit_candidate,s.merit,s.options.armijo_tolerace,s.step_size,s.merit_gradient,s.dx,
     s.options.machine_tolerance)

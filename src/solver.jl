@@ -23,7 +23,7 @@ mutable struct Solver{T}
     σU::Vector{T}
 
     merit::T                            # barrier objective value
-    merit⁺::T                           # next barrier objective value
+    merit_candidate::T                           # next barrier objective value
     merit_gradient::Vector{T}                   # gradient of barrier objective
 
     ∇L::Vector{T}                   # gradient of the Lagrangian
@@ -109,8 +109,6 @@ mutable struct Solver{T}
     zU_copy::Vector{T}
     d_copy::Vector{T}
     d_copy_2::Vector{T}
-
-    Fcentral_path::Vector{T}
 
     idx::Indices
 
@@ -202,7 +200,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
     df = objective_gradient_scaling(options.scaling_tolerance,get_∇f(model))
 
     merit = 0.
-    merit⁺ = 0.
+    merit_candidate = 0.
     merit_gradient = zeros(n)
 
     ∇L = zeros(n)
@@ -244,8 +242,6 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
     d_copy = zero(d)
     d_copy_2 = zero(d)
 
-    Fcentral_path = zeros(n+m+nL+nU)
-
     fail_cnt = 0
 
     Hv = H_fullspace_views(H,idx)
@@ -286,7 +282,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
            ΔxL,ΔxU,
            y,
            zL,zU,σL,σU,
-           merit,merit⁺,merit_gradient,
+           merit,merit_candidate,merit_gradient,
            ∇L,∇²L,
            c,c_soc,c_tmp,
            H,H_sym,
@@ -304,7 +300,6 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
            filter,
            j,k,l,p,t,
            x_copy,y_copy,zL_copy,zU_copy,d_copy,d_copy_2,
-           Fcentral_path,
            idx,
            fail_cnt,
            df,Dc,
