@@ -120,7 +120,7 @@ function get_∇²f(model::Model)
     return model.∇²f
 end
 
-function eval_c!(model::Model,x)
+function constraints!(model::Model,x)
     model.c_func!(model.c,x,model)
     return nothing
 end

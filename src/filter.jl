@@ -2,7 +2,7 @@
 """
     check_filter(constraint_violation, merit, f)
 
-Check if the constraint residual `constraint_violation` and the barrier objective `merit` are accepted by the filter.
+Check if the constraint residual `constraint_violation` and the merit objective `merit` are accepted by the filter.
 To be accepted, the pair must be acceptable to each pair stored in the filter.
 """
 function check_filter(constraint_violation,merit,filter)

@@ -1,5 +1,5 @@
 function solve!(solver::Solver)
-    # initiali step
+    # initial step
     step!(s)
 
     # initialize filter

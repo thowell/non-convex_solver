@@ -22,9 +22,9 @@ mutable struct Solver{T}
     σL::Vector{T}
     σU::Vector{T}
 
-    merit::T                            # barrier objective value
-    merit_candidate::T                           # next barrier objective value
-    merit_gradient::Vector{T}                   # gradient of barrier objective
+    merit::T                            # merit objective value
+    merit_candidate::T                           # next merit objective value
+    merit_gradient::Vector{T}                   # gradient of merit objective
 
     ∇L::Vector{T}                   # gradient of the Lagrangian
     ∇²L::SparseMatrixCSC{T,Int}     # Hessian of the Lagrangian
@@ -98,7 +98,7 @@ mutable struct Solver{T}
 
     # iteration counts
     outer_iteration::Int   # central path iteration (outer loop)
-    residual_iteration::Int   # barrier problem iteration
+    residual_iteration::Int   # merit problem iteration
     line_search_iteration::Int   # line search
     soc_iteration::Int   # second order corrections
 
@@ -208,8 +208,8 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
     c_soc = zeros(m)
     c_tmp = zeros(m)
 
-    eval_c!(model,x)
-    get_c_scaled!(c,model,Dc,options.scaling)
+    constraints!(model,x)
+    scaled_constraints!(c,model,Dc,options.scaling)
 
     d = zeros(n+m+nL+nU)
     d_soc = zeros(n+m+nL+nU)
@@ -352,8 +352,8 @@ Evaluate the constraints and their first and second-order derivatives. Also comp
 constraint residual `constraint_violation`.
 """
 function eval_constraints!(s::Solver)
-    eval_c!(s.model,s.x)
-    get_c_scaled!(s.c,s)
+    constraints!(s.model,s.x)
+    scaled_constraints!(s.c,s)
 
     eval_∇c!(s.model,s.x)
 
@@ -363,13 +363,13 @@ function eval_constraints!(s::Solver)
     return nothing
 end
 
-function get_c_scaled!(c,model,Dc,scaling)
+function scaled_constraints!(c,model,Dc,scaling)
     scaling && (c .= Dc*get_c(model))
     return nothing
 end
 
-function get_c_scaled!(c,s::Solver)
-    get_c_scaled!(c,s.model,s.Dc,s.options.scaling)
+function scaled_constraints!(c,s::Solver)
+    scaled_constraints!(c,s.model,s.Dc,s.options.scaling)
 end
 
 """
@@ -392,7 +392,7 @@ end
 """
     eval_barrier(s::Solver)
 
-Evaluate barrier objective and it's gradient
+Evaluate merit objective and it's gradient
 """
 function eval_barrier!(s::Solver)
     s.merit = get_f(s,s.x)
@@ -412,7 +412,7 @@ end
     step!(s::Solver)
 
 Evaluate all critical values for the current iterate stored in `s.x` and `s.y`, including
-bound constraints, objective, constraints, Lagrangian, and barrier objective, and their
+bound constraints, objective, constraints, Lagrangian, and merit objective, and their
 required derivatives.
 """
 function step!(s::Solver)
@@ -495,30 +495,30 @@ end
 Calculate the 1-norm of the constraints
 """
 function constraint_violation(x,s::Solver)
-    eval_c!(s.model,x)
-    get_c_scaled!(s.c_tmp,s)
+    constraints!(s.model,x)
+    scaled_constraints!(s.c_tmp,s)
     return norm(s.c_tmp,1)
 end
 
 """
-    barrier(x, xL, xU, xL_bool, xU_bool, xLs_bool xUs_bool, central_path, barrier_tolerance, f, penalty, yA, cA)
-    barrier(x, s::Solver)
+    merit(x, xL, xU, xL_bool, xU_bool, xLs_bool xUs_bool, central_path, barrier_tolerance, f, penalty, yA, cA)
+    merit(x, s::Solver)
 
-Calculate the barrier objective function. When called using the solver, re-calculates the
+Calculate the merit objective function. When called using the solver, re-calculates the
     objective `f` and the constraints `c`.
 """
-function barrier(f,xl,xL,xu,xU,xls,xLs,xus,xUs,central_path,barrier_tolerance,r,dual,penalty)
+function merit(f,xl,xL,xu,xU,xls,xLs,xus,xUs,central_path,barrier_tolerance,r,dual,penalty)
     return (f
             - central_path*sum(log.(xl - xL)) - central_path*sum(log.(xU - xu))
             + barrier_tolerance*central_path*sum(xls - xLs) + barrier_tolerance*central_path*sum(xUs - xus)
             + dual'*r + 0.5*penalty*r'*r)
 end
 
-function barrier(x,s::Solver)
-    eval_c!(s.model,x)
-    get_c_scaled!(s.c_tmp,s)
+function merit(x,s::Solver)
+    constraints!(s.model,x)
+    scaled_constraints!(s.c_tmp,s)
 
-    return barrier(get_f(s,x),
+    return merit(get_f(s,x),
                    view(x,s.idx.xL),view(s.model.xL,s.idx.xL),
                    view(x,s.idx.xU),view(s.model.xU,s.idx.xU),
                    view(x,s.idx.xLs),view(s.model.xL,s.idx.xLs),
@@ -546,7 +546,7 @@ function Solver(x0,model;options=Options{Float64}()) where T
         model_s = slack_model(model,max_bound=options.max_bound)
 
         # initialize slacks
-        eval_c!(model,x0)
+        constraints!(model,x0)
         s0 = get_c(model)[model.cI_idx]
         r0 = get_c(model)[model.cA_idx]
         _x0 = [x0;s0;r0]

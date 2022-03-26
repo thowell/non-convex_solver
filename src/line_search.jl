@@ -64,12 +64,12 @@ end
     candidate_step!(s::Solver)
 
 Calculate the new candidate primal variables using the current step size and step.
-Evaluate the constraint norm and the barrier objective at the new candidate.
+Evaluate the constraint norm and the merit objective at the new candidate.
 """
 function candidate_step!(s::Solver)
     s.candidate .= s.x + s.step_size * s.dx
     s.constraint_violation_candidate = constraint_violation(s.candidate, s)
-    s.merit_candidate = barrier(s.candidate, s)
+    s.merit_candidate = merit(s.candidate, s)
     return nothing
 end
 
