@@ -409,13 +409,13 @@ function eval_barrier!(s::Solver)
 end
 
 """
-    step!(s::Solver)
+    evaluate!(s::Solver)
 
 Evaluate all critical values for the current iterate stored in `s.x` and `s.y`, including
 bound constraints, objective, constraints, Lagrangian, and merit objective, and their
 required derivatives.
 """
-function step!(s::Solver)
+function evaluate!(s::Solver)
     bounds!(s)
     eval_objective!(s)
     eval_constraints!(s)

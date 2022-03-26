@@ -1,6 +1,6 @@
 function solve!(solver::Solver)
     # initial step
-    step!(s)
+    evaluate!(s)
 
     # initialize filter
     push!(s.filter, (s.max_constraint_violation, Inf))
@@ -25,7 +25,7 @@ function solve!(solver::Solver)
             end
 
             # Calculate everything at the new trial point
-            step!(s)
+            evaluate!(s)
 
             s.residual_iteration += 1
             if s.residual_iteration > s.options.max_residual_iterations
@@ -39,27 +39,27 @@ function solve!(solver::Solver)
         if tolerance(0.0,s) <= s.options.residual_tolerance && norm(s.xr, Inf) <= s.options.equality_tolerance
             break
         else
-            barrier_update!(s)
+            central_path_update!(s)
             augmented_lagrangian_update!(s)
-            step!(s)
+            evaluate!(s)
 
             if s.residual_iteration == 0
-                barrier_update!(s)
+                central_path_update!(s)
                 augmented_lagrangian_update!(s)
-                step!(s)
+                evaluate!(s)
             end
         end
     end  # outer while loop
     status(s)
 end
 
-function barrier_update!(s::Solver)
+function central_path_update!(s::Solver)
     central_path!(s)
     fraction_to_boundary!(s)
 
     s.outer_iteration += 1
     empty!(s.filter)
-    push!(s.filter,(s.max_constraint_violation,Inf))
+    push!(s.filter,(s.max_constraint_violation, Inf))
 end
 
 function status(s::Solver)
