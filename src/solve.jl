@@ -3,10 +3,10 @@ function solve!(solver::Solver)
     step!(s)
 
     # initialize filter
-    push!(s.filter,(s.max_constraint_violation,Inf))
+    push!(s.filter, (s.max_constraint_violation, Inf))
 
-    while tolerance(0.0,s) > s.options.residual_tolerance
-        while tolerance(s.central_path,s) > s.options.central_path_tolerance*s.central_path
+    while tolerance(0.0, s) > s.options.residual_tolerance
+        while tolerance(s.central_path, s) > s.options.central_path_tolerance*s.central_path
             search_direction!(s)
     
             if !line_search!(s)
@@ -36,7 +36,7 @@ function solve!(solver::Solver)
 
         end
 
-        if tolerance(0.0,s) <= s.options.residual_tolerance && norm(s.xr,Inf) <= s.options.equality_tolerance
+        if tolerance(0.0,s) <= s.options.residual_tolerance && norm(s.xr, Inf) <= s.options.equality_tolerance
             break
         else
             barrier_update!(s)

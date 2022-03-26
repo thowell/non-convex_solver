@@ -5,10 +5,14 @@ Base.@kwdef mutable struct Options{T}
     max_residual_iterations::Int = 100
     zL0::T = 1.0
     zU0::T = 1.0
+    slack_primal_initial::T=1.0 
+    slack_dual_initial::T=1.0
     central_path_initial::T = 0.1
     central_path_tolerance::T = 10.
     scaling_central_path::T = 0.2
     exponent_central_path::T = 1.5
+    penalty_initial::T=1.0 
+    dual_initial::T=1.0
     min_fraction_to_boundary::T = 0.99
     constraint_violation_tolerance::T = 1.0e-5
     merit_tolerance::T = 1.0e-5
