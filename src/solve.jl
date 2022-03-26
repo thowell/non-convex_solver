@@ -27,8 +27,8 @@ function solve!(solver::Solver)
             # Calculate everything at the new trial point
             step!(s)
 
-            s.k += 1
-            if s.k > s.options.max_residual_iterations
+            s.residual_iteration += 1
+            if s.residual_iteration > s.options.max_residual_iterations
                 status(s)
                 @error "max iterations"
                 return
@@ -43,7 +43,7 @@ function solve!(solver::Solver)
             augmented_lagrangian_update!(s)
             step!(s)
 
-            if s.k == 0
+            if s.residual_iteration == 0
                 barrier_update!(s)
                 augmented_lagrangian_update!(s)
                 step!(s)
@@ -57,7 +57,7 @@ function barrier_update!(s::Solver)
     central_path!(s)
     fraction_to_boundary!(s)
 
-    s.j += 1
+    s.outer_iteration += 1
     empty!(s.filter)
     push!(s.filter,(s.max_constraint_violation,Inf))
 end
@@ -66,7 +66,7 @@ function status(s::Solver)
     if s.options.verbose
         println(crayon"red bold underline", "\nSolve Summary")
         println(crayon"reset", "   status: complete")
-        println("   iteration ($(s.j),$(s.k)):")
+        println("   iteration ($(s.outer_iteration),$(s.residual_iteration)):")
         s.model.n < 5 &&  println("   x: $(s.x)")
         println("   objective: $(get_f(s,s.x))")
         println("   constraint_violation: $(s.constraint_violation), merit: $(s.merit)")

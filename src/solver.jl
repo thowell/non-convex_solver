@@ -97,11 +97,10 @@ mutable struct Solver{T}
     filter::Vector{Tuple}
 
     # iteration counts
-    j::Int   # central path iteration (outer loop)
-    k::Int   # barrier problem iteration
+    outer_iteration::Int   # central path iteration (outer loop)
+    residual_iteration::Int   # barrier problem iteration
     line_search_iteration::Int   # line search
-    p::Int   # second order corrections
-    t::Int
+    soc_iteration::Int   # second order corrections
 
     x_copy::Vector{T}
     y_copy::Vector{T}
@@ -229,11 +228,10 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
 
     filter = Tuple[]
 
-    j = 0
-    k = 0
+    outer_iteration = 0
+    residual_iteration = 0
     line_search_iteration = 0
-    p = 0
-    t = 0
+    soc_iteration = 0
 
     x_copy = zeros(n)
     y_copy = zeros(m)
@@ -298,7 +296,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
            constraint_violation,constraint_violation_candidate,min_constraint_violation,max_constraint_violation,constraint_violation_correction,
            central_path,τ,
            filter,
-           j,k,line_search_iteration,p,t,
+           outer_iteration,residual_iteration,line_search_iteration,soc_iteration,
            x_copy,y_copy,zL_copy,zU_copy,d_copy,d_copy_2,
            idx,
            failures,

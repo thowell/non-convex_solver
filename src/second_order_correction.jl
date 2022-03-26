@@ -12,7 +12,7 @@ function second_order_correction(s::Solver)
     s.d_copy_2 .= s.d
     maximum_step_size = copy(s.maximum_step_size)
     
-    s.p = 1
+    s.soc_iteration = 1
     s.constraint_violation_correction = copy(s.constraint_violation)
 
     # Compute c_soc (Eq. 27)
@@ -50,11 +50,11 @@ function second_order_correction(s::Solver)
             break
         end
 
-        if s.p == s.options.max_second_order_correction || s.constraint_violation_candidate > s.options.soc_tolerance * s.constraint_violation_correction
+        if s.soc_iteration == s.options.max_second_order_correction || s.constraint_violation_candidate > s.options.soc_tolerance * s.constraint_violation_correction
             s.step_size = s.options.scaling_step_size * maximum_step_size
             break
         else  # A-5.9 Next second-order correction
-            s.p += 1
+            s.soc_iteration += 1
 
             eval_c!(s.model,s.candidate)
             get_c_scaled!(s.c,s)
