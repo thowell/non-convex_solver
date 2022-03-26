@@ -1,20 +1,20 @@
 # NOTE: Ipopt fails to converge on this problem.
-n = 3
-m = 2
+num_variables = 3
+num_equality = 2 
+num_inequality = 2
 
 x0 = [-2.0;3.0;1.0]
 
-xL = -Inf*ones(n)
-xL[2] = 0.
-xL[3] = 0.
-xU = Inf*ones(n)
+obj(x) = x[1]
+eq(x) = [x[1]^2 - x[2] - 1.0;
+         x[1] - x[3] - 0.5;]
+ineq(x) = x[2:3]
 
-f_func(x) = x[1]
+# solver
+methods = ProblemMethods(num_variables, obj, eq, ineq)
+solver = SolverAlt(methods, num_variables, num_equality, num_inequality)
 
-c_func(x) = [x[1]^2 - x[2] - 1.0;
-             x[1] - x[3] - 0.5]
-
-model = Model(n,m,xL,xU,f_func,c_func,cA_idx=ones(Bool,m))
+model = Model(n,m,xL,xU,f_func,c_func,cI_idx=[zeros(Bool,2); ones(Bool,2)], cA_idx=[ones(Bool,2); zeros(Bool,2)])
 
 options = Options{Float64}(
                         linear_solve_type=:symmetric,

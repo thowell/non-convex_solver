@@ -1,13 +1,18 @@
-n = 2
-m = 1
+num_variables = 2
+num_equality = 1
+num_inequality = 0
 
 x0 = [2.0; 1.0]
 
-xL = -Inf*ones(n)
-xU = Inf*ones(n)
+obj(x) = 2.0 * (x[1]^2 + x[2]^2 - 1.0) - x[1]
+eq(x) = [x[1]^2 + x[2]^2 - 1.0]
+ineq(x) = zeros(0) 
 
-f_func(x) = 2.0 * (x[1]^2 + x[2]^2 - 1.0) - x[1]
-c_func(x) = [x[1]^2 + x[2]^2 - 1.0]
+# solver
+methods = ProblemMethods(num_variables, obj, eq, ineq)
+solver = SolverAlt(methods, num_variables, num_equality, num_inequality)
+
+
 
 model = Model(n,m,xL,xU,f_func,c_func,cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m))
 

@@ -1,15 +1,19 @@
-n = 2
-m = 2
+num_variables = 2
+num_equality = 2
+num_inequality = 0
 
-x0 = rand(n)
+x0 = rand(num_variables)
 
-xL = -Inf*ones(n)
-xU = Inf*ones(n)
+obj(x) = -x[1]*x[2] + 2/(3*sqrt(3))
+eq(x) = [-x[1] - x[2]^2 + 1.0;
+         x[1] + x[2]]
+ineq(x) = zeros(0) 
 
-f_func(x) = -x[1]*x[2] + 2/(3*sqrt(3))
+# solver
+methods = ProblemMethods(num_variables, obj, eq, ineq)
+solver = SolverAlt(methods, num_variables, num_equality, num_inequality)
 
-c_func(x) = [-x[1] - x[2]^2 + 1.0;
-             x[1] + x[2]]
+
 
 model = Model(n,m,xL,xU,f_func,c_func,cI_idx=ones(Bool,m),cA_idx=zeros(Bool,m))
 

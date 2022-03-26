@@ -1,16 +1,16 @@
-n = 3
-m = 1
+num_variables = 3
+num_equality = 1
 
-x0 = rand(n)
+x0 = rand(num_variables)
 
-xL = -Inf*ones(n)
-xU = Inf*ones(n)
+obj(x) = x[1] - 2*x[2] + x[3] + sqrt(6)
+eq(x) = [1 - x[1]^2 - x[2]^2 - x[3]^2]
+ineq(x) = zeros(0)
 
-f_func(x) = x[1] - 2*x[2] + x[3] + sqrt(6)
-f, ∇f!, ∇²f! = objective_functions(f_func)
+# solver
+methods = ProblemMethods(num_variables, obj, eq, ineq)
+solver = SolverAlt(methods, num_variables, num_equality, num_inequality)
 
-c_func(x) = [1 - x[1]^2 - x[2]^2 - x[3]^2]
-c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 model = Model(n,m,xL,xU,f_func,c_func,cI_idx=ones(Bool,m),cA_idx=zeros(Bool,m))
 
