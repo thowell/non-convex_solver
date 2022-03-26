@@ -5,13 +5,7 @@ Compute the search direction `s.d` by solving the KKT system. Includes both iner
 correction and iterative refinement.
 """
 function search_direction!(s::Solver)
-    if s.options.linear_solve_type == :symmetric
-        search_direction_symmetric!(s)
-    elseif s.options.linear_solve_type == :fullspace
-        search_direction_fullspace!(s)
-    else
-        error("KKT solve not implemented")
-    end
+    search_direction_symmetric!(s)
     return
 end
 

@@ -20,14 +20,14 @@ function line_search!(s::Solver)
             end
 
             # case 1
-            if (s.constraint_violation <= s.min_constraint_violation && switching_condition(s))
+            if (s.constraint_violation <= s.min_constraint_violation && switching_condition(s.dx, s))
                 if armijo(s)
                     status = true
                     break
                 end
 
             # case 2
-            else # (s.constraint_violation > s.min_constraint_violation || !switching_condition(s))
+            else # (s.constraint_violation > s.min_constraint_violation || !switching_condition(s.dx, s))
                 if sufficient_progress(s)
                     status = true
                     break
@@ -131,9 +131,8 @@ function maximum_dual_step_size!(s::Solver)
 end
 
 #TODO: add reference
-function switching_condition(s::Solver)
+function switching_condition(d, s::Solver)
     Mx = s.merit_gradient
-    d = s.dx
     α = s.step_size
     sM = s.options.exponent_merit
     δ = s.options.regularization

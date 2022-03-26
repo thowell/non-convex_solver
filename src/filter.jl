@@ -44,7 +44,7 @@ Check current step, and add to the filter if necessary, adding some padding to t
 to ensure sufficient decrease (Eq. 18).
 """
 function augment_filter!(s::Solver)
-    if !switching_condition(s) || !armijo(s)
+    if !switching_condition(s.dx, s) || !armijo(s)
         augment_filter!((1.0-s.options.constraint_violation_tolerance)*s.constraint_violation, s.merit - s.options.merit_tolerance*s.constraint_violation, s.filter)
     end
     return nothing
