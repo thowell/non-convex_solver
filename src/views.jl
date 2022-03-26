@@ -54,8 +54,6 @@ function H_symmetric_views(H::SparseMatrixCSC,idx::Indices)
     H_symmetric_views(xx,xLxL,xUxU,xy,yx,yy)
 end
 
-# TODO: shouldn't this be `Base.copyto(x,y)`?
-# TODO: should be able to combine these into a single function, at least using `Union`
 """
     update!(x,y)
 

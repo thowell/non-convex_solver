@@ -3,7 +3,7 @@
 
 Use iterative refinement on the fullspace KKT system to improve the current step `d`.
 """
-function iterative_refinement(d::Vector{T},s::Solver) where T
+function iterative_refinement(d::Vector{T}, s::Solver) where T
     s.d_copy .= d
     iter = 0
     s.res .= -s.h - s.H*d

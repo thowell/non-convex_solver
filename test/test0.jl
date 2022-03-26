@@ -1,18 +1,18 @@
 n = 50
-m = 30
+m = 30 + 3
 
 x0 = ones(n)
 
 xL = -Inf*ones(n)
-xL[1] = -10.
-xL[2] = -5.
+# xL[1] = -10.
+# xL[2] = -5.
 xU = Inf*ones(n)
-xU[5] = 20.
+# xU[5] = 20.
 
 f_func(x) = x'*x
-c_func(x) = x[1:m].^2 .- 1.2
+c_func(x) = [x[1:30].^2 .- 1.2; x[1] + 10.0; x[2] + 5.0; 20.0 - x[5]]
 
-model = Model(n,m,xL,xU,f_func,c_func,cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m))
+model = Model(n,m,xL,xU,f_func,c_func,cI_idx=[zeros(Bool,30); ones(Bool,3)],cA_idx=[ones(Bool,30); zeros(Bool,3)])
 
 options = Options{Float64}(
                         linear_solve_type=:symmetric,
