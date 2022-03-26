@@ -99,7 +99,7 @@ mutable struct Solver{T}
     # iteration counts
     j::Int   # central path iteration (outer loop)
     k::Int   # barrier problem iteration
-    l::Int   # line search
+    line_search_iteration::Int   # line search
     p::Int   # second order corrections
     t::Int
 
@@ -112,7 +112,7 @@ mutable struct Solver{T}
 
     idx::Indices
 
-    fail_cnt::Int
+    failures::Int
 
     df::T
     Dc::SparseMatrixCSC{T,Int}
@@ -231,7 +231,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
 
     j = 0
     k = 0
-    l = 0
+    line_search_iteration = 0
     p = 0
     t = 0
 
@@ -242,7 +242,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
     d_copy = zero(d)
     d_copy_2 = zero(d)
 
-    fail_cnt = 0
+    failures = 0
 
     Hv = H_fullspace_views(H,idx)
     Hv_sym = H_symmetric_views(H_sym,idx)
@@ -298,10 +298,10 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
            constraint_violation,constraint_violation_candidate,min_constraint_violation,max_constraint_violation,constraint_violation_correction,
            central_path,τ,
            filter,
-           j,k,l,p,t,
+           j,k,line_search_iteration,p,t,
            x_copy,y_copy,zL_copy,zU_copy,d_copy,d_copy_2,
            idx,
-           fail_cnt,
+           failures,
            df,Dc,
            penalty,dual,
            options)

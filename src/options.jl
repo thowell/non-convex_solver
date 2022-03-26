@@ -14,6 +14,7 @@ Base.@kwdef mutable struct Options{T}
     merit_tolerance::T = 1.0e-5
     regularization::T = 1.0
     step_size_tolerance::T = 0.05
+    scaling_step_size::T = 0.5
     exponent_constraint_violation::T = 1.1
     exponent_merit::T = 2.3
     armijo_tolerace::T = 1.0e-4
