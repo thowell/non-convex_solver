@@ -130,6 +130,7 @@ function maximum_dual_step_size!(s::Solver)
     return nothing
 end
 
+#TODO: add reference
 function switching_condition(s::Solver)
     Mx = s.merit_gradient
     d = s.dx
@@ -142,13 +143,30 @@ function switching_condition(s::Solver)
     return (Mx' * d < 0.0 && α * (-Mx' * d)^sM > δ * θ^sθ)
 end
 
-
-sufficient_progress(constraint_violation_candidate,constraint_violation,merit_candidate,merit,constraint_violation_tolerance,merit_tolerance,machine_tolerance) = (constraint_violation_candidate - 10.0*machine_tolerance*abs(constraint_violation) <= (1-constraint_violation_tolerance)*constraint_violation || merit_candidate - 10.0*machine_tolerance*abs(merit) <= merit - merit_tolerance*constraint_violation)
+# TODO: add reference
 function sufficient_progress(s::Solver)
-    return sufficient_progress(s.constraint_violation_candidate,s.constraint_violation,s.merit_candidate,s.merit,s.options.constraint_violation_tolerance,s.options.merit_tolerance,
-        s.options.machine_tolerance)
+    θ_cand = s.constraint_violation_candidate
+    θ = s.constraint_violation
+    M_cand = s.merit_candidate
+    M = s.merit
+    γθ = s.options.constraint_violation_tolerance
+    γM = s.options.merit_tolerance
+    ϵ = s.options.machine_tolerance
+
+    return (θ_cand - 10.0 * ϵ * abs(θ) <= (1.0 - γθ) * θ || M_cand - 10.0 * ϵ * abs(M) <= M - γM * θ)
 end
 
-armijo(merit_candidate,merit,tolerance,step_size,merit_gradient,d,machine_tolerance) = (merit_candidate - merit - 10.0*machine_tolerance*abs(merit) <= tolerance*step_size*merit_gradient'*d)
-armijo(s::Solver) = armijo(s.merit_candidate,s.merit,s.options.armijo_tolerace,s.step_size,s.merit_gradient,s.dx,
-    s.options.machine_tolerance)
+# TODO: add reference
+function armijo(s::Solver)
+    M_cand = s.merit_candidate
+    M = s.merit
+    γa = s.options.armijo_tolerance
+    α = s.step_size
+    Mx = s.merit_gradient
+    d = s.dx
+    ϵ = s.options.machine_tolerance
+
+    return (M_cand - M - 10.0 * ϵ * abs(M) <= γa * α * Mx' * d)
+end
+
+

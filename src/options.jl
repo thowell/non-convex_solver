@@ -17,7 +17,7 @@ Base.@kwdef mutable struct Options{T}
     scaling_step_size::T = 0.5
     exponent_constraint_violation::T = 1.1
     exponent_merit::T = 2.3
-    armijo_tolerace::T = 1.0e-4
+    armijo_tolerance::T = 1.0e-4
     soc_tolerance::T = 0.99
     max_second_order_correction::Int = 4
     max_bound::T = 1.0e8
