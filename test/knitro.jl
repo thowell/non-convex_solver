@@ -2,8 +2,6 @@ n = 8
 m = 7 + n
 
 x0 = zeros(n)
-
-# xL = zeros(n)
 xL = -Inf * ones(n)
 
 f_func(x) = (x[1] - 5)^2 + (2*x[2] + 1)^2
@@ -21,13 +19,12 @@ c!, ∇c!, ∇²cy! = constraint_functions(c_func)
 
 cI_idx = [zeros(Bool,7); ones(Bool, n)]
 cA_idx = [ones(Bool,7); zeros(Bool,n)]
-# cA_idx[5:end] .= 1
-# cA_idx = ones(Bool,m)
 
 model = Model(n,m,xL,
                 f,∇f!,∇²f!,
                 c!,∇c!,∇²cy!,
-                cI_idx=cI_idx,cA_idx=cA_idx)
+                cI_idx=cI_idx,
+                cA_idx=cA_idx)
 
 options = Options{Float64}(
                         linear_solve_type=:symmetric,
