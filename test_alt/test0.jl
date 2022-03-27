@@ -3,13 +3,13 @@ Pkg.activate(joinpath(@__DIR__, ".."))
 using NonConvexSolver 
 
 num_variables = 50
-num_equality = 0#30
+num_equality = 30
 num_inequality = 3
 
 x0 = ones(num_variables)
 
 obj(x) = transpose(x) * x
-eq(x) = zeros(0)#x[1:30].^2 .- 1.2
+eq(x) = x[1:30].^2 .- 1.2
 ineq(x) = [x[1] + 10.0; x[2] + 5.0; 20.0 - x[5]]
 
 # solver

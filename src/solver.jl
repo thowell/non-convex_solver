@@ -58,10 +58,10 @@ function eval_constraints!(solver::Solver)
         jacobian=true,
         hessian=true)
 
-    c = [solver.problem.equality; solver.problem.inequality - solver.variables[solver.indices.slack_primal]]
-    c = solver.scaling_constraints * c
+    solver.c .= [solver.problem.equality + 1.0 / solver.penalty[1] * (solver.dual - solver.variables[solver.indices.equality]); solver.problem.inequality - solver.variables[solver.indices.slack_primal]]
+    solver.c .= solver.scaling_constraints * solver.c
    
-    solver.constraint_violation = norm(c, 1)
+    solver.constraint_violation = norm(solver.c, 1)
     return nothing
 end
 
@@ -129,9 +129,6 @@ function evaluate!(s::Solver)
     eval_lagrangian!(s)
     eval_barrier!(s)
     residual!(s.data, s.problem, s.indices, s.variables, s.central_path, s.penalty, s.dual)
-
-    s.constraint_violation = norm(s.data.residual[s.indices.constraints])
-
     return nothing
 end
 
@@ -188,10 +185,10 @@ function constraint_violation(x, solver::Solver)
         jacobian=true,
         hessian=true)
 
-    constraints = [solver.problem.equality; solver.problem.inequality - solver.variables[solver.indices.slack_primal]]
-    constraints = solver.scaling_constraints * constraints
+    solver.c_tmp .= [solver.problem.equality + 1.0 / solver.penalty[1] * (solver.dual - x[solver.indices.equality]); solver.problem.inequality - x[solver.indices.slack_primal]]
+    solver.c_tmp = solver.scaling_constraints * solver.c_tmp
 
-    return norm(constraints, 1)
+    return norm(solver.c_tmp, 1)
 end
 
 function merit(x, solver::Solver)
@@ -200,10 +197,7 @@ function merit(x, solver::Solver)
         constraint=true,
         jacobian=true,
         hessian=true)
-
-    constraints = [solver.problem.equality; solver.problem.inequality - solver.variables[solver.indices.slack_primal]]
-    constraints = solver.scaling_constraints * constraints
-
+        
     # TODO: scaling
     M = solver.methods.objective(x[solver.indices.variables]) 
     M -= solver.central_path[1] * sum(log.(x[solver.indices.slack_primal]))

@@ -13,7 +13,7 @@ function iterative_refinement!(step, solver::Solver)
 
     while (iteration < solver.options.max_iterative_refinement && residual_norm > solver.options.iterative_refinement_tolerance) || iteration < solver.options.min_iterative_refinement
        
-        # @show norm(solver.data.residual_error)
+        @show norm(solver.data.residual_error)
         norm(solver.data.residual_error) < solver.options.iterative_refinement_tolerance && return 
         # correction
         step_symmetric!(solver.data.step_correction, solver.data.residual_error, solver.data.matrix, 

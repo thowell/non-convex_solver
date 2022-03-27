@@ -24,7 +24,7 @@ function second_order_correction(s::Solver)
         constraint=true,
         jacobian=false,
         hessian=false)
-    s.c_soc .= [s.problem.equality; s.problem.inequality - s.candidate[s.indices.slack_primal]]
+    s.c_soc .= [s.problem.equality + 1.0 / solver.penalty[1] * (solver.dual - solver.candidate[s.indices.equality]); s.problem.inequality - s.candidate[s.indices.slack_primal]]
     s.c_soc .= s.scaling_constraints * s.c_soc
 
     s.c_soc .+= maximum_step_size * s.c
@@ -72,7 +72,7 @@ function second_order_correction(s::Solver)
                 constraint=true,
                 jacobian=false,
                 hessian=false)
-            s.c .= [s.problem.equality; s.problem.inequality - s.candidate[s.indices.slack_primal]]
+            s.c .= [s.problem.equality + 1.0 / solver.penalty[1] * (solver.dual - solver.candidate[s.indices.equality]); s.problem.inequality - s.candidate[s.indices.slack_primal]]
             s.c .= s.scaling_constraints * s.c
 
             s.c_soc .= s.step_size * s.c_soc + s.c
