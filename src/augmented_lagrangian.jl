@@ -1,10 +1,10 @@
 function dual_update!(s::Solver)
-    s.dual .+= s.penalty * s.xr
+    s.dual .+= s.penalty[1] * s.problem.equality
     return
 end
 
 function penalty_update!(s::Solver)
-    s.penalty = 1.0 / s.central_path
+    s.penalty[1] = 1.0 / s.central_path[1]
     return 
 end
 

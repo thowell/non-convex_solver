@@ -8,6 +8,10 @@ function line_search!(s::Solver)
     minimum_step_size!(s)  # update s.minimum_step_size
     maximum_step_size!(s)  # update s.maximum_step_size and s.step_size
     maximum_dual_step_size!(s)
+
+    @show s.maximum_step_size 
+    @show s.step_size 
+    @show s.dual_step_size
     
     # A-5.2 Compute the new trial point
     candidate_step!(s)  # update s.candidate
@@ -20,7 +24,7 @@ function line_search!(s::Solver)
             end
 
             # case 1
-            if (s.constraint_violation <= s.min_constraint_violation && switching_condition(s.dx, s))
+            if (s.constraint_violation <= s.min_constraint_violation && switching_condition(s.data.step[s.indices.primal], s))
                 if armijo(s)
                     status = true
                     break
@@ -67,7 +71,7 @@ Calculate the new candidate primal variables using the current step size and ste
 Evaluate the constraint norm and the merit objective at the new candidate.
 """
 function candidate_step!(s::Solver)
-    s.candidate .= s.x + s.step_size * s.dx
+    s.candidate[s.indices.primal] .= s.variables[s.indices.primal] + s.step_size * s.data.step[s.indices.primal]
     s.constraint_violation_candidate = constraint_violation(s.candidate, s)
     s.merit_candidate = merit(s.candidate, s)
     return nothing
@@ -79,7 +83,7 @@ end
 Compute the minimum step length (Eq. 23)
 """
 function minimum_step_size!(s::Solver)    
-    d = s.dx
+    d = s.data.step[s.indices.primal]
     θ = s.constraint_violation
     Mx = s.merit_gradient
     θmin = s.min_constraint_violation
@@ -108,9 +112,11 @@ Compute the maximum step length (Eq. 15)
 """
 function maximum_step_size!(s::Solver)
     s.maximum_step_size = 1.0
-    while !fraction_to_boundary_bounds(view(s.x,s.idx.xL),view(s.model.xL,s.idx.xL),view(s.x,s.idx.xU),view(s.model.xU,s.idx.xU),s.dxL,s.dxU,s.maximum_step_size,s.fraction_to_boundary)
+
+    while !fraction_to_boundary(s.variables[s.indices.slack_primal], s.data.step[s.indices.slack_primal], s.maximum_step_size, s.fraction_to_boundary)
         s.maximum_step_size *= s.options.scaling_step_size
     end
+    
     s.step_size = copy(s.maximum_step_size)
 
     return nothing
@@ -119,11 +125,8 @@ end
 # TODO: these can all use the same function, since it's the same algorithm
 function maximum_dual_step_size!(s::Solver)
     s.dual_step_size = 1.0
-    while !fraction_to_boundary(s.zL,s.dzL,s.dual_step_size,s.fraction_to_boundary)
-        s.dual_step_size *= s.options.scaling_step_size
-    end
 
-    while !fraction_to_boundary(s.zU,s.dzU,s.dual_step_size,s.fraction_to_boundary)
+    while !fraction_to_boundary(s.variables[s.indices.slack_dual],s.data.step[s.indices.slack_dual],s.dual_step_size,s.fraction_to_boundary)
         s.dual_step_size *= s.options.scaling_step_size
     end
 
@@ -162,7 +165,7 @@ function armijo(s::Solver)
     γa = s.options.armijo_tolerance
     α = s.step_size
     Mx = s.merit_gradient
-    d = s.dx
+    d = s.data.step[s.indices.primal]
     ϵ = s.options.machine_tolerance
 
     return (M_cand - M - 10.0 * ϵ * abs(M) <= γa * α * Mx' * d)

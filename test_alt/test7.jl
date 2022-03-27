@@ -1,5 +1,10 @@
+using Pkg 
+Pkg.activate(joinpath(@__DIR__, ".."))
+using NonConvexSolver 
+
 num_variables = 2
 num_equality = 2
+num_inequality = 0
 
 x0 = rand(num_variables)
 
@@ -8,19 +13,14 @@ eq(x) = [-(x[1] -1)^3 + x[2] - 1;
              -x[1] - x[2] + 2]
 ineq(x) = zeros(0) 
 
-# solver
+options = Options{Float64}(
+                max_residual_iterations=100,
+                residual_tolerance=1.0e-5,
+                equality_tolerance=1.0e-5,
+                verbose=true,
+                linear_solver=:QDLDL,
+                )
+
 methods = ProblemMethods(num_variables, obj, eq, ineq)
-solver = SolverAlt(methods, num_variables, num_equality, num_inequality)
-
-
-
-model = Model(n,m,xL,xU,f_func,c_func,cI_idx=ones(Bool,m),cA_idx=zeros(Bool,m))
-
-s = Solver(x0,model,options=options=Options{Float64}(linear_solve_type=:symmetric,
-                                                        residual_tolerance=1.0e-5,
-                                                        equality_tolerance=1.0e-5,
-                                                        verbose=true,
-                                                        linear_solver=:QDLDL,
-                                                        max_residual_iterations=500,
-                                                        ))
-@time solve!(s)
+solver = Solver(x0, methods, num_variables, num_equality, num_inequality, options=options)
+solve!(solver, x0)

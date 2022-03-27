@@ -1,39 +1,39 @@
-"""
-    iterative_refinement(d, s::Solver)
+function iterative_refinement!(step, solver::Solver)
+    # reset 
+    fill!(solver.data.step_correction, 0.0) 
+    fill!(solver.data.residual_error, 0.0)
+    iteration = 0 
 
-Use iterative refinement on the fullspace KKT system to improve the current step `d`.
-"""
-function iterative_refinement(d::Vector{T}, s::Solver) where T
-    s.d_copy .= d
-    iter = 0
-    s.res .= -s.h - s.H*d
+    # cache step (in case of failure)
+    step_copy = deepcopy(step)
 
-    res_norm = norm(s.res,Inf)
+    # residual error
+    solver.data.residual_error .= solver.data.residual - solver.data.matrix * step
+    residual_norm = norm(solver.data.residual, Inf)
 
-    while (iter < s.options.max_iterative_refinement && res_norm > s.options.iterative_refinement_tolerance) || iter < s.options.min_iterative_refinement
-        if s.options.linear_solve_type == :fullspace
-            s.Δ .= (s.H+Diagonal(s.regularization))\s.res
-        elseif s.options.linear_solve_type == :symmetric
-            s.res_xL .+= s.res_zL./(s.ΔxL .- s.dual_regularization)
-            s.res_xU .-= s.res_zU./(s.ΔxU .- s.dual_regularization)
+    while (iteration < solver.options.max_iterative_refinement && residual_norm > solver.options.iterative_refinement_tolerance) || iteration < solver.options.min_iterative_refinement
+       
+        # @show norm(solver.data.residual_error)
+        norm(solver.data.residual_error) < solver.options.iterative_refinement_tolerance && return 
+        # correction
+        step_symmetric!(solver.data.step_correction, solver.data.residual_error, solver.data.matrix, 
+            solver.data.step_symmetric, solver.data.residual_symmetric, solver.data.matrix_symmetric, 
+            solver.indices, solver.linear_solver)
+        
+        # update
+        step .+= solver.data.step_correction 
 
-            solve!(s.linear_solver,s.Δ_xy,Array(s.res_xy))
-            s.Δ_zL .= -s.σL.*s.Δ_xL + s.res_zL./(s.ΔxL .- s.dual_regularization)
-            s.Δ_zU .= s.σU.*s.Δ_xU + s.res_zU./(s.ΔxU .- s.dual_regularization)
-        end
+         # residual error
+        solver.data.residual_error .= solver.data.residual - solver.data.matrix * step
+        residual_norm = norm(solver.data.residual, Inf)
 
-        d .+= s.Δ
-        s.res .= -s.h - s.H*d
-
-        res_norm = norm(s.res,Inf)
-
-        iter += 1
+        iteration += 1
     end
 
-    if res_norm < s.options.iterative_refinement_tolerance
+    if residual_norm < solver.options.iterative_refinement_tolerance
         return true
     else
-        d .= s.d_copy
+        step .= step_copy
         return false
     end
 end

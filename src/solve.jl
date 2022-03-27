@@ -1,14 +1,23 @@
-function solve!(solver::Solver)
+function solve!(solver::Solver, x0)
+    # solver
+    s = solver
+
+    # initialize
+    initialize_primals!(s.variables, x0, s.indices)
+    initialize_duals!(s.variables, s.indices)
+    initialize_interior_point!(s.central_path, s.options)
+    initialize_augmented_lagrangian!(s.penalty, s.dual, s.options)
+
     # initial step
     evaluate!(s)
 
     # initialize filter
     push!(s.filter, (s.max_constraint_violation, Inf))
 
-    while tolerance(0.0, s) > s.options.residual_tolerance
-        while tolerance(s.central_path, s) > s.options.central_path_tolerance*s.central_path
+    while tolerance(0.0, 0.0, s) > s.options.residual_tolerance
+        while tolerance(s.central_path[1], s.penalty[1], s) > s.options.central_path_tolerance*s.central_path[1]
             search_direction!(s)
-    
+            
             if !line_search!(s)
                 if s.constraint_violation < s.options.residual_tolerance
                     status(s)
@@ -36,7 +45,7 @@ function solve!(solver::Solver)
 
         end
 
-        if tolerance(0.0,s) <= s.options.residual_tolerance && norm(s.xr, Inf) <= s.options.equality_tolerance
+        if tolerance(0.0, 0.0, s) <= s.options.residual_tolerance && norm(s.problem.equality, Inf) <= s.options.equality_tolerance
             break
         else
             central_path_update!(s)
@@ -67,11 +76,11 @@ function status(s::Solver)
         println(crayon"red bold underline", "\nSolve Summary")
         println(crayon"reset", "   status: complete")
         println("   iteration ($(s.outer_iteration),$(s.residual_iteration)):")
-        s.model.n < 5 &&  println("   x: $(s.x)")
-        println("   objective: $(get_f(s,s.x))")
+        s.dimensions.variables < 5 &&  println("   x: $(s.variables)")
+        println("   objective: $(s.methods.objective(s.variables))")
         println("   constraint_violation: $(s.constraint_violation), merit: $(s.merit)")
-        println("   tolerance: $(tolerance(0.0,s))")
+        println("   tolerance: $(tolerance(0.0, 0.0, s))")
         println("   norm(c,Inf): $(norm(s.c,Inf))")
-        s.model.mA > 0  && println("   norm(r,Inf): $(norm(s.xr,Inf))")
+        s.dimensions.equality > 0  && println("   norm(ce,Inf): $(norm(s.problem.equality,Inf))")
     end
 end

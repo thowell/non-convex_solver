@@ -1,39 +1,39 @@
-function bounds_mask(xL,xU,max_bound)
-    n = length(xL)
-    xL_bool = zeros(Bool,n)
-    xU_bool = zeros(Bool,n)
-    xLs_bool = zeros(Bool,n)
-    xUs_bool = zeros(Bool,n)
+# function bounds_mask(xL,xU,max_bound)
+#     n = length(xL)
+#     xL_bool = zeros(Bool,n)
+#     xU_bool = zeros(Bool,n)
+#     xLs_bool = zeros(Bool,n)
+#     xUs_bool = zeros(Bool,n)
 
-    for i = 1:n
-        # boolean bounds
-        if xL[i] < -1.0*max_bound
-            xL_bool[i] = 0
-        else
-            xL_bool[i] = 1
-        end
+#     for i = 1:n
+#         # boolean bounds
+#         if xL[i] < -1.0*max_bound
+#             xL_bool[i] = 0
+#         else
+#             xL_bool[i] = 1
+#         end
 
-        if xU[i] > max_bound
-            xU_bool[i] = 0
-        else
-            xU_bool[i] = 1
-        end
+#         if xU[i] > max_bound
+#             xU_bool[i] = 0
+#         else
+#             xU_bool[i] = 1
+#         end
 
-        # single bounds
-        if xL_bool[i] == 1 && xU_bool[i] == 0
-            xLs_bool[i] = 1
-        else
-            xLs_bool[i] = 0
-        end
+#         # single bounds
+#         if xL_bool[i] == 1 && xU_bool[i] == 0
+#             xLs_bool[i] = 1
+#         else
+#             xLs_bool[i] = 0
+#         end
 
-        if xL_bool[i] == 0 && xU_bool[i] == 1
-            xUs_bool[i] = 1
-        else
-            xUs_bool[i] = 0
-        end
-    end
-    return xL_bool,xU_bool,xLs_bool,xUs_bool
-end
+#         if xL_bool[i] == 0 && xU_bool[i] == 1
+#             xUs_bool[i] = 1
+#         else
+#             xUs_bool[i] = 0
+#         end
+#     end
+#     return xL_bool,xU_bool,xLs_bool,xUs_bool
+# end
 
 function relax_bounds!(xL,xU,xL_bool,xU_bool,n,ϵ)
    for i in (1:n)[xL_bool]

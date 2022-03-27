@@ -9,15 +9,23 @@ Returns `true` if the correction was successful and `false` otherwise.
 function second_order_correction(s::Solver)
     status = false
 
-    s.d_copy_2 .= s.d
+    step_copy = deepcopy(s.data.step)
     maximum_step_size = copy(s.maximum_step_size)
     
     s.soc_iteration = 1
     s.constraint_violation_correction = copy(s.constraint_violation)
 
     # Compute c_soc (Eq. 27)
-    constraints!(s.model, s.candidate)
-    scaled_constraints!(s.c_soc,s)
+    # eval_c!(s.model, s.candidate)
+    # get_c_scaled!(s.c_soc,s)
+
+    problem!(solver.problem, solver.methods, solver.indices, solver.candidate;
+        gradient=false,
+        constraint=true,
+        jacobian=false,
+        hessian=false)
+    s.c_soc .= [s.problem.equality; s.problem.inequality - s.candidate[s.indices.slack_primal]]
+    s.c_soc .= s.scaling_constraints * s.c_soc
 
     s.c_soc .+= maximum_step_size * s.c
 
@@ -33,7 +41,7 @@ function second_order_correction(s::Solver)
     while true
         if check_filter(s.constraint_violation_candidate,s.merit_candidate,s.filter)  # A-5.7
             # case 1
-            if (s.constraint_violation <= s.min_constraint_violation && switching_condition(view(s.d_copy_2, s.idx.x), s))  # A-5.8
+            if (s.constraint_violation <= s.min_constraint_violation && switching_condition(step_copy[s.indices.primal], s))  # A-5.8
                 if armijo(s)
                     status = true
                     break
@@ -56,8 +64,16 @@ function second_order_correction(s::Solver)
         else  # A-5.9 Next second-order correction
             s.soc_iteration += 1
 
-            constraints!(s.model,s.candidate)
-            scaled_constraints!(s.c,s)
+            # eval_c!(s.model,s.candidate)
+            # get_c_scaled!(s.c,s)
+
+            problem!(solver.problem, solver.methods, solver.indices, solver.candidate;
+                gradient=false,
+                constraint=true,
+                jacobian=false,
+                hessian=false)
+            s.c .= [s.problem.equality; s.problem.inequality - s.candidate[s.indices.slack_primal]]
+            s.c .= s.scaling_constraints * s.c
 
             s.c_soc .= s.step_size * s.c_soc + s.c
             s.constraint_violation_correction = s.constraint_violation_candidate
@@ -69,11 +85,11 @@ function second_order_correction(s::Solver)
         end
     end
 
-    s.d .= s.d_copy_2
+    s.data.step .= step_copy
     return status
 end
 
 function search_direction_soc!(s::Solver)
-    s.hy .= s.c_soc
+    s.data.residual[s.indices.constraints] .= s.c_soc
     search_direction!(s)
 end

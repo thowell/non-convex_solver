@@ -1,10 +1,10 @@
-function problem!(data::ProblemData{T}, methods::ProblemMethods, idx::IndicesAlt, variables::Vector{T};
+function problem!(data::ProblemData{T}, methods::ProblemMethods, idx::Indices, variables::Vector{T};
     gradient=true,
     constraint=true,
     jacobian=true,
     hessian=true) where T
 
-    x = @views variables[idx.primal]
+    x = @views variables[idx.variables]
     y = @views variables[idx.equality]
     z = @views variables[idx.inequality]
 
@@ -23,7 +23,7 @@ function problem!(data::ProblemData{T}, methods::ProblemMethods, idx::IndicesAlt
     return
 end
 
-function matrix!(s_data::SolverData, p_data::ProblemData, idx::IndicesAlt, w, κ, ρ, λ)
+function matrix!(s_data::SolverData, p_data::ProblemData, idx::Indices, w, κ, ρ, λ, ϵp, ϵd)
     # slacks 
     s = @views w[idx.slack_primal]
     t = @views w[idx.slack_dual]
@@ -33,22 +33,17 @@ function matrix!(s_data::SolverData, p_data::ProblemData, idx::IndicesAlt, w, κ
     fill!(H, 0.0)
 
     # Hessian of Lagrangian
-    for i in idx.primal 
-        for j in idx.primal 
+    for i in idx.variables 
+        for j in idx.variables 
             H[i, j]  = p_data.objective_hessian[i, j] 
             H[i, j] += p_data.equality_hessian[i, j]
             H[i, j] += p_data.inequality_hessian[i, j]
-
-            if i == j 
-                # regularization 
-                # H[i, j] += 
-            end
         end
     end
 
     # equality Jacobian 
     for (i, ii) in enumerate(idx.equality) 
-        for (j, jj) in enumerate(idx.primal)
+        for (j, jj) in enumerate(idx.variables)
             H[ii, jj] = p_data.equality_jacobian[i, j]
             H[jj, ii] = p_data.equality_jacobian[i, j]
         end
@@ -61,7 +56,7 @@ function matrix!(s_data::SolverData, p_data::ProblemData, idx::IndicesAlt, w, κ
 
     # inequality Jacobian 
     for (i, ii) in enumerate(idx.inequality) 
-        for (j, jj) in enumerate(idx.primal)
+        for (j, jj) in enumerate(idx.variables)
             H[ii, jj] = p_data.inequality_jacobian[i, j]
             H[jj, ii] = p_data.inequality_jacobian[i, j]
         end
@@ -92,62 +87,75 @@ function matrix!(s_data::SolverData, p_data::ProblemData, idx::IndicesAlt, w, κ
         H[ii, ii] = s[i] 
     end
 
+    # regularization 
+    for i in idx.variables 
+        H[i, i] += ϵp 
+    end
+
+    for i in idx.slack_primal 
+        H[i, i] += ϵp
+    end 
+
+    for i in idx.equality 
+        H[i, i] -= ϵd
+    end
+
+    for i in idx.inequality 
+        H[i, i] -= ϵd 
+    end
+
+    for i in idx.slack_dual 
+        H[i, i] -= ϵd 
+    end 
+
     return
 end
 
-function matrix_symmetric!(s_data::SolverData, p_data::ProblemData, idx::IndicesAlt, w, κ, ρ, λ)
-    # slacks 
-    s = @views w[idx.slack_primal]
-    t = @views w[idx.slack_dual]
-
+function matrix_symmetric!(matrix_symmetric, matrix, idx::Indices)
     # reset
-    H = s_data.matrix_symmetric
-    fill!(H, 0.0)
+    fill!(matrix_symmetric, 0.0)
 
     # Hessian of Lagrangian
-    for i in idx.primal 
-        for j in idx.primal 
-            H[i, j]  = p_data.objective_hessian[i, j] 
-            H[i, j] += p_data.equality_hessian[i, j]
-            H[i, j] += p_data.inequality_hessian[i, j]
-
-            if i == j 
-                # regularization 
-                # H[i, j] += 
-            end
+    for i in idx.variables 
+        for j in idx.variables 
+            matrix_symmetric[i, j] = matrix[i, j]
         end
     end
 
     # equality Jacobian 
     for (i, ii) in enumerate(idx.equality) 
-        for (j, jj) in enumerate(idx.primal)
-            H[ii, jj] = p_data.equality_jacobian[i, j]
-            H[jj, ii] = p_data.equality_jacobian[i, j]
+        for (j, jj) in enumerate(idx.variables)
+            matrix_symmetric[idx.symmetric_equality[i], jj] = matrix[ii, jj]
+            matrix_symmetric[jj, idx.symmetric_equality[i]] = matrix[ii, jj]
         end
     end
 
     # augmented Lagrangian 
     for (i, ii) in enumerate(idx.equality)
-        H[ii, ii] -= 1.0 / ρ[1]
+        matrix_symmetric[idx.symmetric_equality[i], idx.symmetric_equality[i]] = matrix[ii, ii]
     end
 
     # inequality Jacobian 
     for (i, ii) in enumerate(idx.inequality) 
-        for (j, jj) in enumerate(idx.primal)
-            H[ii, jj] = p_data.inequality_jacobian[i, j]
-            H[jj, ii] = p_data.inequality_jacobian[i, j]
+        for (j, jj) in enumerate(idx.variables)
+            matrix_symmetric[idx.symmetric_inequality[i], jj] = matrix[ii, jj]
+            matrix_symmetric[jj, idx.symmetric_inequality[i]] = matrix[ii, jj]
         end
     end
 
-    # -T \ S block 
-    for (i, ii) in enumerate(idx.inequality)    
-        H[ii, ii] -= 1.0 * s[i] / t[i]
+    # -T \ S block | -(T + S̄P) \ S̄ + D
+    for (i, ii) in enumerate(idx.slack_dual)
+        S̄i = matrix[ii, ii] 
+        Ti = matrix[ii, idx.slack_primal[i]]
+        Pi = matrix[idx.slack_primal[i], idx.slack_primal[i]] 
+        Di = matrix[idx.inequality[i], idx.inequality[i]]
+        matrix_symmetric[idx.symmetric_inequality[i], idx.symmetric_inequality[i]] += -1.0 * S̄i / (Ti + S̄i * Pi) + Di
     end
-
+   
     return
 end
 
-function residual!(s_data::SolverData, p_data::ProblemData, idx::IndicesAlt, w, κ, ρ, λ)
+function residual!(s_data::SolverData, p_data::ProblemData, idx::Indices, w, κ, ρ, λ)
     # duals 
     y = @views w[idx.equality]
     z = @views w[idx.inequality]
@@ -163,9 +171,9 @@ function residual!(s_data::SolverData, p_data::ProblemData, idx::IndicesAlt, w, 
     fill!(r, 0.0)
 
     # gradient of Lagrangian 
-    r[idx.primal] = p_data.objective_gradient 
+    r[idx.variables] = p_data.objective_gradient 
 
-    for (i, ii) in enumerate(idx.primal)
+    for (i, ii) in enumerate(idx.variables)
         cy = 0.0
         for j = 1:num_equality 
             cy += p_data.equality_jacobian[j, i] * y[j]
@@ -204,37 +212,26 @@ function residual!(s_data::SolverData, p_data::ProblemData, idx::IndicesAlt, w, 
     return 
 end
 
-function residual_symmetric!(s_data::SolverData, p_data::ProblemData, idx::IndicesAlt, w, κ, ρ, λ;
-    mode=:recompute)
-
-    # duals 
-    y = @views w[idx.equality]
-    z = @views w[idx.inequality]
-
-    # slacks 
-    s = @views w[idx.slack_primal]
-    t = @views w[idx.slack_dual]
-
+function residual_symmetric!(residual_symmetric, residual, matrix, idx::Indices)
     # reset
-    r = s_data.residual_symmetric 
-    fill!(r, 0.0)
+    fill!(residual_symmetric, 0.0)
 
-    if mode == :recompute
-        residual!(s_data, p_data, idx, w, κ, ρ, λ)
-    end
+    rx = @views residual[idx.variables]
+    rs = @views residual[idx.slack_primal]
+    ry = @views residual[idx.equality]
+    rz = @views residual[idx.inequality]
+    rt = @views residual[idx.slack_dual]
 
-    rp = @views s_data.residual[idx.primal]
-    re = @views s_data.residual[idx.equality]
-    ri = @views s_data.residual[idx.inequality]
-
-    r[idx.primal] = rp 
-    r[idx.equality] = re 
-    r[idx.inequality] = ri
-
+    residual_symmetric[idx.variables] = rx
+    residual_symmetric[idx.symmetric_equality] = ry
+    residual_symmetric[idx.symmetric_inequality] = rz
+ 
     # inequality correction
-    for (i, ii) in enumerate(idx.inequality) 
-        r[ii] -= s[i] * z[i] / t[i] 
-        r[ii] -= κ[1] / t[i]
+    for (i, ii) in enumerate(idx.slack_dual) 
+        S̄i = matrix[ii, ii] 
+        Ti = matrix[ii, idx.slack_primal[i]]
+        Pi = matrix[idx.slack_primal[i], idx.slack_primal[i]] 
+        residual_symmetric[idx.symmetric_inequality[i]] += (rt[i] + S̄i * rs[i]) / (Ti + S̄i * Pi)
     end
 
     return 
@@ -246,36 +243,42 @@ function step!(step, data::SolverData)
     return 
 end
 
-function step_symmetric!(step, solver::LinearSolver, data::SolverData, idx::IndicesAlt, w, κ)
+function step_symmetric!(step, residual, matrix, step_symmetric, residual_symmetric, matrix_symmetric, idx::Indices, solver::LinearSolver)
     # reset
     fill!(step, 0.0) 
-    fill!(data.step_symmetric, 0.0)
+    fill!(step_symmetric, 0.0)
     
     # solve symmetric system
-    linear_solve!(solver, data.step_symmetric, data.matrix_symmetric, data.residual_symmetric)
-    # data.step_symmetric .= data.matrix_symmetric \ data.residual_symmetric 
+    residual_symmetric!(residual_symmetric, residual, matrix, idx) 
+    matrix_symmetric!(matrix_symmetric, matrix, idx) 
+    # linear_solve!(solver, step_symmetric, matrix_symmetric, residual_symmetric)
+    factorize!(solver, matrix_symmetric)
+    solve!(solver, step_symmetric, residual_symmetric)
     
     # set Δx, Δy, Δz
-    Δx = @views data.step_symmetric[idx.primal]
-    Δy = @views data.step_symmetric[idx.equality]
-    Δz = @views data.step_symmetric[idx.inequality]
-    step[idx.primal] = Δx
+    Δx = @views step_symmetric[idx.variables]
+    Δy = @views step_symmetric[idx.symmetric_equality]
+    Δz = @views step_symmetric[idx.symmetric_inequality]
+    step[idx.variables] = Δx
     step[idx.equality] = Δy
     step[idx.inequality] = Δz
 
     # recover Δs, Δt
-    z = @views w[idx.inequality]
-    s = @views w[idx.slack_primal]
-    t = @views w[idx.slack_dual]
     Δs = @views step[idx.slack_primal]
     Δt = @views step[idx.slack_dual]
-    num_inequality = length(z) 
+    rs = @views residual[idx.slack_primal] 
+    rt = @views residual[idx.slack_dual]
+    num_inequality = length(idx.inequality) 
 
-    # Δt = z + t - Δz
-    # Δs = s - κ[1] ./ t - s.* Δt ./ t
+    # Δt = z + t - Δz | -rs - Δz
+    # Δs = s - κ[1] ./ t - s.* Δt ./ t | rt / t + rs * s / t + Δz  * s / t
     for i = 1:num_inequality
-        Δt[i] = z[i] + t[i] - Δz[i]
-        Δs[i] = s[i] - κ[1] / t[i] - s[i] * Δt[i] / t[i]
+        S̄i = matrix[idx.slack_dual[i], idx.slack_dual[i]]
+        Ti = matrix[idx.slack_dual[i], idx.slack_primal[i]]
+        Pi = matrix[idx.slack_primal[i], idx.slack_primal[i]] 
+        Di = matrix[idx.inequality[i], idx.inequality[i]]
+        Δs[i] = (rt[i] + S̄i * (rs[i] + Δz[i])) ./ (Ti + S̄i * Pi)
+        Δt[i] = Pi * Δs[i] -rs[i] - Δz[i]
     end
     
     return 

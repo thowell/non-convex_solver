@@ -22,19 +22,19 @@ function factorize!(ls::QDLDLSolver,H)
 end
 
 function compute_inertia!(ls::QDLDLSolver,s)
-    ls.inertia.positive = count(ls.F.workspace.D .<= 0.0)
-    ls.inertia.negative = ls.F.workspace.positive_inertia.x
+    ls.inertia.positive = ls.F.workspace.positive_inertia.x
+    ls.inertia.negative = count(ls.F.workspace.D .<= 0.0)
     ls.inertia.zero = count(ls.F.workspace.D .== 0.0)
     return nothing
 end
 
 function initialize_regularization!(::QDLDLSolver,s)
     s.primal_regularization = 1.0e-7
-    s.dual_regularization = 1.0e-7
+    s.dual_regularization   = 1.0e-7
     return nothing
 end
 
-function solve!(ls::QDLDLSolver,d,h)
-    d .= QDLDL.solve(ls.F,h)
+function solve!(ls::QDLDLSolver, d, h)
+    d .= QDLDL.solve(ls.F, h)
     return nothing
 end

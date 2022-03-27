@@ -1,5 +1,3 @@
-using Symbolics
-
 function generate_gradients(func::Function, num_variables::Int, mode::Symbol)
     @variables x[1:num_variables]
 

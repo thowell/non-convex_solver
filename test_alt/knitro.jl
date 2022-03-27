@@ -16,24 +16,19 @@ eq(x) = [
         ]
 ineq(x) = x
 
-# solver
-methods = ProblemMethods(num_variables, obj, eq, ineq)
-solver = SolverAlt(methods, num_variables, num_equality, num_inequality)
-
-
 options = Options{Float64}(
-                        linear_solve_type=:symmetric,
-                        max_residual_iterations=1000,
-                        residual_tolerance=1.0e-5,
-                        equality_tolerance=1.0e-5,
-                        verbose=true,
-                        linear_solver=:QDLDL,
-                        )
+                max_residual_iterations=100,
+                residual_tolerance=1.0e-5,
+                equality_tolerance=1.0e-5,
+                verbose=true,
+                linear_solver=:QDLDL,
+                )
 
-s = Solver(x0,model,options=options)
-@time solve!(s)
+methods = ProblemMethods(num_variables, obj, eq, ineq)
+solver = Solver(x0, methods, num_variables, num_equality, num_inequality, options=options)
+solve!(solver, x0)
 
-x = s.x
+x = solver.variables
 x[3]
 x[6]
 

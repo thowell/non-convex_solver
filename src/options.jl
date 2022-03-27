@@ -3,8 +3,6 @@ Base.@kwdef mutable struct Options{T}
     residual_tolerance::T = 1.0e-8
     equality_tolerance::T = 1.0e-8
     max_residual_iterations::Int = 100
-    zL0::T = 1.0
-    zU0::T = 1.0
     slack_primal_initial::T=1.0 
     slack_dual_initial::T=1.0
     central_path_initial::T = 0.1
@@ -35,9 +33,6 @@ Base.@kwdef mutable struct Options{T}
     scaling_regularization_last::T = 1.0 / 3.0
     exponent_dual_regularization::T = 0.25
 
-    bound_tolerance1::T = 1.0e-2
-    bound_tolerance2::T = 1.0e-2
-
     barrier_tolerance::T = 1.0e-4
 
     linear_solve_type::Symbol = :symmetric # :symmetric, :fullspace, custom
@@ -52,7 +47,6 @@ Base.@kwdef mutable struct Options{T}
 
     scaling::Bool = true
     scaling_tolerance::T = 100.
-
 
     machine_tolerance::T = 1.0e-16
 end
