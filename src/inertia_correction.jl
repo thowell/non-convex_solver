@@ -67,7 +67,6 @@ function factorize_regularized_matrix!(s::Solver)
     s.regularization[s.idx.y] .= -s.dual_regularization
 
     s.σL .= s.zL./(s.ΔxL .- s.dual_regularization)
-    s.σU .= s.zU./(s.ΔxU .- s.dual_regularization)
 
     kkt_hessian_symmetric!(s)
     factorize!(s.linear_solver, s.H_sym + Diagonal(view(s.regularization, s.idx.xy)))

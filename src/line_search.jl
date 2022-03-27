@@ -108,7 +108,7 @@ Compute the maximum step length (Eq. 15)
 """
 function maximum_step_size!(s::Solver)
     s.maximum_step_size = 1.0
-    while !fraction_to_boundary_bounds(view(s.x,s.idx.xL),view(s.model.xL,s.idx.xL),view(s.x,s.idx.xU),view(s.model.xU,s.idx.xU),s.dxL,s.dxU,s.maximum_step_size,s.fraction_to_boundary)
+    while !fraction_to_boundary_bounds(view(s.x,s.idx.xL),view(s.model.xL,s.idx.xL),s.dxL,s.maximum_step_size,s.fraction_to_boundary)
         s.maximum_step_size *= s.options.scaling_step_size
     end
     s.step_size = copy(s.maximum_step_size)
@@ -120,10 +120,6 @@ end
 function maximum_dual_step_size!(s::Solver)
     s.dual_step_size = 1.0
     while !fraction_to_boundary(s.zL,s.dzL,s.dual_step_size,s.fraction_to_boundary)
-        s.dual_step_size *= s.options.scaling_step_size
-    end
-
-    while !fraction_to_boundary(s.zU,s.dzU,s.dual_step_size,s.fraction_to_boundary)
         s.dual_step_size *= s.options.scaling_step_size
     end
 

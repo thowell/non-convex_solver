@@ -9,10 +9,7 @@ struct H_fullspace_views{T}
     yx::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
     xLzL::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
     zLxL::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
-    xUzU::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
-    zUxU::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
     zLzL::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
-    zUzU::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
 end
 
 function H_fullspace_views(H::SparseMatrixCSC,idx::Indices)
@@ -21,12 +18,9 @@ function H_fullspace_views(H::SparseMatrixCSC,idx::Indices)
     yx = view(H,idx.y,idx.x)
     xLzL = view(H,CartesianIndex.(idx.xL,idx.zL))
     zLxL = view(H,CartesianIndex.(idx.zL,idx.xL))
-    xUzU = view(H,CartesianIndex.(idx.xU,idx.zU))
-    zUxU = view(H,CartesianIndex.(idx.zU,idx.xU))
     zLzL = view(H,CartesianIndex.(idx.zL,idx.zL))
-    zUzU = view(H,CartesianIndex.(idx.zU,idx.zU))
 
-    H_fullspace_views(xx,xy,yx,xLzL,zLxL,xUzU,zUxU,zLzL,zUzU)
+    H_fullspace_views(xx,xy,yx,xLzL,zLxL,zLzL)
 end
 
 """
@@ -37,7 +31,6 @@ Views into the symmetric KKT matrix
 struct H_symmetric_views{T}
     xx::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
     xLxL::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
-    xUxU::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
     xy::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
     yx::SubArray{T,2,SparseMatrixCSC{T,Int},Tuple{UnitRange{Int},UnitRange{Int}},false}
     yy::SubArray{T,1,SparseMatrixCSC{T,Int},Tuple{Array{CartesianIndex{2},1}},false}
@@ -46,12 +39,11 @@ end
 function H_symmetric_views(H::SparseMatrixCSC,idx::Indices)
     xx = view(H,idx.x,idx.x)
     xLxL = view(H,CartesianIndex.(idx.xL,idx.xL))
-    xUxU = view(H,CartesianIndex.(idx.xU,idx.xU))
     xy = view(H,idx.x,idx.y)
     yx = view(H,idx.y,idx.x)
     yy = view(H,CartesianIndex.(idx.y,idx.y))
 
-    H_symmetric_views(xx,xLxL,xUxU,xy,yx,yy)
+    H_symmetric_views(xx,xLxL,xy,yx,yy)
 end
 
 """

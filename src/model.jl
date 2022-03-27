@@ -19,15 +19,11 @@ mutable struct Model{T} <: AbstractModel
 
     # primal bounds
     xL::Vector{T}
-    xU::Vector{T}
 
     xL_bool::Vector{Bool}
-    xU_bool::Vector{Bool}
     xLs_bool::Vector{Bool}
-    xUs_bool::Vector{Bool}
 
     nL::Int
-    nU::Int
 
     # objective
     f_func::Function
@@ -56,13 +52,13 @@ mutable struct Model{T} <: AbstractModel
     info::AbstractModelInfo
 end
 
-function Model(n,m,xL,xU,f_func,c_func;cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m))
+function Model(n,m,xL,f_func,c_func;cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m))
     f, ∇f!, ∇²f! = objective_functions(f_func)
     c!, ∇c!, ∇²cy! = constraint_functions(c_func)
-    Model(n,m,xL,xU,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
+    Model(n,m,xL,f,∇f!,∇²f!,c!,∇c!,∇²cy!,cI_idx=cI_idx,cA_idx=cA_idx)
 end
 
-function Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cy_func!;
+function Model(n,m,xL,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²cy_func!;
         cI_idx=zeros(Bool,m),cA_idx=ones(Bool,m),max_bound=1.0e8)
 
     mI = convert(Int,sum(cI_idx))
@@ -70,10 +66,9 @@ function Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²
     mE = convert(Int,sum(cE_idx))
     mA = convert(Int,sum(cA_idx))
 
-    xL_bool, xU_bool, xLs_bool, xUs_bool = bounds_mask(xL,xU,max_bound)
+    xL_bool, xLs_bool = bounds_mask(xL,max_bound)
 
     nL = convert(Int,sum(xL_bool))
-    nU = convert(Int,sum(xU_bool))
 
     # data
     ∇f = zeros(n)
@@ -88,7 +83,7 @@ function Model(n,m,xL,xU,f_func,∇f_func!,∇²f_func!,c_func!,∇c_func!,∇²
     info = EmptyModelInfo()
 
     Model(n,m,mI,mE,mA,
-          xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
+          xL,xL_bool,xLs_bool,nL,
           f_func,∇f_func!,∇²f_func!,
           c_func!,∇c_func!,∇²cy_func!,
           cI_idx,cE_idx,cA_idx,
@@ -217,24 +212,19 @@ end
 function slack_model(model::Model;max_bound=1.0e8)
     # slack bounds
     xL_slack = [zeros(model.mI);-Inf*ones(model.mA)]
-    xU_slack = Inf*ones(model.mI+model.mA)
-    xL_bool_slack, xU_bool_slack, xLs_bool_slack, xUs_bool_slack = bounds_mask(xL_slack,xU_slack,max_bound)
+    xL_bool_slack, xLs_bool_slack = bounds_mask(xL_slack,max_bound)
 
     xL = [model.xL;xL_slack]
-    xU = [model.xU;xU_slack]
 
     xL_bool = [model.xL_bool;xL_bool_slack]
-    xU_bool = [model.xU_bool;xU_bool_slack]
 
     xLs_bool = [model.xLs_bool;xLs_bool_slack]
-    xUs_bool = [model.xUs_bool;xUs_bool_slack]
 
     # dimensions
     n = model.n + model.mI + model.mA
     m = model.m
 
     nL = convert(Int,sum(xL_bool))
-    nU = convert(Int,sum(xU_bool))
 
     # modified constraint functions
     function f_func(x,model)
@@ -286,7 +276,7 @@ function slack_model(model::Model;max_bound=1.0e8)
     info = SlackModelInfo(model)
 
     Model(n,m,model.mI,model.mE,model.mA,
-          xL,xU,xL_bool,xU_bool,xLs_bool,xUs_bool,nL,nU,
+          xL,xL_bool,xLs_bool,nL,
           f_func,∇f_func!,∇²f_func!,
           c_func!,∇c_func!,∇²cy_func!,
           model.cI_idx,model.cE_idx,model.cA_idx,

@@ -15,11 +15,9 @@ function iterative_refinement(d::Vector{T}, s::Solver) where T
             s.Δ .= (s.H+Diagonal(s.regularization))\s.res
         elseif s.options.linear_solve_type == :symmetric
             s.res_xL .+= s.res_zL./(s.ΔxL .- s.dual_regularization)
-            s.res_xU .-= s.res_zU./(s.ΔxU .- s.dual_regularization)
 
             solve!(s.linear_solver,s.Δ_xy,Array(s.res_xy))
             s.Δ_zL .= -s.σL.*s.Δ_xL + s.res_zL./(s.ΔxL .- s.dual_regularization)
-            s.Δ_zU .= s.σU.*s.Δ_xU + s.res_zU./(s.ΔxU .- s.dual_regularization)
         end
 
         d .+= s.Δ

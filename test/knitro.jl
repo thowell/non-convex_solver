@@ -5,7 +5,6 @@ x0 = zeros(n)
 
 # xL = zeros(n)
 xL = -Inf * ones(n)
-xU = Inf*ones(n)
 
 f_func(x) = (x[1] - 5)^2 + (2*x[2] + 1)^2
 c_func(x) = [2*(x[2] - 1) - 1.5*x[2] + x[3] - 0.5*x[4] + x[5];
@@ -25,7 +24,7 @@ cA_idx = [ones(Bool,7); zeros(Bool,n)]
 # cA_idx[5:end] .= 1
 # cA_idx = ones(Bool,m)
 
-model = Model(n,m,xL,xU,
+model = Model(n,m,xL,
                 f,∇f!,∇²f!,
                 c!,∇c!,∇²cy!,
                 cI_idx=cI_idx,cA_idx=cA_idx)
