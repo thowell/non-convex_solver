@@ -20,3 +20,5 @@ s = Solver(x0,model,options=options=Options{Float64}(linear_solve_type=:symmetri
                                                         max_residual_iterations=500,
                                                         ))
 @time solve!(s)
+
+## 

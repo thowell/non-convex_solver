@@ -5,12 +5,12 @@ Stores useful indices into the primal-dual vector `[x; y]` where `x` is the vect
 of `n` primal variables and `y` is the vector of `m` dual variables.
 """
 struct Indices
-    x::UnitRange{Int}    # primal variables
+    x::UnitRange{Int}    
     r::UnitRange{Int}
     s::UnitRange{Int}
-    xL::Vector{Int}      # set of lower bounds on primals
-    xLs::Vector{Int}     # set of lower bounds on slacks
-    y::UnitRange{Int}    # dual variables
+    xL::Vector{Int}      
+    xLs::Vector{Int}     
+    y::UnitRange{Int}    
     yI::Vector{Int}
     yE::Vector{Int}
     yA::Vector{Int}

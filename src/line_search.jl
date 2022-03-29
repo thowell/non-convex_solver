@@ -119,7 +119,7 @@ end
 # TODO: these can all use the same function, since it's the same algorithm
 function maximum_dual_step_size!(s::Solver)
     s.dual_step_size = 1.0
-    while !fraction_to_boundary(s.zL,s.dzL,s.dual_step_size,s.fraction_to_boundary)
+    while !fraction_to_boundary_bounds(s.zL,view(s.model.xL,s.idx.xL),s.dzL,s.dual_step_size,s.fraction_to_boundary)
         s.dual_step_size *= s.options.scaling_step_size
     end
 

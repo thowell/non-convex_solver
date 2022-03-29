@@ -22,3 +22,4 @@ options = Options{Float64}(
 
 s = Solver(x0,model,options=options)
 @time solve!(s)
+

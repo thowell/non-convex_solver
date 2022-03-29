@@ -39,6 +39,6 @@ Relax the bound constraint `x_bnd` by ϵ, where `x_bnd` is a scalar. `bnd_type` 
 """
 function relax_bound(x_bnd, ϵ, bnd_type)
     if bnd_type == :L
-        return x_bnd - ϵ*max(1.0, abs(x_bnd))
+        return x_bnd - ϵ * max(1.0, abs(x_bnd))
     end
 end

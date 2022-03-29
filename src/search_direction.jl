@@ -14,7 +14,7 @@ function kkt_hessian_fullspace!(s::Solver)
     update!(s.Hv.xy,get_∇c(s.model)')
     update!(s.Hv.yx,get_∇c(s.model))
     update!(s.Hv.xLzL,-1.0)
-    update!(s.Hv.zLxL,s.zL)
+    update!(s.Hv.zLxL,s.ΔzL)
     update!(s.Hv.zLzL,s.ΔxL)
     return nothing
 end
@@ -22,7 +22,7 @@ end
 function kkt_gradient_fullspace!(s::Solver)
     s.h[s.idx.x] = s.∇L
     s.h[s.idx.y] = s.c
-    s.h[s.idx.zL] = s.zL.*s.ΔxL .- s.central_path
+    s.h[s.idx.zL] = s.ΔzL.*s.ΔxL .- s.central_path
     return nothing
 end
 
@@ -62,7 +62,7 @@ function search_direction_symmetric!(s::Solver)
 
     inertia_correction!(s)
     solve!(s.linear_solver,s.dxy,-s.h_sym)
-    s.dzL .= -s.σL.*s.dxL - s.zL + s.central_path./(s.ΔxL .- s.dual_regularization)
+    s.dzL .= -s.σL.*s.dxL - s.ΔzL + s.central_path./(s.ΔxL .- s.dual_regularization)
 
     if s.options.iterative_refinement
         kkt_hessian_fullspace!(s)

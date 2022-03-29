@@ -11,6 +11,7 @@ mutable struct Solver{T}
     candidate::Vector{T}
 
     ΔxL::Vector{T}                  # lower bounds error (nL,)
+    ΔzL::Vector{T}
 
     y::Vector{T}                    # dual variables (m,)
 
@@ -137,6 +138,8 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
     candidate = zeros(n)
 
     ΔxL = zeros(nL)
+    ΔzL = zeros(nL)
+
 
     options.relax_bnds && relax_bounds!(xL,xL_bool,n,options.residual_tolerance)
 
@@ -250,7 +253,7 @@ function Solver(x0,model::AbstractModel,model_opt::AbstractModel;options=Options
     Solver(model,model_opt,
            x,xl,xx,xs,xr,
            candidate,
-           ΔxL,
+           ΔxL, ΔzL,
            y,
            zL,σL,
            merit,merit_candidate,merit_gradient,
@@ -284,13 +287,13 @@ end
 
 Evaluate the optimality error.
 """
-function tolerance(zL,ΔxL,c,∇L,central_path)
+function tolerance(ΔzL,ΔxL,c,∇L,central_path)
     return max(norm(∇L,Inf),
                norm(c,Inf),
-               norm(ΔxL.*zL .- central_path,Inf))
+               norm(ΔxL.*ΔzL .- central_path,Inf))
 end
 
-tolerance(central_path,s::Solver) = tolerance(s.zL,s.ΔxL,s.c,s.∇L,central_path)
+tolerance(central_path,s::Solver) = tolerance(s.ΔzL,s.ΔxL,s.c,s.∇L,central_path)
 
 """
     bounds!(s::Solver)
@@ -299,7 +302,8 @@ Evaluate the bound constraints and their sigma values
 """
 function bounds!(s::Solver)
     s.ΔxL .= s.xl - view(s.model.xL,s.idx.xL)
-    s.σL .= s.zL./(s.ΔxL .- s.dual_regularization)
+    s.ΔzL .= s.zL - view(s.model.xL,s.idx.xL)
+    s.σL .= s.ΔzL./(s.ΔxL .- s.dual_regularization)
     return nothing
 end
 
@@ -350,7 +354,7 @@ Evaluate the first and second derivatives of the Lagrangian
 function eval_lagrangian!(s::Solver)
     s.∇L .= get_∇f(s.model)
     s.∇L .+= get_∇c(s.model)'*s.y
-    s.∇L[s.idx.xL] -= s.zL
+    s.∇L[s.idx.xL] -= s.ΔzL
     s.model.mA > 0 && (s.∇L[s.idx.r] += s.dual + s.penalty*view(s.x,s.idx.r))
 
     s.∇²L .= get_∇²f(s.model) + get_∇²cy(s.model)
