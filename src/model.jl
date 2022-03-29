@@ -211,7 +211,7 @@ end
 
 function slack_model(model::Model;max_bound=1.0e8)
     # slack bounds
-    xL_slack = [zeros(model.mI);-Inf*ones(model.mA)]
+    xL_slack = [-Inf*ones(model.mA); zeros(model.mI);]
     xL_bool_slack, xLs_bool_slack = bounds_mask(xL_slack,max_bound)
 
     xL = [model.xL;xL_slack]
@@ -221,7 +221,7 @@ function slack_model(model::Model;max_bound=1.0e8)
     xLs_bool = [model.xLs_bool;xLs_bool_slack]
 
     # dimensions
-    n = model.n + model.mI + model.mA
+    n = model.n + model.mA + model.mI
     m = model.m
 
     nL = convert(Int,sum(xL_bool))
@@ -246,15 +246,15 @@ function slack_model(model::Model;max_bound=1.0e8)
     function c_func!(c,x,model)
         _model = model.info.model
         _model.c_func!(view(c,1:_model.m),view(x,1:_model.n),_model)
-        c[(1:_model.m)[_model.cI_idx]] .-= view(x,_model.n .+ (1:_model.mI))
-        c[(1:_model.m)[_model.cA_idx]] .-= view(x,_model.n+_model.mI .+ (1:_model.mA))
+        c[(1:_model.m)[_model.cA_idx]] .-= view(x,_model.n .+ (1:_model.mA))
+        c[(1:_model.m)[_model.cI_idx]] .-= view(x,_model.n + _model.mA .+ (1:_model.mI))
         return nothing
     end
     function ∇c_func!(∇c,x,model)
         _model = model.info.model
         _model.∇c_func!(view(∇c,1:_model.m,1:_model.n),view(x,1:_model.n),_model)
-        ∇c[CartesianIndex.((1:_model.m)[_model.cI_idx],_model.n .+ (1:_model.mI))] .= -1.0
-        ∇c[CartesianIndex.((1:_model.m)[_model.cA_idx],_model.n+_model.mI .+ (1:_model.mA))] .= -1.0
+        ∇c[CartesianIndex.((1:_model.m)[_model.cA_idx],_model.n .+ (1:_model.mA))] .= -1.0
+        ∇c[CartesianIndex.((1:_model.m)[_model.cI_idx],_model.n + _model.mA .+ (1:_model.mI))] .= -1.0
         return nothing
     end
     function ∇²cy_func!(∇²cy,x,y,model)

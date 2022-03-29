@@ -507,9 +507,9 @@ function Solver(x0,model;options=Options{Float64}()) where T
 
         # initialize slacks
         eval_c!(model,x0)
-        s0 = get_c(model)[model.cI_idx]
         r0 = get_c(model)[model.cA_idx]
-        _x0 = [x0;s0;r0]
+        s0 = get_c(model)[model.cI_idx]
+        _x0 = [x0;r0;s0]
     else
         model_s = model
         _x0 = x0
